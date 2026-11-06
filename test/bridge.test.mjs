@@ -44,11 +44,35 @@ test("page runtime is self-contained and only displays a probe on Steam hosts", 
   assert.match(runtime, /prefers-reduced-motion/);
 });
 
+test("Windows launchers use the bundled executable and need no Node.js installation", async () => {
+  const launcher = await readFile(path.join(root, "scripts", "Start-AlaxeeSteamBridge.ps1"), "utf8");
+  const attach = await readFile(path.join(root, "scripts", "Attach-ToRunningSteam.ps1"), "utf8");
+  assert.match(launcher, /^[\x00-\x7F]*$/, "The PowerShell launcher must remain ASCII-only for Windows PowerShell 5.1.");
+  assert.match(attach, /^[\x00-\x7F]*$/, "The attach script must remain ASCII-only for Windows PowerShell 5.1.");
+  assert.ok(launcher.includes("AlaxeeSteamBridge.exe"));
+  assert.ok(attach.includes("AlaxeeSteamBridge.exe"));
+  assert.doesNotMatch(launcher, /Resolve-NodeExecutable|node\.exe|node src/);
+  assert.doesNotMatch(attach, /Resolve-NodeExecutable|node\.exe|node src/);
+  assert.ok(launcher.includes("-cef-enable-debugging"));
+  assert.match(launcher, /ArgumentList @\('-cef-enable-debugging'\)/);
+  assert.doesNotMatch(launcher, /ArgumentList[^\r\n]*(?:-dev|cef-disable-sandbox|gamepadui)/);
+  assert.ok(launcher.includes("Wait-SteamCdpLoopback"));
+});
+
+test("the Windows SEA entry point checks bundled assets and starts the bridge", async () => {
+  const entry = await readFile(path.join(root, "build", "sea-entry.mjs"), "utf8");
+  assert.ok(entry.includes('from "node:sea"'));
+  assert.ok(entry.includes("isSea()"));
+  assert.ok(entry.includes("--self-test"));
+  assert.ok(entry.includes('new URL("./src/page-runtime.js", import.meta.url)'));
+  assert.ok(entry.includes("runBridge({ signal: controller.signal })"));
+});
+
 test("all Windows PowerShell scripts are ASCII-only for Windows PowerShell 5.1", async () => {
   const scriptPaths = [
     "scripts/Assert-SteamCdpLoopback.ps1",
     "scripts/Attach-ToRunningSteam.ps1",
-    "scripts/Resolve-NodeExecutable.ps1",
+    "scripts/Build-WindowsPackage.ps1",
     "scripts/Start-AlaxeeSteamBridge.ps1"
   ];
   for (const relativePath of scriptPaths) {
@@ -56,23 +80,10 @@ test("all Windows PowerShell scripts are ASCII-only for Windows PowerShell 5.1",
     assert.match(script, /^[\x00-\x7F]*$/, relativePath + " must stay ASCII-only for Windows PowerShell 5.1.");
   }
 
-  const launcher = await readFile(path.join(root, "scripts", "Start-AlaxeeSteamBridge.ps1"), "utf8");
-  assert.ok(launcher.includes("Resolve-NodeExecutable"));
-  assert.ok(launcher.includes("-cef-enable-debugging"));
-  assert.match(launcher, /ArgumentList @\('-cef-enable-debugging'\)/);
-  assert.doesNotMatch(launcher, /ArgumentList[^\r\n]*(?:-dev|cef-disable-sandbox|gamepadui)/);
-  assert.ok(launcher.includes("Wait-SteamCdpLoopback"));
-
-  const attach = await readFile(path.join(root, "scripts", "Attach-ToRunningSteam.ps1"), "utf8");
-  assert.ok(attach.includes("Resolve-NodeExecutable"));
-  assert.match(attach, /& \$nodeExe \(Join-Path/);
-
-  const resolver = await readFile(path.join(root, "scripts", "Resolve-NodeExecutable.ps1"), "utf8");
-  assert.ok(resolver.includes("ALAXEE_NODE_EXE"));
-  assert.ok(resolver.includes("NVM_SYMLINK"));
-  assert.ok(resolver.includes("ProgramFiles(x86)"));
-  assert.ok(resolver.includes("GetEnvironmentVariable('Path', 'User')"));
-  assert.ok(resolver.includes("GetEnvironmentVariable('Path', 'Machine')"));
   const guard = await readFile(path.join(root, "scripts", "Assert-SteamCdpLoopback.ps1"), "utf8");
   assert.ok(guard.includes("$ws.DnsSafeHost"), "IPv6 loopback hostnames must be normalized without bracket parsing.");
+  const build = await readFile(path.join(root, "scripts", "Build-WindowsPackage.ps1"), "utf8");
+  assert.ok(build.includes("--build-sea"));
+  assert.ok(build.includes("vfsArchive"));
+  assert.ok(build.includes("--self-test"));
 });
