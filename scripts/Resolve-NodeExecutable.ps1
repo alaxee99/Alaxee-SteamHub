@@ -1,6 +1,10 @@
 function Resolve-NodeExecutable {
-    if (![string]::IsNullOrWhiteSpace($env:ALAXEE_NODE_EXE)) {
-        $explicitPath = [Environment]::ExpandEnvironmentVariables($env:ALAXEE_NODE_EXE.Trim('"'))
+    $configuredNodePath = $env:ALAXEE_NODE_EXE
+    if ([string]::IsNullOrWhiteSpace($configuredNodePath)) {
+        $configuredNodePath = [Environment]::GetEnvironmentVariable('ALAXEE_NODE_EXE', 'User')
+    }
+    if (![string]::IsNullOrWhiteSpace($configuredNodePath)) {
+        $explicitPath = [Environment]::ExpandEnvironmentVariables($configuredNodePath.Trim('"'))
         if (Test-Path -LiteralPath $explicitPath -PathType Leaf) {
             return (Resolve-Path -LiteralPath $explicitPath).Path
         }
