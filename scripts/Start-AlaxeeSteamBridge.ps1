@@ -1,6 +1,5 @@
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Assert-SteamCdpLoopback.ps1')
-. (Join-Path $PSScriptRoot 'Resolve-NodeExecutable.ps1')
 
 function Get-SteamInstallPath {
     $programFilesX86 = (Get-Item -Path 'Env:ProgramFiles(x86)' -ErrorAction SilentlyContinue).Value
@@ -20,16 +19,16 @@ function Get-SteamInstallPath {
     throw 'Steam installation was not found. Confirm that Steam is installed.'
 }
 
-Write-Host ''
-Write-Host 'ALAXEE Steam Standalone Bridge - Proof of Concept' -ForegroundColor Cyan
-Write-Host 'This build verifies page injection only. It does not run translation or third-party frameworks.' -ForegroundColor Yellow
-Write-Host ''
+$packageRoot = Split-Path -Parent $PSScriptRoot
+$bridgeExe = Join-Path $packageRoot 'AlaxeeSteamBridge.exe'
+if (!(Test-Path -LiteralPath $bridgeExe -PathType Leaf)) {
+    throw 'The bundled bridge executable is missing. Download and extract the ALAXEE SteamHub Windows x64 package, not the source-code ZIP.'
+}
 
-$nodeExe = Resolve-NodeExecutable
-$nodeVersion = (& $nodeExe -p 'process.versions.node').Trim()
-$major = [int]($nodeVersion.Split('.')[0])
-if ($major -lt 22) { throw "Node.js $nodeVersion is below the required version. Node.js 22+ is required." }
-Write-Host "Node.js: $nodeExe ($nodeVersion)" -ForegroundColor Green
+Write-Host ''
+Write-Host 'ALAXEE Steam Standalone Bridge' -ForegroundColor Cyan
+Write-Host 'The Node.js runtime and page injection assets are bundled in this executable.' -ForegroundColor Green
+Write-Host ''
 
 $steamProcess = Get-Process -Name 'steam' -ErrorAction SilentlyContinue
 if ($steamProcess) {
@@ -56,4 +55,7 @@ Write-Host 'Starting Steam. The bridge will connect only to 127.0.0.1:8080.' -Fo
 
 Start-Process -FilePath $steamExe -ArgumentList @('-cef-enable-debugging') -WorkingDirectory $steamPath
 Wait-SteamCdpLoopback -Port 8080 -TimeoutSeconds 180
-& $nodeExe (Join-Path $PSScriptRoot '..\src\bridge.mjs')
+& $bridgeExe
+if ($LASTEXITCODE -ne 0) {
+    throw "The bundled Steam bridge exited with code $LASTEXITCODE."
+}
