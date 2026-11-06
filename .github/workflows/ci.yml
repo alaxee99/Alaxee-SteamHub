@@ -23,3 +23,27 @@ jobs:
         run: npm test
       - name: Check JavaScript syntax
         run: npm run check
+
+  windows-powershell-51:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Parse launcher with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $scriptPath = Join-Path $env:GITHUB_WORKSPACE 'scripts\Start-AlaxeeSteamBridge.ps1'
+          $tokens = $null
+          $parseErrors = $null
+          [void][System.Management.Automation.Language.Parser]::ParseFile($scriptPath, [ref]$tokens, [ref]$parseErrors)
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | ForEach-Object { Write-Error $_ }
+            throw 'Windows PowerShell 5.1 reported parser errors.'
+          }
+          $bytes = [System.IO.File]::ReadAllBytes($scriptPath)
+          foreach ($byte in $bytes) {
+            if ($byte -gt 127) {
+              throw 'The Windows PowerShell 5.1 launcher must remain ASCII-only.'
+            }
+          }
+          Write-Host 'Windows PowerShell 5.1 syntax and ASCII checks passed.'
