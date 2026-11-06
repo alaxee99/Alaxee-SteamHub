@@ -69,7 +69,7 @@ jobs:
       - name: Upload self-contained Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: Alaxee-SteamHub-Windows-x64-\${{ github.sha }}
+          name: Alaxee-SteamHub-Windows-x64-${{ github.sha }}
           path: dist/Alaxee-SteamHub-Windows-x64.zip
           if-no-files-found: error
           retention-days: 14
