@@ -16,23 +16,23 @@ function Get-SteamInstallPath {
             if (Test-Path -LiteralPath $exe -PathType Leaf) { return (Split-Path -Parent $exe) }
         }
     }
-    throw '没有找到 steam.exe。请确认 Steam 已正确安装。'
+    throw 'Steam installation was not found. Confirm that Steam is installed.'
 }
 
 Write-Host ''
-Write-Host 'ALAXEE Steam Standalone Bridge — Proof of Concept' -ForegroundColor Cyan
-Write-Host '本版本只验证独立页面注入，不启用 Millennium / Extendium，也不执行汉化。' -ForegroundColor Yellow
+Write-Host 'ALAXEE Steam Standalone Bridge - Proof of Concept' -ForegroundColor Cyan
+Write-Host 'This build verifies page injection only. It does not run translation or third-party frameworks.' -ForegroundColor Yellow
 Write-Host ''
 
 $node = Get-Command node -ErrorAction SilentlyContinue
-if (!$node) { throw '未找到 Node.js。需要 Node.js 22 或更高版本。' }
+if (!$node) { throw 'Node.js was not found. Install Node.js 22 or later.' }
 $nodeVersion = (& node -p 'process.versions.node').Trim()
 $major = [int]($nodeVersion.Split('.')[0])
-if ($major -lt 22) { throw "当前 Node.js $nodeVersion 低于要求；需要 Node.js 22+。" }
+if ($major -lt 22) { throw "Node.js $nodeVersion is below the required version. Node.js 22+ is required." }
 
 $steamProcess = Get-Process -Name 'steam' -ErrorAction SilentlyContinue
 if ($steamProcess) {
-    throw 'Steam 当前仍在运行。请使用 Steam 菜单中的“退出”正常关闭（不要强制结束进程），确认 Steam 完全退出后，再双击本目录的 Start-Steam-Bridge.bat。'
+    throw 'Steam is still running. Exit Steam normally from the Steam menu, wait for it to close completely, then run Start-Steam-Bridge.bat again. Do not force-kill Steam.'
 }
 
 $portListeners = @(Get-NetTCPConnection -State Listen -LocalPort 8080 -ErrorAction SilentlyContinue)
@@ -42,16 +42,16 @@ if ($portListeners.Count -gt 0) {
         [PSCustomObject]@{ Address = $_.LocalAddress; Process = $process.ProcessName; PID = $_.OwningProcess }
     }
     $owners | Format-Table -AutoSize | Out-Host
-    throw '本机 8080 端口已经被占用。为避免连错调试目标，本原型不会自动切换端口。请先确认占用进程并关闭它。'
+    throw 'Local TCP port 8080 is already in use. This prototype will not switch ports automatically. Identify and close the owning process first.'
 }
 
 $steamPath = Get-SteamInstallPath
 $steamExe = Join-Path $steamPath 'steam.exe'
 Write-Host "Steam: $steamExe"
-Write-Host '启动参数: -cef-enable-debugging（不启用 -dev，不禁用沙箱）'
+Write-Host 'Startup argument: -cef-enable-debugging (does not enable -dev or disable the sandbox)'
 Write-Host ''
-Write-Host '注意：Steam 的 CDP 端口不带身份认证。请只在信任的本机环境中使用此原型。' -ForegroundColor Yellow
-Write-Host '现在启动 Steam；桥接程序将只连接 127.0.0.1:8080。' -ForegroundColor Green
+Write-Host 'Notice: Steam CDP has no authentication. Use this prototype only in a trusted local environment.' -ForegroundColor Yellow
+Write-Host 'Starting Steam. The bridge will connect only to 127.0.0.1:8080.' -ForegroundColor Green
 
 Start-Process -FilePath $steamExe -ArgumentList @('-cef-enable-debugging') -WorkingDirectory $steamPath
 Wait-SteamCdpLoopback -Port 8080 -TimeoutSeconds 180
