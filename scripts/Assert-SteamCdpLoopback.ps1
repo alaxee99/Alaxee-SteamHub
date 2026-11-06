@@ -5,7 +5,7 @@ function Wait-SteamCdpLoopback {
     )
 
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
-    $lastError = '等待 Steam CEF 调试端口开放。'
+    $lastError = 'Waiting for the Steam CEF debugging port to become available.'
 
     while ((Get-Date) -lt $deadline) {
         $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
@@ -22,7 +22,7 @@ function Wait-SteamCdpLoopback {
                     $version = Invoke-RestMethod -Uri $uri -TimeoutSec 2
                     if ($version.webSocketDebuggerUrl) {
                         $ws = [Uri]$version.webSocketDebuggerUrl
-                        $wsHost = $ws.Host.Trim('[', ']')
+                        $wsHost = $ws.DnsSafeHost
                         if ($wsHost -notin $allowed -or $ws.Port -ne $Port) {
                             throw "Steam advertised an unsafe CDP endpoint: $($version.webSocketDebuggerUrl)"
                         }
