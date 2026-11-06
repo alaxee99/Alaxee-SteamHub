@@ -70,7 +70,9 @@ test("all Windows PowerShell scripts are ASCII-only for Windows PowerShell 5.1",
   const resolver = await readFile(path.join(root, "scripts", "Resolve-NodeExecutable.ps1"), "utf8");
   assert.ok(resolver.includes("ALAXEE_NODE_EXE"));
   assert.ok(resolver.includes("NVM_SYMLINK"));
-  assert.ok(resolver.includes("ProgramFiles"));
+  assert.ok(resolver.includes("ProgramFiles(x86)"));
+  assert.ok(resolver.includes("GetEnvironmentVariable('Path', 'User')"));
+  assert.ok(resolver.includes("GetEnvironmentVariable('Path', 'Machine')"));
   const guard = await readFile(path.join(root, "scripts", "Assert-SteamCdpLoopback.ps1"), "utf8");
   assert.ok(guard.includes("$ws.DnsSafeHost"), "IPv6 loopback hostnames must be normalized without bracket parsing.");
 });
