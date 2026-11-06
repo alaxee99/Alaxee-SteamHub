@@ -44,11 +44,21 @@ test("page runtime is self-contained and only displays a probe on Steam hosts", 
   assert.match(runtime, /prefers-reduced-motion/);
 });
 
-test("Windows launcher is ASCII-only and uses the CEF debug flag without enabling dev mode", async () => {
+test("all Windows PowerShell scripts are ASCII-only for Windows PowerShell 5.1", async () => {
+  const scriptPaths = [
+    "scripts/Assert-SteamCdpLoopback.ps1",
+    "scripts/Attach-ToRunningSteam.ps1",
+    "scripts/Start-AlaxeeSteamBridge.ps1"
+  ];
+  for (const relativePath of scriptPaths) {
+    const script = await readFile(path.join(root, relativePath), "utf8");
+    assert.match(script, /^[\x00-\x7F]*$/, `${relativePath} must stay ASCII-only for Windows PowerShell 5.1.`);
+  }
   const launcher = await readFile(path.join(root, "scripts", "Start-AlaxeeSteamBridge.ps1"), "utf8");
-  assert.match(launcher, /^[\x00-\x7F]*$/, "Keep the PowerShell 5.1 entry script ASCII-only to avoid code-page parsing failures.");
   assert.ok(launcher.includes("-cef-enable-debugging"));
   assert.match(launcher, /ArgumentList @\('-cef-enable-debugging'\)/);
   assert.doesNotMatch(launcher, /ArgumentList[^\r\n]*(?:-dev|cef-disable-sandbox|gamepadui)/);
   assert.ok(launcher.includes("Wait-SteamCdpLoopback"));
+  const guard = await readFile(path.join(root, "scripts", "Assert-SteamCdpLoopback.ps1"), "utf8");
+  assert.ok(guard.includes("$ws.DnsSafeHost"), "IPv6 loopback hostnames must be normalized without bracket parsing.");
 });
