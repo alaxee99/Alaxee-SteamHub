@@ -54,7 +54,7 @@ $config = @{
     execArgvExtension = 'none'
 }
 $configJson = $config | ConvertTo-Json -Depth 5
-[System.IO.File]::WriteAllText($configPath, $configJson, (New-Object System.Text.UTF8Encoding($false)))
+[System.IO.File]::WriteAllText($configPath, $configJson, [System.Text.UTF8Encoding]::new($false))
 
 Push-Location $repoRoot
 try {
