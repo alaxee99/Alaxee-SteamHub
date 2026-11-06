@@ -48,17 +48,29 @@ test("all Windows PowerShell scripts are ASCII-only for Windows PowerShell 5.1",
   const scriptPaths = [
     "scripts/Assert-SteamCdpLoopback.ps1",
     "scripts/Attach-ToRunningSteam.ps1",
+    "scripts/Resolve-NodeExecutable.ps1",
     "scripts/Start-AlaxeeSteamBridge.ps1"
   ];
   for (const relativePath of scriptPaths) {
     const script = await readFile(path.join(root, relativePath), "utf8");
-    assert.match(script, /^[\x00-\x7F]*$/, `${relativePath} must stay ASCII-only for Windows PowerShell 5.1.`);
+    assert.match(script, /^[\x00-\x7F]*$/, relativePath + " must stay ASCII-only for Windows PowerShell 5.1.");
   }
+
   const launcher = await readFile(path.join(root, "scripts", "Start-AlaxeeSteamBridge.ps1"), "utf8");
+  assert.ok(launcher.includes("Resolve-NodeExecutable"));
   assert.ok(launcher.includes("-cef-enable-debugging"));
   assert.match(launcher, /ArgumentList @\('-cef-enable-debugging'\)/);
   assert.doesNotMatch(launcher, /ArgumentList[^\r\n]*(?:-dev|cef-disable-sandbox|gamepadui)/);
   assert.ok(launcher.includes("Wait-SteamCdpLoopback"));
+
+  const attach = await readFile(path.join(root, "scripts", "Attach-ToRunningSteam.ps1"), "utf8");
+  assert.ok(attach.includes("Resolve-NodeExecutable"));
+  assert.match(attach, /& \$nodeExe \(Join-Path/);
+
+  const resolver = await readFile(path.join(root, "scripts", "Resolve-NodeExecutable.ps1"), "utf8");
+  assert.ok(resolver.includes("ALAXEE_NODE_EXE"));
+  assert.ok(resolver.includes("NVM_SYMLINK"));
+  assert.ok(resolver.includes("ProgramFiles"));
   const guard = await readFile(path.join(root, "scripts", "Assert-SteamCdpLoopback.ps1"), "utf8");
   assert.ok(guard.includes("$ws.DnsSafeHost"), "IPv6 loopback hostnames must be normalized without bracket parsing.");
 });
