@@ -2,9 +2,9 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Assert-SteamCdpLoopback.ps1')
 
 $node = Get-Command node -ErrorAction SilentlyContinue
-if (!$node) { throw '未找到 Node.js。需要 Node.js 22 或更高版本。' }
+if (!$node) { throw 'Node.js was not found. Install Node.js 22 or later.' }
 $nodeVersion = (& node -p 'process.versions.node').Trim()
-if ([int]($nodeVersion.Split('.')[0]) -lt 22) { throw "当前 Node.js $nodeVersion 低于要求；需要 Node.js 22+。" }
+if ([int]($nodeVersion.Split('.')[0]) -lt 22) { throw "Node.js $nodeVersion is below the required version. Node.js 22+ is required." }
 
 Wait-SteamCdpLoopback -Port 8080 -TimeoutSeconds 8
 $root = Split-Path -Parent $PSScriptRoot
