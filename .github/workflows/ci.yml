@@ -52,3 +52,24 @@ jobs:
             }
             Write-Host "Parsed and verified ASCII: $($file.Name)"
           }
+
+  package-windows-x64:
+    needs: [verify, windows-powershell-51]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js SEA builder
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26.13.0
+      - name: Build and self-test Windows x64 package
+        shell: pwsh
+        run: ./scripts/Build-WindowsPackage.ps1
+      - name: Upload self-contained Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Alaxee-SteamHub-Windows-x64-\${{ github.sha }}
+          path: dist/Alaxee-SteamHub-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14
