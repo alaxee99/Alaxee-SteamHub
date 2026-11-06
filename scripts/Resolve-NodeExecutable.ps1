@@ -12,9 +12,22 @@ function Resolve-NodeExecutable {
         return $command.Source
     }
 
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    foreach ($pathEntry in (@($userPath, $machinePath) -join ';').Split(';')) {
+        $directory = [Environment]::ExpandEnvironmentVariables(([string]$pathEntry).Trim('"', ' '))
+        if (![string]::IsNullOrWhiteSpace($directory)) {
+            $pathCandidate = Join-Path $directory 'node.exe'
+            if (Test-Path -LiteralPath $pathCandidate -PathType Leaf) {
+                return (Resolve-Path -LiteralPath $pathCandidate).Path
+            }
+        }
+    }
+
+    $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
     $candidates = @(
         $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'nodejs\node.exe' }),
-        $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'nodejs\node.exe' }),
+        $(if ($programFilesX86) { Join-Path $programFilesX86 'nodejs\node.exe' }),
         $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\nodejs\node.exe' }),
         $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Volta\bin\node.exe' }),
         $(if ($env:VOLTA_HOME) { Join-Path $env:VOLTA_HOME 'bin\node.exe' }),
@@ -30,5 +43,5 @@ function Resolve-NodeExecutable {
         }
     }
 
-    throw 'Node.js 22+ was not found. The launcher checked PATH and common installation folders. Set the ALAXEE_NODE_EXE environment variable to the full node.exe path, or add the Node.js folder to Windows PATH.'
+    throw 'Node.js 22+ was not found. The launcher checked process PATH, saved Windows PATH entries, and common installation folders. Set ALAXEE_NODE_EXE to the full node.exe path, or add the Node.js folder to Windows PATH.'
 }
