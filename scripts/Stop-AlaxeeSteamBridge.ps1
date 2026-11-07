@@ -1,12 +1,18 @@
 param(
     [Parameter(Mandatory = $true)]
-    [string]$ExpectedExecutable
+    [string]$ExpectedExecutable,
+    [Parameter(Mandatory = $false)]
+    [string]$LogPath
 )
 
 $ErrorActionPreference = 'Stop'
 $expectedPath = [System.IO.Path]::GetFullPath($ExpectedExecutable)
 $expectedName = [System.IO.Path]::GetFileName($expectedPath)
-$logPath = Join-Path $env:TEMP ('ALAXEE-SteamHub-stop-' + [guid]::NewGuid().ToString('N') + '.log')
+if ([string]::IsNullOrWhiteSpace($LogPath)) {
+    $logPath = Join-Path $env:TEMP ('ALAXEE-SteamHub-stop-' + [guid]::NewGuid().ToString('N') + '.log')
+} else {
+    $logPath = [System.IO.Path]::GetFullPath($LogPath)
+}
 
 function Write-StopLog {
     param([Parameter(Mandatory = $true)][string]$Message)

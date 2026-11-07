@@ -25,6 +25,8 @@ $installedExe = $null
 $uninstaller = $null
 $installerLogPath = Join-Path $env:TEMP ('ALAXEE-SteamHub-' + $testId + '-install.log')
 $reinstallLogPath = Join-Path $env:TEMP ('ALAXEE-SteamHub-' + $testId + '-reinstall.log')
+$keepUninstallLogPath = Join-Path $env:TEMP ('ALAXEE-SteamHub-' + $testId + '-keep-uninstall.log')
+$purgeUninstallLogPath = Join-Path $env:TEMP ('ALAXEE-SteamHub-' + $testId + '-purge-uninstall.log')
 $installRoot = $expectedInstallRoot
 
 function Assert-FileSentinel {
@@ -298,15 +300,25 @@ try {
         throw 'The packaged bridge process exited before the data-preservation uninstall test.'
     }
 
-    & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /KEEPLOCALDATA
+    & $uninstaller ('/LOG="' + $keepUninstallLogPath + '"') /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /KEEPLOCALDATA
     if ($LASTEXITCODE -ne 0) {
-        throw "Keep-data uninstaller exited with code $LASTEXITCODE."
+        $uninstallLogTail = if (Test-Path -LiteralPath $keepUninstallLogPath -PathType Leaf) {
+            (Get-Content -LiteralPath $keepUninstallLogPath -Tail 100 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
+        } else {
+            '<uninstaller log missing>'
+        }
+        throw "Keep-data uninstaller exited with code $LASTEXITCODE. UninstallerLog='$keepUninstallLogPath'; Log='$uninstallLogTail'."
     }
 
     if (Get-Process -Id $bridgeProcess.Id -ErrorAction SilentlyContinue) {
         $processDiagnostics = Get-BridgeProcessDiagnostics -ProcessId $bridgeProcess.Id
         $stopLogDiagnostics = Get-StopScriptLogDiagnostics
-        throw "The installed bridge process remained running after the keep-data uninstall. Process='$processDiagnostics'; stop-script diagnostics='$stopLogDiagnostics'."
+        $uninstallLogTail = if (Test-Path -LiteralPath $keepUninstallLogPath -PathType Leaf) {
+            (Get-Content -LiteralPath $keepUninstallLogPath -Tail 120 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
+        } else {
+            '<uninstaller log missing>'
+        }
+        throw "The installed bridge process remained running after the keep-data uninstall. Process='$processDiagnostics'; stop-script diagnostics='$stopLogDiagnostics'; uninstaller log='$uninstallLogTail'."
     }
     $bridgeProcess = $null
     if (Test-Path -LiteralPath $installRoot) {
@@ -348,9 +360,14 @@ try {
         throw 'The packaged bridge process exited before the full-cleanup uninstall test.'
     }
 
-    & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+    & $uninstaller ('/LOG="' + $purgeUninstallLogPath + '"') /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
     if ($LASTEXITCODE -ne 0) {
-        throw "Full-cleanup uninstaller exited with code $LASTEXITCODE."
+        $uninstallLogTail = if (Test-Path -LiteralPath $purgeUninstallLogPath -PathType Leaf) {
+            (Get-Content -LiteralPath $purgeUninstallLogPath -Tail 100 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
+        } else {
+            '<uninstaller log missing>'
+        }
+        throw "Full-cleanup uninstaller exited with code $LASTEXITCODE. UninstallerLog='$purgeUninstallLogPath'; Log='$uninstallLogTail'."
     }
 
     if (Get-Process -Id $bridgeProcess.Id -ErrorAction SilentlyContinue) {

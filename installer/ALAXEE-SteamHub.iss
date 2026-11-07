@@ -73,25 +73,82 @@ end;
 function InitializeUninstall(): Boolean;
 var
   ResultCode: Integer;
+  LaunchSucceeded: Boolean;
   StopScript: String;
+  StopScriptLog: String;
+  PowerShellExecutable: String;
   StopParameters: String;
   LocalDataPath: String;
 begin
   Result := True;
-  StopScript := ExpandConstant('{app}\scripts\Stop-AlaxeeSteamBridge.ps1');
-  StopParameters := '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "' +
-    StopScript + '" -ExpectedExecutable "' +
-    ExpandConstant('{app}\AlaxeeSteamBridge.exe') + '"';
-  if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
-    StopParameters, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or
-    (ResultCode <> 0) then
+  StopScript := ExpandConstant('{app}\\scripts\\Stop-AlaxeeSteamBridge.ps1');
+  PowerShellExecutable := ExpandConstant('{sys}\\WindowsPowerShell\\v1.0\\powershell.exe');
+  StopScriptLog := ExpandConstant('{localappdata}\\Temp\\ALAXEE-SteamHub-stop-') +
+    GetDateTimeString('yyyymmddhhnnss', '', '') + '.log';
+
+  Log('ALAXEE SteamHub uninstall preflight started.');
+  Log('Stop script path: ' + StopScript);
+  Log('PowerShell path: ' + PowerShellExecutable);
+  Log('Stop script log path: ' + StopScriptLog);
+
+  if not FileExists(StopScript) then
   begin
-    MsgBox('ALAXEE SteamHub is still running. Close the ALAXEE SteamHub bridge and retry uninstall.',
+    Log('Uninstall aborted: stop script is missing.');
+    MsgBox('ALAXEE SteamHub stop script is missing. Uninstall has been cancelled to protect running files.',
       mbError, MB_OK);
     Result := False;
     Exit;
   end;
 
+  if not FileExists(PowerShellExecutable) then
+  begin
+    Log('Uninstall aborted: Windows PowerShell 5.1 executable is missing.');
+    MsgBox('Windows PowerShell 5.1 could not be found. Uninstall has been cancelled.',
+      mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+
+  StopParameters := '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
+    StopScript + '" -ExpectedExecutable "' +
+    ExpandConstant('{app}\\AlaxeeSteamBridge.exe') + '" -LogPath "' +
+    StopScriptLog + '"';
+
+  Log('Launching the ALAXEE SteamHub process-stop script.');
+  LaunchSucceeded := Exec(PowerShellExecutable, StopParameters,
+    ExpandConstant('{app}'), SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  if not LaunchSucceeded then
+  begin
+    Log('PowerShell launch failed. Windows error code: ' + IntToStr(ResultCode));
+    MsgBox('Could not start the SteamHub stop script (Windows error ' +
+      IntToStr(ResultCode) + '). Uninstall has been cancelled.',
+      mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+
+  Log('PowerShell stop script exited with code ' + IntToStr(ResultCode) + '.');
+  if ResultCode <> 0 then
+  begin
+    Log('Uninstall aborted because the SteamHub bridge did not stop successfully. Log: ' + StopScriptLog);
+    MsgBox('ALAXEE SteamHub could not stop safely. Uninstall has been cancelled.' +
+      #13#10 + 'Diagnostic log: ' + StopScriptLog,
+      mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+
+  if not FileExists(StopScriptLog) then
+  begin
+    Log('Uninstall aborted: stop script returned success without creating its diagnostic log.');
+    MsgBox('The SteamHub stop script did not produce its diagnostic log. Uninstall has been cancelled.',
+      mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
+
+  Log('ALAXEE SteamHub process-stop script completed successfully.');
   if UninstallParameterExists('/KEEPLOCALDATA') then
     RemoveLocalDataOnUninstall := False
   else if WizardSilent then
