@@ -215,7 +215,7 @@ function Get-BridgeProcessDiagnostics {
         if (!$record) { return "PID $ProcessId no longer exists in Win32_Process." }
         return "PID=$($record.ProcessId); Name='$($record.Name)'; ExecutablePath='$($record.ExecutablePath)'."
     } catch {
-        return "Could not query Win32_Process for PID $ProcessId: $($_.Exception.Message)"
+        return ("Could not query Win32_Process for PID {0}: {1}" -f $ProcessId, $_.Exception.Message)
     }
 }
 
