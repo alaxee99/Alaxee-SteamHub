@@ -60,6 +60,7 @@ var
   ResultCode: Integer;
   StopScript: String;
   StopParameters: String;
+  LocalDataPath: String;
 begin
   Result := True;
   StopScript := ExpandConstant('{app}\scripts\Stop-AlaxeeSteamBridge.ps1');
@@ -85,19 +86,31 @@ begin
   RemoveLocalDataOnUninstall :=
     MsgBox(ExpandConstant('{cm:RemoveLocalDataPrompt}'),
       mbConfirmation, MB_YESNO or MB_DEFBUTTON1) = IDYES;
+
+  if RemoveLocalDataOnUninstall then
+  begin
+    LocalDataPath := ExpandConstant('{localappdata}\ALAXEE\SteamHub');
+    if DirExists(LocalDataPath) and not DelTree(LocalDataPath, True, True, True) then
+    begin
+      MsgBox('Could not remove all local ALAXEE SteamHub data. The uninstall has been cancelled so no partial cleanup is hidden.',
+        mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    RemoveDir(ExtractFileDir(LocalDataPath));
+  end;
 end;
 
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
-  LocalDataPath: String;
+  AppParentPath: String;
+  DataParentPath: String;
 begin
-  if (CurUninstallStep = usPostUninstall) and RemoveLocalDataOnUninstall then
+  if CurUninstallStep = usPostUninstall then
   begin
-    LocalDataPath := ExpandConstant('{localappdata}\ALAXEE\SteamHub');
-    if DirExists(LocalDataPath) then
-    begin
-      DelTree(LocalDataPath, True, True, True);
-      RemoveDir(ExtractFileDir(LocalDataPath));
-    end;
+    AppParentPath := ExtractFileDir(ExpandConstant('{app}'));
+    DataParentPath := ExpandConstant('{localappdata}\ALAXEE');
+    RemoveDir(AppParentPath);
+    RemoveDir(DataParentPath);
   end;
 end;
