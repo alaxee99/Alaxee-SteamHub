@@ -62,7 +62,14 @@ test("page runtime is self-contained and only displays a probe on Steam hosts", 
   assert.match(runtime, /steampowered\.com/);
   assert.match(runtime, /ALAXEE · STANDALONE BRIDGE/);
   assert.doesNotMatch(runtime, /chrome\.runtime|document\.cookie|localStorage|sessionStorage/);
-  assert.match(runtime, /prefers-reduced-motion/);\n  assert.match(runtime, /className = "launcher"/);\n  assert.match(runtime, /className = "popover"/);\n  assert.match(runtime, /aria-expanded/);\n  assert.match(runtime, /event.key === "Escape"/);\n  assert.match(runtime, /document.addEventListener\("pointerdown"/);\n  assert.match(runtime, /本地运行 · 不读取 Steam 账号凭据/);\n  assert.doesNotMatch(runtime, /页面注入验证中/);
+  assert.match(runtime, /prefers-reduced-motion/);
+  assert.match(runtime, /className = "launcher"/);
+  assert.match(runtime, /className = "popover"/);
+  assert.match(runtime, /aria-expanded/);
+  assert.match(runtime, /event.key === "Escape"/);
+  assert.match(runtime, /document.addEventListener\("pointerdown"/);
+  assert.match(runtime, /本地运行 · 不读取 Steam 账号凭据/);
+  assert.doesNotMatch(runtime, /页面注入验证中/);
 });
 
 test("Windows launchers use the bundled executable and need no Node.js installation", async () => {
