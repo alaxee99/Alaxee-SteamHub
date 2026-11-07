@@ -75,17 +75,25 @@ test("Windows installer includes a per-user install and a real uninstaller with 
   assert.match(installer, /ArchitecturesAllowed=x64/);
   assert.match(installer, /Uninstallable=yes/);
   assert.match(installer, /DefaultDirName=\{localappdata\}\\Programs\\ALAXEE\\SteamHub/);
-  assert.match(installer, /taskkill\.exe/);
+  assert.ok(installer.includes("Stop-AlaxeeSteamBridge.ps1"));
+  assert.ok(installer.includes("WindowsPowerShell\\v1.0\\powershell.exe"));
   assert.match(installer, /DelTree\(LocalDataPath, True, True, True\)/);
   assert.match(installer, /Supabase 云端账号和跨设备同步数据不会被删除/);
   assert.match(installer, /Name: "\{autoprograms\}\\ALAXEE SteamHub"/);
 
   const verify = await readFile(path.join(root, "scripts", "Verify-WindowsInstaller.ps1"), "utf8");
   assert.match(verify, /^[\x00-\x7F]*$/, "Installer verification must remain ASCII-only.");
+  const stop = await readFile(path.join(root, "scripts", "Stop-AlaxeeSteamBridge.ps1"), "utf8");
+  assert.match(stop, /^[\x00-\x7F]*$/, "The process stopper must remain ASCII-only.");
+  assert.ok(stop.includes("[System.IO.Path]::GetFullPath"));
+  assert.ok(stop.includes("Stop-Process -Id"));
+  assert.ok(stop.includes("[System.StringComparison]::OrdinalIgnoreCase"));
   assert.ok(verify.includes("unins000.exe"));
   assert.ok(verify.includes("Add/Remove Programs"));
   assert.ok(verify.includes("local settings/cache directory remains"));
   assert.ok(verify.includes("Start Menu shortcut remains"));
+  assert.ok(verify.includes("Start-Process -FilePath $installedExe"));
+  assert.ok(verify.includes("bridge process remained running"));
 });
 
 test("all Windows PowerShell scripts are ASCII-only for Windows PowerShell 5.1", async () => {
@@ -94,6 +102,7 @@ test("all Windows PowerShell scripts are ASCII-only for Windows PowerShell 5.1",
     "scripts/Attach-ToRunningSteam.ps1",
     "scripts/Build-WindowsPackage.ps1",
     "scripts/Start-AlaxeeSteamBridge.ps1",
+    "scripts/Stop-AlaxeeSteamBridge.ps1",
     "scripts/Verify-WindowsInstaller.ps1"
   ];
   for (const relativePath of scriptPaths) {
@@ -110,5 +119,6 @@ test("all Windows PowerShell scripts are ASCII-only for Windows PowerShell 5.1",
   assert.ok(build.includes("--self-test"));
   assert.ok(build.includes("ISCC.exe"));
   assert.ok(build.includes("Verify-WindowsInstaller.ps1"));
+  assert.ok(build.includes("Stop-AlaxeeSteamBridge.ps1"));
   assert.ok(build.includes("ALAXEE-SteamHub-Setup-x64.exe"));
 });
