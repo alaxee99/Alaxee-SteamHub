@@ -95,6 +95,9 @@ begin
   begin
     LocalDataPath := ExpandConstant('{localappdata}\ALAXEE\SteamHub');
     if DirExists(LocalDataPath) then
+    begin
       DelTree(LocalDataPath, True, True, True);
+      RemoveDir(ExtractFileDir(LocalDataPath));
+    end;
   end;
 end;
