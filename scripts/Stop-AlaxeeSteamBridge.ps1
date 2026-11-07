@@ -21,6 +21,7 @@ foreach ($process in $processes) {
         [System.StringComparison]::OrdinalIgnoreCase
     )) {
         Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+        Wait-Process -Id $process.Id -Timeout 5 -ErrorAction SilentlyContinue
     }
 }
 
