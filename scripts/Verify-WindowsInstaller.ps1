@@ -17,7 +17,6 @@ $steamExecutableSentinel = Join-Path $steamRoot 'steam.exe'
 $steamSaveSentinel = Join-Path $steamRoot 'steamapps\userdata\test-user\3678970\remote\save.dat'
 $otherProgramSentinel = Join-Path $otherProgramRoot 'keep-program-files.sentinel'
 $otherDataSentinel = Join-Path $otherDataRoot 'keep-product-data.sentinel'
-$uninstallRegistryRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
 $startMenuShortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\ALAXEE SteamHub.lnk'
 $bridgeProcess = $null
 $installedExe = $null
@@ -41,15 +40,59 @@ function Assert-FileSentinel {
 }
 
 function Get-SteamHubUninstallEntries {
-    return @(
-        Get-ChildItem -LiteralPath $uninstallRegistryRoot -ErrorAction SilentlyContinue |
-        ForEach-Object {
-            $entry = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue
-            if ($entry.DisplayName -eq 'ALAXEE SteamHub') {
-                $entry | Add-Member -NotePropertyName RegistryKey -NotePropertyValue $_.PSPath -PassThru
+    $uninstallSubKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall'
+    $expectedAppIdKey = '{A4C5DAD5-0D5A-4C96-8EF6-7D23C776A3D1}_is1'
+    $hives = @(
+        [pscustomobject]@{ Name = 'HKCU'; Value = [Microsoft.Win32.RegistryHive]::CurrentUser },
+        [pscustomobject]@{ Name = 'HKLM'; Value = [Microsoft.Win32.RegistryHive]::LocalMachine }
+    )
+    $views = @(
+        [Microsoft.Win32.RegistryView]::Registry64,
+        [Microsoft.Win32.RegistryView]::Registry32
+    )
+    $found = @{}
+
+    foreach ($hive in $hives) {
+        foreach ($view in $views) {
+            $baseKey = $null
+            $uninstallKey = $null
+            try {
+                $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey($hive.Value, $view)
+                $uninstallKey = $baseKey.OpenSubKey($uninstallSubKey, $false)
+                if (!$uninstallKey) { continue }
+
+                foreach ($subKeyName in $uninstallKey.GetSubKeyNames()) {
+                    $appKey = $null
+                    try {
+                        $appKey = $uninstallKey.OpenSubKey($subKeyName, $false)
+                        if (!$appKey) { continue }
+
+                        $displayName = [string]$appKey.GetValue('DisplayName', '')
+                        if ($displayName -eq 'ALAXEE SteamHub' -or $subKeyName -ieq $expectedAppIdKey) {
+                            $registryPath = "$($hive.Name)\$uninstallSubKey\$subKeyName"
+                            if (!$found.ContainsKey($registryPath)) {
+                                $found[$registryPath] = [pscustomobject]@{
+                                    DisplayName = $displayName
+                                    InstallLocation = [string]$appKey.GetValue('InstallLocation', '')
+                                    DisplayIcon = [string]$appKey.GetValue('DisplayIcon', '')
+                                    UninstallString = [string]$appKey.GetValue('UninstallString', '')
+                                    RegistryKey = $registryPath
+                                    RegistryView = $view.ToString()
+                                }
+                            }
+                        }
+                    } finally {
+                        if ($appKey) { $appKey.Dispose() }
+                    }
+                }
+            } finally {
+                if ($uninstallKey) { $uninstallKey.Dispose() }
+                if ($baseKey) { $baseKey.Dispose() }
             }
         }
-    )
+    }
+
+    return @($found.Values)
 }
 
 function Get-RegisteredInstallRoot {
@@ -84,16 +127,7 @@ function Get-RegisteredInstallRoot {
 function Resolve-InstalledPaths {
     $entries = @(Get-SteamHubUninstallEntries)
     if ($entries.Count -ne 1) {
-        $diagnostics = @(
-            Get-ChildItem -LiteralPath $uninstallRegistryRoot -ErrorAction SilentlyContinue |
-            ForEach-Object {
-                $entry = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue
-                if ($entry.DisplayName -like '*SteamHub*') {
-                    "$($entry.DisplayName) | $($entry.InstallLocation) | $($entry.DisplayIcon) | $($entry.UninstallString)"
-                }
-            }
-        ) -join [Environment]::NewLine
-        throw "Expected exactly one ALAXEE SteamHub Add/Remove Programs entry, found $($entries.Count). LOCALAPPDATA='$env:LOCALAPPDATA'; expected='$expectedInstallRoot'. Nearby entries: $diagnostics"
+        throw "Expected exactly one ALAXEE SteamHub Add/Remove Programs entry, found $($entries.Count). LOCALAPPDATA='$env:LOCALAPPDATA'; expected='$expectedInstallRoot'; searched HKCU/HKLM in both 32-bit and 64-bit registry views for AppId '{A4C5DAD5-0D5A-4C96-8EF6-7D23C776A3D1}_is1' and DisplayName 'ALAXEE SteamHub'."
     }
 
     $registeredRoot = Get-RegisteredInstallRoot -Entry $entries[0]
