@@ -25,10 +25,9 @@ OutputBaseFilename=ALAXEE-SteamHub-Setup-x64
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
-SetupLogging=yes
 VersionInfoCompany=ALAXEE
 VersionInfoProductName=ALAXEE SteamHub
-VersionInfoProductVersion={#AppVersion}
+VersionInfoProductVersion=0.1.0.0
 VersionInfoDescription=ALAXEE SteamHub installer
 
 [Languages]
@@ -57,8 +56,13 @@ var
   RemoveLocalDataOnUninstall: Boolean;
 
 function InitializeUninstall(): Boolean;
+var
+  ResultCode: Integer;
 begin
   Result := True;
+  Exec(ExpandConstant('{sys}\taskkill.exe'),
+    '/F /T /IM AlaxeeSteamBridge.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
   if WizardSilent then
   begin
     RemoveLocalDataOnUninstall := True;
