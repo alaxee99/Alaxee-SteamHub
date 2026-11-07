@@ -8,7 +8,7 @@ if (!isSea()) {
 
 if (process.argv[2] === "--self-test") {
   const runtime = await readFile(new URL("./src/page-runtime.js", import.meta.url), "utf8");
-  if (!runtime.includes("ALAXEE · STANDALONE BRIDGE")) {
+  if (!runtime.includes("ALAXEE STEAMHUB")) {
     throw new Error("The embedded Steam page runtime is missing or invalid.");
   }
   if (!isSteamPageUrl("https://steamcommunity.com/market/")) {
