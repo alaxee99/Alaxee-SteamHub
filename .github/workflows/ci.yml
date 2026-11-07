@@ -72,22 +72,28 @@ jobs:
           }
           $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
           $candidates = @(
-            $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 7\ISCC.exe' }),
+            $(if ($programFilesX86) { Join-Path $programFilesX86 'Inno Setup 7\ISCC.exe' }),
             $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe' }),
-            $(if ($programFilesX86) { Join-Path $programFilesX86 'Inno Setup 7\ISCC.exe' })
+            $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 7\ISCC.exe' })
           )
-          $compilerCommand = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-          $compiler = if ($compilerCommand) { $compilerCommand.Source } else {
-            $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+          $compiler = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+          if (!$compiler) {
+            $compilerCommand = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($compilerCommand) {
+              $compilerDetails = (& $compilerCommand.Source /? 2>&1 | Out-String)
+              if ($compilerDetails -match 'Inno Setup 7') {
+                $compiler = $compilerCommand.Source
+              }
+            }
           }
           if (!$compiler) {
-            throw "Inno Setup 7.1.1 was installed but ISCC.exe was not found. Checked: $($candidates -join '; ')."
+            throw "Inno Setup 7.1.1 was installed but its compiler was not found. A legacy ISCC.exe on PATH is not accepted. Checked: $($candidates -join '; ')."
           }
-          Write-Host "Using Inno Setup compiler: $compiler"
-          & $compiler /?
-          if ($LASTEXITCODE -ne 0) {
-            throw "Inno Setup compiler smoke check failed with exit code $LASTEXITCODE."
+          $compilerDetails = (& $compiler /? 2>&1 | Out-String)
+          if ($compilerDetails -notmatch 'Inno Setup 7') {
+            throw "The selected compiler is not Inno Setup 7: $compiler"
           }
+          Write-Host "Using verified Inno Setup 7 compiler: $compiler"
       - name: Build, install and uninstall Windows x64 package
         shell: pwsh
         run: ./scripts/Build-WindowsPackage.ps1
