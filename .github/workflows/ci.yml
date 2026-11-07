@@ -72,13 +72,18 @@ jobs:
           }
           $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
           $candidates = @(
+            $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 7\ISCC.exe' }),
             $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe' }),
             $(if ($programFilesX86) { Join-Path $programFilesX86 'Inno Setup 7\ISCC.exe' })
           )
-          $compiler = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
-          if (!$compiler) {
-            throw 'Inno Setup 7.1.1 was installed but ISCC.exe was not found.'
+          $compilerCommand = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+          $compiler = if ($compilerCommand) { $compilerCommand.Source } else {
+            $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
           }
+          if (!$compiler) {
+            throw "Inno Setup 7.1.1 was installed but ISCC.exe was not found. Checked: $($candidates -join '; ')."
+          }
+          Write-Host "Using Inno Setup compiler: $compiler"
           & $compiler /?
           if ($LASTEXITCODE -ne 0) {
             throw "Inno Setup compiler smoke check failed with exit code $LASTEXITCODE."
