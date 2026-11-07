@@ -151,7 +151,7 @@ begin
   Log('ALAXEE SteamHub process-stop script completed successfully.');
   if UninstallParameterExists('/KEEPLOCALDATA') then
     RemoveLocalDataOnUninstall := False
-  else if WizardSilent then
+  else if UninstallSilent then
     RemoveLocalDataOnUninstall := True
   else
     RemoveLocalDataOnUninstall :=
