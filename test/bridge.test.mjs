@@ -68,7 +68,7 @@ test("the Windows SEA entry point checks bundled assets and starts the bridge", 
   assert.ok(entry.includes("runBridge({ signal: controller.signal })"));
 });
 
-test("Windows installer includes a per-user install and a real uninstaller with optional local-data purge", async () => {
+test("Windows installer is scoped to SteamHub data and supports an explicit keep-data uninstall", async () => {
   const installer = await readFile(path.join(root, "installer", "ALAXEE-SteamHub.iss"), "utf8");
   assert.equal(installer.charCodeAt(0), 0xfeff, "Inno Setup script must retain its UTF-8 BOM for Chinese installer messages.");
   assert.match(installer, /PrivilegesRequired=lowest/);
@@ -78,8 +78,11 @@ test("Windows installer includes a per-user install and a real uninstaller with 
   assert.ok(installer.includes("Stop-AlaxeeSteamBridge.ps1"));
   assert.ok(installer.includes("WindowsPowerShell\\v1.0\\powershell.exe"));
   assert.match(installer, /DelTree\(LocalDataPath, True, True, True\)/);
+  assert.equal((installer.match(/DelTree\(/g) || []).length, 1, "Only the dedicated SteamHub data directory may be recursively deleted.");
+  assert.match(installer, /UninstallParameterExists\('\/KEEPLOCALDATA'\)/);
   assert.match(installer, /Supabase 云端账号和跨设备同步数据不会被删除/);
   assert.match(installer, /Name: "\{autoprograms\}\\ALAXEE SteamHub"/);
+  assert.doesNotMatch(installer, /SteamLibrary|steamapps|steam\.exe/i, "The installer must not target Steam installation or save paths.");
 
   const verify = await readFile(path.join(root, "scripts", "Verify-WindowsInstaller.ps1"), "utf8");
   assert.match(verify, /^[\x00-\x7F]*$/, "Installer verification must remain ASCII-only.");
@@ -88,12 +91,25 @@ test("Windows installer includes a per-user install and a real uninstaller with 
   assert.ok(stop.includes("[System.IO.Path]::GetFullPath"));
   assert.ok(stop.includes("Stop-Process -Id"));
   assert.ok(stop.includes("[System.StringComparison]::OrdinalIgnoreCase"));
-  assert.ok(verify.includes("unins000.exe"));
-  assert.ok(verify.includes("Add/Remove Programs"));
-  assert.ok(verify.includes("Local settings/cache directory remains"));
-  assert.ok(verify.includes("Start Menu shortcut remains"));
-  assert.ok(verify.includes("Start-Process -FilePath $installedExe"));
-  assert.ok(verify.includes("bridge process remained running"));
+  assert.ok(verify.includes("/KEEPLOCALDATA"));
+  assert.ok(verify.includes("purge-data-test.sentinel"));
+  assert.ok(verify.includes("OtherProduct-"));
+  assert.ok(verify.includes("steamapps\\userdata"));
+  assert.ok(verify.includes("Process shutdown"));
+  assert.ok(verify.includes("Assert-ExternalFilesPreserved"));
+  assert.ok(verify.includes("Start-Process -FilePath"));
+});
+
+test("packaging selects Inno Setup 7 rather than a stale compiler shim", async () => {
+  const build = await readFile(path.join(root, "scripts", "Build-WindowsPackage.ps1"), "utf8");
+  const workflow = await readFile(path.join(root, ".github", "workflows", "ci.yml"), "utf8");
+  assert.ok(build.includes("Inno Setup 7 compiler"));
+  assert.ok(build.includes("$compilerCandidates | Where-Object"));
+  assert.match(build, /compilerDetails -match 'Inno Setup 7'/);
+  assert.doesNotMatch(build, /Inno Setup 6/);
+  assert.ok(workflow.includes("Install Inno Setup 7.1.1"));
+  assert.ok(workflow.includes("Inno Setup 7 compiler"));
+  assert.doesNotMatch(workflow, /Inno Setup 6/);
 });
 
 test("all Windows PowerShell scripts are ASCII-only for Windows PowerShell 5.1", async () => {
