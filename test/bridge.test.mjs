@@ -95,7 +95,7 @@ test("Windows installer is scoped to SteamHub data and supports an explicit keep
   assert.ok(verify.includes("purge-data-test.sentinel"));
   assert.ok(verify.includes("OtherProduct-"));
   assert.ok(verify.includes("steamapps\\userdata"));
-  assert.ok(verify.includes("Process shutdown"));
+  assert.ok(verify.includes("process shutdown"));
   assert.ok(verify.includes("Assert-ExternalFilesPreserved"));
   assert.ok(verify.includes("Start-Process -FilePath"));
 });
