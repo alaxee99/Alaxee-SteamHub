@@ -94,21 +94,28 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\Stop-AlaxeeSteamBridge.ps1'
 
 $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
 $compilerCandidates = @(
-    $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 7\ISCC.exe' }),
-    $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe' }),
-    $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe' }),
-    $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe' }),
     $(if ($programFilesX86) { Join-Path $programFilesX86 'Inno Setup 7\ISCC.exe' }),
-    $(if ($programFilesX86) { Join-Path $programFilesX86 'Inno Setup 6\ISCC.exe' })
+    $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe' }),
+    $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 7\ISCC.exe' })
 )
-$compilerCommand = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-$compilerPath = if ($compilerCommand) { $compilerCommand.Source } else {
-    $compilerCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+$compilerPath = $compilerCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+if (!$compilerPath) {
+    $compilerCommand = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($compilerCommand) {
+        $compilerDetails = (& $compilerCommand.Source /? 2>&1 | Out-String)
+        if ($compilerDetails -match 'Inno Setup 7') {
+            $compilerPath = $compilerCommand.Source
+        }
+    }
 }
 if (!$compilerPath) {
-    throw "Inno Setup compiler was not found. Checked: $($compilerCandidates -join '; '). Install JRSoftware.InnoSetup.7 in the Windows packaging job."
+    throw "Inno Setup 7 compiler was not found. Checked: $($compilerCandidates -join '; '). A legacy ISCC.exe on PATH is not accepted."
 }
-Write-Host "Using Inno Setup compiler: $compilerPath"
+$compilerDetails = (& $compilerPath /? 2>&1 | Out-String)
+if ($compilerDetails -notmatch 'Inno Setup 7') {
+    throw "The selected compiler is not Inno Setup 7: $compilerPath"
+}
+Write-Host "Using Inno Setup 7 compiler: $compilerPath"
 
 $installerScript = Join-Path $repoRoot 'installer\ALAXEE-SteamHub.iss'
 & $compilerPath $installerScript
