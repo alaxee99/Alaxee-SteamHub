@@ -5,7 +5,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $testId = [guid]::NewGuid().ToString('N')
-$installRoot = Join-Path $env:LOCALAPPDATA 'Programs\ALAXEE\SteamHub'
+$expectedInstallRoot = Join-Path $env:LOCALAPPDATA 'Programs\ALAXEE\SteamHub'
 $programsAlaxeeRoot = Join-Path $env:LOCALAPPDATA 'Programs\ALAXEE'
 $localDataRoot = Join-Path $env:LOCALAPPDATA 'ALAXEE\SteamHub'
 $alaxeeDataRoot = Join-Path $env:LOCALAPPDATA 'ALAXEE'
@@ -20,6 +20,10 @@ $otherDataSentinel = Join-Path $otherDataRoot 'keep-product-data.sentinel'
 $uninstallRegistryRoot = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
 $startMenuShortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\ALAXEE SteamHub.lnk'
 $bridgeProcess = $null
+$installedExe = $null
+$uninstaller = $null
+$installRoot = $expectedInstallRoot
+$testOwnedInstallCreated = $false
 
 function Assert-FileSentinel {
     param(
@@ -42,9 +46,67 @@ function Get-SteamHubUninstallEntries {
         Get-ChildItem -LiteralPath $uninstallRegistryRoot -ErrorAction SilentlyContinue |
         ForEach-Object {
             $entry = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue
-            if ($entry.DisplayName -eq 'ALAXEE SteamHub') { $entry }
+            if ($entry.DisplayName -eq 'ALAXEE SteamHub') {
+                $entry | Add-Member -NotePropertyName RegistryKey -NotePropertyValue $_.PSPath -PassThru
+            }
         }
     )
+}
+
+function Get-RegisteredInstallRoot {
+    param([Parameter(Mandatory = $true)]$Entry)
+
+    if ($Entry.InstallLocation -and [string]$Entry.InstallLocation -ne '') {
+        return [System.IO.Path]::GetFullPath([string]$Entry.InstallLocation)
+    }
+
+    $displayIcon = [string]$Entry.DisplayIcon
+    if ($displayIcon -match '^"(?<path>[^"]+)"') {
+        $iconPath = $Matches.path
+        if ([System.IO.Path]::GetFileName($iconPath) -ieq 'AlaxeeSteamBridge.exe') {
+            return [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($iconPath))
+        }
+    } elseif ($displayIcon -match '^(?<path>.+?AlaxeeSteamBridge\.exe)(?:,\s*\d+)?$') {
+        $iconPath = $Matches.path
+        return [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($iconPath))
+    }
+
+    $uninstallString = [string]$Entry.UninstallString
+    if ($uninstallString -match '^\s*"(?<path>[^"]+unins\d+\.exe)"') {
+        return [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($Matches.path))
+    }
+    if ($uninstallString -match '^\s*(?<path>.+?unins\d+\.exe)(?:\s|$)') {
+        return [System.IO.Path]::GetDirectoryName([System.IO.Path]::GetFullPath($Matches.path))
+    }
+
+    throw "Could not resolve the installed directory from Add/Remove Programs. InstallLocation='$($Entry.InstallLocation)'; DisplayIcon='$displayIcon'; UninstallString='$uninstallString'; RegistryKey='$($Entry.RegistryKey)'."
+}
+
+function Resolve-InstalledPaths {
+    $entries = @(Get-SteamHubUninstallEntries)
+    if ($entries.Count -ne 1) {
+        $diagnostics = @(
+            Get-ChildItem -LiteralPath $uninstallRegistryRoot -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                $entry = Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue
+                if ($entry.DisplayName -like '*SteamHub*') {
+                    "$($entry.DisplayName) | $($entry.InstallLocation) | $($entry.DisplayIcon) | $($entry.UninstallString)"
+                }
+            }
+        ) -join [Environment]::NewLine
+        throw "Expected exactly one ALAXEE SteamHub Add/Remove Programs entry, found $($entries.Count). LOCALAPPDATA='$env:LOCALAPPDATA'; expected='$expectedInstallRoot'. Nearby entries: $diagnostics"
+    }
+
+    $registeredRoot = Get-RegisteredInstallRoot -Entry $entries[0]
+    $expectedFull = [System.IO.Path]::GetFullPath($expectedInstallRoot).TrimEnd('\')
+    $registeredFull = [System.IO.Path]::GetFullPath($registeredRoot).TrimEnd('\')
+    if (![string]::Equals($registeredFull, $expectedFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Installer registered an unexpected directory. LOCALAPPDATA='$env:LOCALAPPDATA'; expected='$expectedFull'; registered='$registeredFull'; DisplayIcon='$($entries[0].DisplayIcon)'; UninstallString='$($entries[0].UninstallString)'."
+    }
+
+    $script:installRoot = $registeredRoot
+    $script:installedExe = Join-Path $registeredRoot 'AlaxeeSteamBridge.exe'
+    $script:uninstaller = Join-Path $registeredRoot 'unins000.exe'
 }
 
 function Assert-ExternalFilesPreserved {
@@ -54,11 +116,21 @@ function Assert-ExternalFilesPreserved {
     Assert-FileSentinel -Path $otherDataSentinel -ExpectedContent 'other-product-data-guard' -Description 'Other ALAXEE product data guard'
 }
 
+function Remove-DirectoryOnlyWhenEmpty {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    if (!(Test-Path -LiteralPath $Path -PathType Container)) { return }
+    $children = @(Get-ChildItem -LiteralPath $Path -Force -ErrorAction Stop)
+    if ($children.Count -eq 0) {
+        Remove-Item -LiteralPath $Path -Force
+    }
+}
+
 if (!(Test-Path -LiteralPath $InstallerPath -PathType Leaf)) {
     throw "Installer not found: $InstallerPath"
 }
-if (Test-Path -LiteralPath $installRoot) {
-    throw "Refusing to overwrite an existing test installation: $installRoot"
+if (Test-Path -LiteralPath $expectedInstallRoot) {
+    throw "Refusing to overwrite an existing test installation: $expectedInstallRoot"
 }
 if (Test-Path -LiteralPath $localDataRoot) {
     throw "Refusing to overwrite an existing test data directory: $localDataRoot"
@@ -79,14 +151,15 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Silent installer exited with code $LASTEXITCODE."
     }
+    $testOwnedInstallCreated = $true
+    Resolve-InstalledPaths
 
-    $installedExe = Join-Path $installRoot 'AlaxeeSteamBridge.exe'
-    $uninstaller = Join-Path $installRoot 'unins000.exe'
     if (!(Test-Path -LiteralPath $installedExe -PathType Leaf)) {
-        throw 'Installed bridge executable is missing.'
+        $actualFiles = @(Get-ChildItem -LiteralPath $installRoot -Force -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name) -join ', '
+        throw "Installed bridge executable is missing. Registered root='$installRoot'; LOCALAPPDATA='$env:LOCALAPPDATA'; expected='$expectedInstallRoot'; files found='$actualFiles'."
     }
     if (!(Test-Path -LiteralPath $uninstaller -PathType Leaf)) {
-        throw 'Registered uninstaller executable is missing.'
+        throw "Registered uninstaller executable is missing: $uninstaller"
     }
     if (!(Test-Path -LiteralPath $localDataRoot -PathType Container)) {
         throw 'The per-user ALAXEE SteamHub data directory was not created.'
@@ -98,11 +171,6 @@ try {
     Start-Sleep -Milliseconds 800
     if (!(Get-Process -Id $bridgeProcess.Id -ErrorAction SilentlyContinue)) {
         throw 'The packaged bridge process exited before the data-preservation uninstall test.'
-    }
-
-    $uninstallEntries = @(Get-SteamHubUninstallEntries)
-    if ($uninstallEntries.Count -ne 1) {
-        throw "Expected one Add/Remove Programs entry, found $($uninstallEntries.Count)."
     }
 
     & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /KEEPLOCALDATA
@@ -131,20 +199,20 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Reinstall over retained local data exited with code $LASTEXITCODE."
     }
-    if (!(Test-Path -LiteralPath (Join-Path $installRoot 'AlaxeeSteamBridge.exe') -PathType Leaf)) {
-        throw 'The bridge executable is missing after reinstall over retained data.'
+    Resolve-InstalledPaths
+    if (!(Test-Path -LiteralPath $installedExe -PathType Leaf)) {
+        throw "The bridge executable is missing after reinstall: $installedExe"
     }
     Assert-FileSentinel -Path $preservedDataSentinel -ExpectedContent 'keep-data-phase' -Description 'Retained local SteamHub data after reinstall'
 
     $purgeDataSentinel = Join-Path $localDataRoot 'purge-data-test.sentinel'
     [System.IO.File]::WriteAllText($purgeDataSentinel, 'purge-data-phase')
-    $bridgeProcess = Start-Process -FilePath (Join-Path $installRoot 'AlaxeeSteamBridge.exe') -WindowStyle Hidden -PassThru
+    $bridgeProcess = Start-Process -FilePath $installedExe -WindowStyle Hidden -PassThru
     Start-Sleep -Milliseconds 800
     if (!(Get-Process -Id $bridgeProcess.Id -ErrorAction SilentlyContinue)) {
         throw 'The packaged bridge process exited before the full-cleanup uninstall test.'
     }
 
-    $uninstaller = Join-Path $installRoot 'unins000.exe'
     & $uninstaller /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
     if ($LASTEXITCODE -ne 0) {
         throw "Full-cleanup uninstaller exited with code $LASTEXITCODE."
@@ -180,6 +248,8 @@ finally {
     if ($bridgeProcess -and (Get-Process -Id $bridgeProcess.Id -ErrorAction SilentlyContinue)) {
         Stop-Process -Id $bridgeProcess.Id -Force -ErrorAction SilentlyContinue
     }
+
+    # Remove only paths created by this uniquely identified verification run.
     if (Test-Path -LiteralPath $guardRoot) {
         Remove-Item -LiteralPath $guardRoot -Recurse -Force
     }
@@ -189,6 +259,6 @@ finally {
     if (Test-Path -LiteralPath $otherDataRoot) {
         Remove-Item -LiteralPath $otherDataRoot -Recurse -Force
     }
-    Remove-Item -LiteralPath $programsAlaxeeRoot -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $alaxeeDataRoot -ErrorAction SilentlyContinue
+    Remove-DirectoryOnlyWhenEmpty -Path $programsAlaxeeRoot
+    Remove-DirectoryOnlyWhenEmpty -Path $alaxeeDataRoot
 }
