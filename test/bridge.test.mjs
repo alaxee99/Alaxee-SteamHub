@@ -102,8 +102,8 @@ test("Windows installer is scoped to SteamHub data and supports an explicit keep
   assert.ok(verify.includes("DisplayIcon"));
   assert.ok(verify.includes("UninstallString"));
   assert.ok(verify.includes("Remove-DirectoryOnlyWhenEmpty"));
-  assert.doesNotMatch(verify, /Remove-Item -LiteralPath \\$programsAlaxeeRoot/);
-  assert.doesNotMatch(verify, /Remove-Item -LiteralPath \\$alaxeeDataRoot/);
+  assert.doesNotMatch(verify, /Remove-Item -LiteralPath \$programsAlaxeeRoot/);
+  assert.doesNotMatch(verify, /Remove-Item -LiteralPath \$alaxeeDataRoot/);
   assert.ok(verify.includes("Remove-Item -LiteralPath $otherProgramRoot -Recurse -Force"));
   assert.ok(verify.includes("Remove-Item -LiteralPath $otherDataRoot -Recurse -Force"));
   assert.ok(verify.includes("Start-Process -FilePath"));
