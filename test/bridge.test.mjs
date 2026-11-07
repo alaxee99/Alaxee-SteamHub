@@ -133,7 +133,13 @@ test("Windows installer is scoped to SteamHub data and supports an explicit keep
   assert.doesNotMatch(verify, /Remove-Item -LiteralPath \$alaxeeDataRoot/);
   assert.ok(verify.includes("Remove-Item -LiteralPath $otherProgramRoot -Recurse -Force"));
   assert.ok(verify.includes("Remove-Item -LiteralPath $otherDataRoot -Recurse -Force"));
-  assert.ok(verify.includes("Start-Process -FilePath"));
+  assert.ok(verify.includes("function Invoke-SteamHubUninstaller"));
+  assert.ok(verify.includes("Start-Process -FilePath $script:uninstaller -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden"));
+  assert.ok(verify.includes("$keepUninstallExitCode = Invoke-SteamHubUninstaller"));
+  assert.ok(verify.includes("$purgeUninstallExitCode = Invoke-SteamHubUninstaller"));
+  assert.equal((verify.match(/Invoke-SteamHubUninstaller -LogPath/g) || []).length, 2);
+  assert.doesNotMatch(verify, /\$LASTEXITCODE/, "Uninstaller exit checks must use the process handle, not stale native exit state.");
+  assert.ok(verify.includes("returned success but produced no Inno Setup log"));
 });
 
 test("packaging selects Inno Setup 7 rather than a stale compiler shim", async () => {

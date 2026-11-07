@@ -202,6 +202,25 @@ function Resolve-InstalledPaths {
     $script:uninstaller = Join-Path $registeredRoot 'unins000.exe'
 }
 
+function Invoke-SteamHubUninstaller {
+    param(
+        [Parameter(Mandatory = $true)][string]$LogPath,
+        [switch]$KeepLocalData
+    )
+
+    if (!(Test-Path -LiteralPath $script:uninstaller -PathType Leaf)) {
+        throw "The registered SteamHub uninstaller is missing: $script:uninstaller"
+    }
+
+    $arguments = '/LOG="' + $LogPath + '" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-'
+    if ($KeepLocalData) { $arguments += ' /KEEPLOCALDATA' }
+    Write-Host "Launching SteamHub uninstaller '$script:uninstaller'. Log: '$LogPath'"
+    $process = Start-Process -FilePath $script:uninstaller -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
+    if (!$process) {
+        throw "Windows did not return a process handle for the SteamHub uninstaller: $script:uninstaller"
+    }
+    return [int]$process.ExitCode
+}
 function Assert-ExternalFilesPreserved {
     Assert-FileSentinel -Path $steamExecutableSentinel -ExpectedContent 'steam-install-guard' -Description 'Steam installation guard'
     Assert-FileSentinel -Path $steamSaveSentinel -ExpectedContent 'steam-save-guard' -Description 'Steam save guard'
@@ -300,14 +319,17 @@ try {
         throw 'The packaged bridge process exited before the data-preservation uninstall test.'
     }
 
-    & $uninstaller ('/LOG="' + $keepUninstallLogPath + '"') /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /KEEPLOCALDATA
-    if ($LASTEXITCODE -ne 0) {
+    $keepUninstallExitCode = Invoke-SteamHubUninstaller -LogPath $keepUninstallLogPath -KeepLocalData
+    if ($keepUninstallExitCode -ne 0) {
         $uninstallLogTail = if (Test-Path -LiteralPath $keepUninstallLogPath -PathType Leaf) {
-            (Get-Content -LiteralPath $keepUninstallLogPath -Tail 100 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
+            (Get-Content -LiteralPath $keepUninstallLogPath -Tail 120 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
         } else {
             '<uninstaller log missing>'
         }
-        throw "Keep-data uninstaller exited with code $LASTEXITCODE. UninstallerLog='$keepUninstallLogPath'; Log='$uninstallLogTail'."
+        throw "Keep-data uninstaller exited with code $keepUninstallExitCode. UninstallerLog='$keepUninstallLogPath'; Log='$uninstallLogTail'."
+    }
+    if (!(Test-Path -LiteralPath $keepUninstallLogPath -PathType Leaf)) {
+        throw "Keep-data uninstaller returned success but produced no Inno Setup log: $keepUninstallLogPath"
     }
 
     if (Get-Process -Id $bridgeProcess.Id -ErrorAction SilentlyContinue) {
@@ -360,14 +382,17 @@ try {
         throw 'The packaged bridge process exited before the full-cleanup uninstall test.'
     }
 
-    & $uninstaller ('/LOG="' + $purgeUninstallLogPath + '"') /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
-    if ($LASTEXITCODE -ne 0) {
+    $purgeUninstallExitCode = Invoke-SteamHubUninstaller -LogPath $purgeUninstallLogPath
+    if ($purgeUninstallExitCode -ne 0) {
         $uninstallLogTail = if (Test-Path -LiteralPath $purgeUninstallLogPath -PathType Leaf) {
-            (Get-Content -LiteralPath $purgeUninstallLogPath -Tail 100 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
+            (Get-Content -LiteralPath $purgeUninstallLogPath -Tail 120 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
         } else {
             '<uninstaller log missing>'
         }
-        throw "Full-cleanup uninstaller exited with code $LASTEXITCODE. UninstallerLog='$purgeUninstallLogPath'; Log='$uninstallLogTail'."
+        throw "Full-cleanup uninstaller exited with code $purgeUninstallExitCode. UninstallerLog='$purgeUninstallLogPath'; Log='$uninstallLogTail'."
+    }
+    if (!(Test-Path -LiteralPath $purgeUninstallLogPath -PathType Leaf)) {
+        throw "Full-cleanup uninstaller returned success but produced no Inno Setup log: $purgeUninstallLogPath"
     }
 
     if (Get-Process -Id $bridgeProcess.Id -ErrorAction SilentlyContinue) {
