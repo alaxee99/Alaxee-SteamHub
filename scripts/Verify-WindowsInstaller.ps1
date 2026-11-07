@@ -5,6 +5,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $testId = [guid]::NewGuid().ToString('N')
+$testStartedAt = Get-Date
+$verificationPassed = $false
 $expectedInstallRoot = Join-Path $env:LOCALAPPDATA 'Programs\ALAXEE\SteamHub'
 $programsAlaxeeRoot = Join-Path $env:LOCALAPPDATA 'Programs\ALAXEE'
 $localDataRoot = Join-Path $env:LOCALAPPDATA 'ALAXEE\SteamHub'
@@ -205,6 +207,33 @@ function Assert-ExternalFilesPreserved {
     Assert-FileSentinel -Path $otherDataSentinel -ExpectedContent 'other-product-data-guard' -Description 'Other ALAXEE product data guard'
 }
 
+function Get-BridgeProcessDiagnostics {
+    param([Parameter(Mandatory = $true)][int]$ProcessId)
+
+    try {
+        $record = Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $ProcessId" -ErrorAction Stop
+        if (!$record) { return "PID $ProcessId no longer exists in Win32_Process." }
+        return "PID=$($record.ProcessId); Name='$($record.Name)'; ExecutablePath='$($record.ExecutablePath)'."
+    } catch {
+        return "Could not query Win32_Process for PID $ProcessId: $($_.Exception.Message)"
+    }
+}
+
+function Get-StopScriptLogDiagnostics {
+    $logs = @(Get-ChildItem -LiteralPath $env:TEMP -Filter 'ALAXEE-SteamHub-stop-*.log' -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -ge $script:testStartedAt } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 5)
+    if ($logs.Count -eq 0) { return '<no stop-script diagnostic log was created>' }
+
+    $parts = @()
+    foreach ($log in $logs) {
+        $tail = (Get-Content -LiteralPath $log.FullName -Tail 40 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
+        $parts += ("Log='{0}'{1}{2}" -f $log.FullName, [Environment]::NewLine, $tail)
+    }
+    return ($parts -join [Environment]::NewLine)
+}
+
 function Remove-DirectoryOnlyWhenEmpty {
     param([Parameter(Mandatory = $true)][string]$Path)
 
@@ -275,7 +304,9 @@ try {
     }
 
     if (Get-Process -Id $bridgeProcess.Id -ErrorAction SilentlyContinue) {
-        throw 'The installed bridge process remained running after the keep-data uninstall.'
+        $processDiagnostics = Get-BridgeProcessDiagnostics -ProcessId $bridgeProcess.Id
+        $stopLogDiagnostics = Get-StopScriptLogDiagnostics
+        throw "The installed bridge process remained running after the keep-data uninstall. Process='$processDiagnostics'; stop-script diagnostics='$stopLogDiagnostics'."
     }
     $bridgeProcess = $null
     if (Test-Path -LiteralPath $installRoot) {
@@ -346,6 +377,7 @@ try {
     }
     Assert-ExternalFilesPreserved
 
+    $verificationPassed = $true
     Write-Host 'Installer verification passed: install, keep-local-data uninstall, reinstall, full local-data purge, process shutdown, registry and shortcut cleanup, and external Steam/ALAXEE sentinel preservation.' -ForegroundColor Green
 }
 finally {
@@ -369,5 +401,10 @@ finally {
         if (Test-Path -LiteralPath $logPath -PathType Leaf) {
             Remove-Item -LiteralPath $logPath -Force
         }
+    }
+    if ($verificationPassed) {
+        Get-ChildItem -LiteralPath $env:TEMP -Filter 'ALAXEE-SteamHub-stop-*.log' -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -ge $testStartedAt } |
+            Remove-Item -Force -ErrorAction SilentlyContinue
     }
 }
