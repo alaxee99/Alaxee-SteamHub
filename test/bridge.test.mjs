@@ -90,7 +90,7 @@ test("Windows installer includes a per-user install and a real uninstaller with 
   assert.ok(stop.includes("[System.StringComparison]::OrdinalIgnoreCase"));
   assert.ok(verify.includes("unins000.exe"));
   assert.ok(verify.includes("Add/Remove Programs"));
-  assert.ok(verify.includes("local settings/cache directory remains"));
+  assert.ok(verify.includes("Local settings/cache directory remains"));
   assert.ok(verify.includes("Start Menu shortcut remains"));
   assert.ok(verify.includes("Start-Process -FilePath $installedExe"));
   assert.ok(verify.includes("bridge process remained running"));
