@@ -31,9 +31,10 @@ export function getSimplifiedChineseMarketUrl(value) {
     const isCommunityHost = host === "steamcommunity.com" ||
       host.endsWith(".steamcommunity.com") ||
       host === "community.steamstatic.com";
+    const isMarketPath = url.pathname === "/market" || url.pathname.startsWith("/market/");
     if ((url.protocol !== "http:" && url.protocol !== "https:") ||
         !isCommunityHost ||
-        !/^\\/market(?:\\/|$)/.test(url.pathname)) {
+        !isMarketPath) {
       return null;
     }
     if (url.searchParams.get("l") === "schinese") return null;
