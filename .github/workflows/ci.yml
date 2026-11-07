@@ -1,0 +1,108 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run tests
+        run: npm test
+      - name: Check JavaScript syntax
+        run: npm run check
+
+  windows-powershell-51:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Parse all PowerShell scripts with Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          $scriptFiles = Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE 'scripts') -Filter '*.ps1' -File -Recurse
+          if ($scriptFiles.Count -eq 0) {
+            throw 'No PowerShell scripts were found.'
+          }
+          foreach ($file in $scriptFiles) {
+            $tokens = $null
+            $parseErrors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile($file.FullName, [ref]$tokens, [ref]$parseErrors)
+            if ($parseErrors.Count -gt 0) {
+              $parseErrors | ForEach-Object { Write-Error $_ }
+              throw "Windows PowerShell 5.1 parser errors in $($file.FullName)."
+            }
+            $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
+            foreach ($byte in $bytes) {
+              if ($byte -gt 127) {
+                throw "PowerShell script must remain ASCII-only: $($file.FullName)"
+              }
+            }
+            Write-Host "Parsed and verified ASCII: $($file.Name)"
+          }
+
+  package-windows-x64:
+    needs: [verify, windows-powershell-51]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js SEA builder
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26.13.0
+      - name: Install Inno Setup 7.1.1
+        shell: pwsh
+        run: |
+          winget install --id JRSoftware.InnoSetup.7 --exact --version 7.1.1 --source winget --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup installation failed with exit code $LASTEXITCODE."
+          }
+          $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $candidates = @(
+            $(if ($programFilesX86) { Join-Path $programFilesX86 'Inno Setup 7\ISCC.exe' }),
+            $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe' }),
+            $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 7\ISCC.exe' })
+          )
+          $compiler = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+          if (!$compiler) {
+            $compilerCommand = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($compilerCommand) {
+              $compilerDetails = (& $compilerCommand.Source /? 2>&1 | Out-String)
+              if ($compilerDetails -match 'Inno Setup 7') {
+                $compiler = $compilerCommand.Source
+              }
+            }
+          }
+          if (!$compiler) {
+            throw "Inno Setup 7.1.1 was installed but its compiler was not found. A legacy ISCC.exe on PATH is not accepted. Checked: $($candidates -join '; ')."
+          }
+          $compilerDetails = (& $compiler /? 2>&1 | Out-String)
+          if ($compilerDetails -notmatch 'Inno Setup 7') {
+            throw "The selected compiler is not Inno Setup 7: $compiler"
+          }
+          Write-Host "Using verified Inno Setup 7 compiler: $compiler"
+      - name: Build, install and uninstall Windows x64 package
+        shell: pwsh
+        run: ./scripts/Build-WindowsPackage.ps1
+      - name: Upload Windows installer and portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: Alaxee-SteamHub-Windows-x64-${{ github.sha }}
+          path: |
+            dist/ALAXEE-SteamHub-Setup-x64.exe
+            dist/Alaxee-SteamHub-Windows-x64.zip
+          if-no-files-found: error
+          retention-days: 14

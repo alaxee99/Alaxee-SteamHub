@@ -1,0 +1,13 @@
+{
+  "name": "alaxee-steamhub",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ALAXEE Steam translation project with a standalone local CEF/CDP adapter.",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node src/bridge.mjs",
+    "test": "node --test",
+    "check": "node --check build/sea-entry.mjs && node --check src/bridge.mjs && node --check src/page-runtime.js && node --check test/bridge.test.mjs"
+  }
+}
