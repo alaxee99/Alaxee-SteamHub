@@ -8,10 +8,13 @@ function Wait-SteamCdpLoopback {
     $lastError = 'Waiting for the Steam CEF debugging port to become available.'
 
     while ((Get-Date) -lt $deadline) {
-        $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction SilentlyContinue)
-        if ($listeners.Count -gt 0) {
+        # Do not filter by TCP State here: Windows can expose the Steam
+        # loopback CDP socket without reporting it as Listen on every build.
+        # Inspect every record whose local port is the configured CDP port.
+        $connections = @(Get-NetTCPConnection -LocalPort $Port -ErrorAction SilentlyContinue)
+        if ($connections.Count -gt 0) {
             $allowed = @('127.0.0.1', '::1')
-            $unsafe = @($listeners | Where-Object { $_.LocalAddress -notin $allowed })
+            $unsafe = @($connections | Where-Object { $_.LocalAddress -notin $allowed })
             if ($unsafe.Count -gt 0) {
                 $unsafe | Select-Object LocalAddress, LocalPort, OwningProcess | Format-Table -AutoSize | Out-Host
                 throw "Steam CDP port $Port is listening on a non-loopback address. The bridge refuses to attach."

@@ -112,7 +112,9 @@ async function fetchJson(url, timeoutMs = 1800) {
 
 async function assertWindowsLoopbackBinding(port) {
   if (process.platform !== "win32") return;
-  const command = `(Get-NetTCPConnection -State Listen -LocalPort ${Number(port)} -ErrorAction Stop | Select-Object -ExpandProperty LocalAddress) -join ','`;
+  // Avoid filtering by State: Windows can expose the Steam CDP socket
+  // without classifying its TCP table record as Listen.
+  const command = `(Get-NetTCPConnection -LocalPort ${Number(port)} -ErrorAction Stop | Select-Object -ExpandProperty LocalAddress) -join ','`;
   let stdout;
   try {
     ({ stdout } = await execFileAsync("powershell.exe", ["-NoLogo", "-NoProfile", "-Command", command], {

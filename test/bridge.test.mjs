@@ -170,6 +170,12 @@ test("all Windows PowerShell scripts are ASCII-only for Windows PowerShell 5.1",
 
   const guard = await readFile(path.join(root, "scripts", "Assert-SteamCdpLoopback.ps1"), "utf8");
   assert.ok(guard.includes("$ws.DnsSafeHost"), "IPv6 loopback hostnames must be normalized without bracket parsing.");
+  assert.ok(guard.includes("Get-NetTCPConnection -LocalPort $Port"));
+  assert.ok(!guard.includes("Get-NetTCPConnection -State Listen"));
+
+  const bridge = await readFile(path.join(root, "src", "bridge.mjs"), "utf8");
+  assert.ok(bridge.includes("Get-NetTCPConnection -LocalPort ${Number(port)}"));
+  assert.ok(!bridge.includes("Get-NetTCPConnection -State Listen"));
 
   const build = await readFile(path.join(root, "scripts", "Build-WindowsPackage.ps1"), "utf8");
   assert.ok(build.includes("--build-sea"));
