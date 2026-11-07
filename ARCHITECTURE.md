@@ -47,6 +47,12 @@ ALAXEE Translation Core (owned by ALAXEE)
 
 The shared translation core must not import `chrome.*`, Millennium globals or CDP classes. Each host adapter supplies page identity, DOM/document access, navigation lifecycle, storage/cache and UI mounting.
 
+## Community Market language handling
+
+For Steam Community Market URLs (`/market` and `/market/...`) on Steam Community hosts, the bridge sets the supported Simplified Chinese web locale parameter `l=schinese`. Existing search parameters and fragments are preserved. This does not change Steam global language preferences, cookies, account settings, or authentication state.
+
+This localizes Steam's own Community Market interface and any item labels Steam serves in the selected language. It is not a universal translator and does not invent translations for item names Steam does not localize.
+
 ## Current boundary
 
-This repository currently contains the standalone injection proof of concept only. It does not yet translate Steam pages, call TBHIndex, control Steam proxy settings, or integrate the earlier Chrome extension prototype. Translation is the next implementation phase.
+The standalone CDP bridge and market-locale adapter are implemented. A general translation core, exact AppID/item-key registry, and documented TBHIndex lookup adapter remain pending. TBHIndex is used only for verified Task Bar Hero lookups; no undocumented API endpoint or broad market crawler is assumed. The bridge does not control Steam proxy settings or integrate the earlier Chrome extension prototype.

@@ -42,7 +42,8 @@ Windows x64 安装包由 CI 构建，并在上传前实际执行安装和卸载�
 
 ## 当前功能状态
 
-- 已有：独立 Steam CEF/CDP 桥接原型、目标网页筛选、导航后脚本注册、Windows loopback 安全检查。
+- 已有：独立 Steam CEF/CDP 桥接、目标网页筛选、导航后脚本注册、Windows loopback 安全检查。
+- 已有：Steam Community Market 自动使用 Steam 官方简体中文页面语言参数 `l=schinese`；保留搜索和物品查询参数，不修改 Steam 全局语言设置。
 - 正在实现：Steam 页面真正汉化、游戏 AppID 注册表、TBHIndex 按需查询。
 - 尚未验证：用户实际 Steam 客户端启动、商店/市场页面注入和页面导航稳定性。
 

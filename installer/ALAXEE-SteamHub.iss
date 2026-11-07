@@ -132,8 +132,8 @@ begin
   if ResultCode <> 0 then
   begin
     Log('Uninstall aborted because the SteamHub bridge did not stop successfully. Log: ' + StopScriptLog);
-    MsgBox('ALAXEE SteamHub could not stop safely. Uninstall has been cancelled.' +
-      #13#10 + 'Diagnostic log: ' + StopScriptLog,
+    MsgBox('ALAXEE SteamHub could not stop safely. Uninstall has been cancelled.' + #13#10 +
+      'Diagnostic log: ' + StopScriptLog,
       mbError, MB_OK);
     Result := False;
     Exit;

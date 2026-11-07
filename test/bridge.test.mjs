@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertLoopbackWebSocketUrl, filterSteamTargets, isSteamPageUrl } from "../src/bridge.mjs";
+import { assertLoopbackWebSocketUrl, filterSteamTargets, getSimplifiedChineseMarketUrl, isSteamPageUrl } from "../src/bridge.mjs";
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
@@ -17,6 +17,27 @@ test("recognizes Steam Community and Store subdomains only", () => {
   assert.equal(isSteamPageUrl("steam://openurl/https://steamcommunity.com"), false);
 });
 
+test("Steam Community Market pages use the official Simplified Chinese locale while preserving search state", () => {
+  const input = "https://steamcommunity.com/market/listings/730/AK-47?query=red&start=0&count=10#history";
+  const localized = getSimplifiedChineseMarketUrl(input);
+  assert.ok(localized);
+  const url = new URL(localized);
+  assert.equal(url.searchParams.get("l"), "schinese");
+  assert.equal(url.searchParams.get("query"), "red");
+  assert.equal(url.searchParams.get("start"), "0");
+  assert.equal(url.searchParams.get("count"), "10");
+  assert.equal(url.hash, "#history");
+  assert.equal(getSimplifiedChineseMarketUrl(localized), null);
+});
+
+test("Steam Market locale adaptation is restricted to Community Market routes", () => {
+  assert.equal(getSimplifiedChineseMarketUrl("https://store.steampowered.com/app/730/"), null);
+  assert.equal(getSimplifiedChineseMarketUrl("https://steamcommunity.com/id/example/"), null);
+  assert.equal(getSimplifiedChineseMarketUrl("https://example.com/market/"), null);
+  assert.equal(getSimplifiedChineseMarketUrl("file:///market/"), null);
+  const alias = getSimplifiedChineseMarketUrl("https://community.steamstatic.com/market/?l=english");
+  assert.equal(new URL(alias).searchParams.get("l"), "schinese");
+});
 test("filters out workers, browser targets and non-Steam websites", () => {
   const targets = filterSteamTargets([
     { id: "1", type: "page", url: "https://steamcommunity.com/market/", webSocketDebuggerUrl: "ws://localhost:8080/devtools/page/1" },
@@ -82,6 +103,7 @@ test("Windows installer is scoped to SteamHub data and supports an explicit keep
   assert.ok(installer.includes("FileExists(StopScript)"), "Uninstall hook must fail closed if the bundled stopper is missing.");
   assert.match(installer, /DelTree\(LocalDataPath, True, True, True\)/);
   assert.equal((installer.match(/DelTree\(/g) || []).length, 1, "Only the dedicated SteamHub data directory may be recursively deleted.");
+  assert.doesNotMatch(installer, /^[ \t]*#13#10/m, "Inno preprocessor expressions must not begin a source line.");
   assert.match(installer, /UninstallParameterExists\('\/KEEPLOCALDATA'\)/);
   assert.match(installer, /Supabase 云端账号和跨设备同步数据不会被删除/);
   assert.match(installer, /Name: "\{autoprograms\}\\ALAXEE SteamHub"/);

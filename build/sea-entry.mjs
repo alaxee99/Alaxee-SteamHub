@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { isSea } from "node:sea";
-import { isSteamPageUrl, runBridge } from "./src/bridge.mjs";
+import { getSimplifiedChineseMarketUrl, isSteamPageUrl, runBridge } from "./src/bridge.mjs";
 
 if (!isSea()) {
   throw new Error("This entry point must run inside the packaged ALAXEE SteamHub executable.");
@@ -13,6 +13,10 @@ if (process.argv[2] === "--self-test") {
   }
   if (!isSteamPageUrl("https://steamcommunity.com/market/")) {
     throw new Error("The embedded Steam URL matcher failed its smoke test.");
+  }
+  if (getSimplifiedChineseMarketUrl("https://steamcommunity.com/market/?foo=bar") !==
+      "https://steamcommunity.com/market/?foo=bar&l=schinese") {
+    throw new Error("The embedded Steam Market locale helper failed its smoke test.");
   }
   console.log("ALAXEE SteamHub SEA self-test passed. Runtime and page assets are embedded.");
 } else {

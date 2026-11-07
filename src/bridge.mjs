@@ -24,6 +24,26 @@ export function isSteamPageUrl(value) {
   }
 }
 
+export function getSimplifiedChineseMarketUrl(value) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    const isCommunityHost = host === "steamcommunity.com" ||
+      host.endsWith(".steamcommunity.com") ||
+      host === "community.steamstatic.com";
+    if ((url.protocol !== "http:" && url.protocol !== "https:") ||
+        !isCommunityHost ||
+        !/^\\/market(?:\\/|$)/.test(url.pathname)) {
+      return null;
+    }
+    if (url.searchParams.get("l") === "schinese") return null;
+    url.searchParams.set("l", "schinese");
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
 export function filterSteamTargets(targets) {
   if (!Array.isArray(targets)) return [];
   return targets.filter((target) =>
@@ -186,11 +206,19 @@ async function connectTarget(target, runtimeSource, expectedPort) {
   try {
     await client.send("Page.enable");
     await client.send("Page.addScriptToEvaluateOnNewDocument", { source: runtimeSource });
-    await client.send("Runtime.evaluate", {
-      expression: runtimeSource,
-      awaitPromise: false,
-      returnByValue: true
-    });
+    const localizedMarketUrl = getSimplifiedChineseMarketUrl(target.url);
+    if (localizedMarketUrl) {
+      // Steam Community supports this official locale parameter. Preserve the
+      // search/listing query and fragment; do not change the global Steam language.
+      await client.send("Page.navigate", { url: localizedMarketUrl });
+      console.log("[ALAXEE] Applied Steam Community Market Simplified Chinese locale.");
+    } else {
+      await client.send("Runtime.evaluate", {
+        expression: runtimeSource,
+        awaitPromise: false,
+        returnByValue: true
+      });
+    }
     return client;
   } catch (error) {
     client.close();
@@ -212,7 +240,7 @@ export async function runBridge({ host = DEFAULT_HOST, port = DEFAULT_PORT, poll
 
   console.log(`[ALAXEE] Standalone Steam bridge listening for local CDP at ${base}`);
   console.log("[ALAXEE] Only Steam Store/Community page targets are eligible for injection.");
-  console.log("[ALAXEE] No cookies, tokens, or page text are read by this probe.");
+  console.log("[ALAXEE] Market pages use Steam Simplified Chinese locale; no account data is read.");
 
   while (!signal?.aborted) {
     try {
