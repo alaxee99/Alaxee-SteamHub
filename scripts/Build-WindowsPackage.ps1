@@ -6,6 +6,7 @@ $runtimeStage = Join-Path $distRoot '_runtime-vfs'
 $runtimeZip = Join-Path $distRoot '_runtime-vfs.zip'
 $packageRoot = Join-Path $distRoot '_windows-package'
 $packageZip = Join-Path $distRoot 'Alaxee-SteamHub-Windows-x64.zip'
+$installerPath = Join-Path $distRoot 'ALAXEE-SteamHub-Setup-x64.exe'
 $configPath = Join-Path $distRoot '_sea-config.json'
 $executablePath = Join-Path $packageRoot 'AlaxeeSteamBridge.exe'
 
@@ -26,6 +27,7 @@ if (Test-Path -LiteralPath $runtimeStage) { Remove-Item -LiteralPath $runtimeSta
 if (Test-Path -LiteralPath $packageRoot) { Remove-Item -LiteralPath $packageRoot -Recurse -Force }
 if (Test-Path -LiteralPath $runtimeZip) { Remove-Item -LiteralPath $runtimeZip -Force }
 if (Test-Path -LiteralPath $packageZip) { Remove-Item -LiteralPath $packageZip -Force }
+if (Test-Path -LiteralPath $installerPath) { Remove-Item -LiteralPath $installerPath -Force }
 if (Test-Path -LiteralPath $configPath) { Remove-Item -LiteralPath $configPath -Force }
 
 New-Item -ItemType Directory -Path (Join-Path $runtimeStage 'src') -Force | Out-Null
@@ -89,5 +91,35 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\Assert-SteamCdpLoopback.ps1
     $false
 )
 
-Write-Host "Windows x64 package created: $packageZip" -ForegroundColor Green
+$programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+$compilerCandidates = @(
+    $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe' }),
+    $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe' }),
+    $(if ($programFilesX86) { Join-Path $programFilesX86 'Inno Setup 7\ISCC.exe' }),
+    $(if ($programFilesX86) { Join-Path $programFilesX86 'Inno Setup 6\ISCC.exe' })
+)
+$compilerCommand = Get-Command ISCC.exe -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+$compilerPath = if ($compilerCommand) { $compilerCommand.Source } else {
+    $compilerCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+}
+if (!$compilerPath) {
+    throw 'Inno Setup compiler was not found. Install JRSoftware.InnoSetup.7 in the Windows packaging job.'
+}
+
+$installerScript = Join-Path $repoRoot 'installer\ALAXEE-SteamHub.iss'
+& $compilerPath $installerScript
+if ($LASTEXITCODE -ne 0) {
+    throw "Inno Setup compilation failed with exit code $LASTEXITCODE."
+}
+if (!(Test-Path -LiteralPath $installerPath -PathType Leaf)) {
+    throw 'The ALAXEE SteamHub installer EXE was not created.'
+}
+
+& (Join-Path $PSScriptRoot 'Verify-WindowsInstaller.ps1') -InstallerPath $installerPath
+if ($LASTEXITCODE -ne 0) {
+    throw "Windows installer verification failed with exit code $LASTEXITCODE."
+}
+
+Write-Host "Windows x64 portable package created: $packageZip" -ForegroundColor Green
+Write-Host "Windows x64 installer created: $installerPath" -ForegroundColor Green
 Write-Host "Bundled executable size: $((Get-Item -LiteralPath $executablePath).Length) bytes"
