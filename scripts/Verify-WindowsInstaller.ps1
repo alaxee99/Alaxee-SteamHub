@@ -179,7 +179,7 @@ function Resolve-InstalledPaths {
         } else {
             '<installer log missing>'
         }
-        throw "Expected exactly one ALAXEE SteamHub Add/Remove Programs entry, found $($entries.Count). LOCALAPPDATA='$env:LOCALAPPDATA'; expected='$expectedInstallRoot'; installRootExists='$installRootExists'; files='$installRootFiles'; registryCandidates='$registryDiagnostics'; InnoSetupLogTail='$logTail'."
+        throw "Expected exactly one ALAXEE SteamHub Add/Remove Programs entry, found $($entries.Count). User='$env:USERNAME'; LOCALAPPDATA='$env:LOCALAPPDATA'; TEMP='$env:TEMP'; installerExitCode='$installerExitCode'; expected='$expectedInstallRoot'; installRootExists='$installRootExists'; files='$installRootFiles'; registryCandidates='$registryDiagnostics'; InnoSetupLogPath='$script:installerLogPath'; InnoSetupLogTail='$logTail'."
     }
 
     if ($entries[0].DisplayName -cne 'ALAXEE SteamHub') {
@@ -236,9 +236,17 @@ try {
     [System.IO.File]::WriteAllText($steamSaveSentinel, 'steam-save-guard')
 
     # Phase 1: install, then explicitly keep user data during silent uninstall.
-    & $InstallerPath "/LOG=$installerLogPath" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Silent installer exited with code $LASTEXITCODE."
+    $installArguments = '/DIR="' + $expectedInstallRoot + '" /LOG="' + $installerLogPath + '" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-'
+    Write-Host "Launching installer for current user '$env:USERNAME' at '$expectedInstallRoot'. Log: '$installerLogPath'"
+    $installerProcess = Start-Process -FilePath $InstallerPath -ArgumentList $installArguments -Wait -PassThru
+    $installerExitCode = $installerProcess.ExitCode
+    if ($installerExitCode -ne 0) {
+        $logTail = if (Test-Path -LiteralPath $installerLogPath -PathType Leaf) {
+            (Get-Content -LiteralPath $installerLogPath -Tail 80 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
+        } else {
+            '<installer log missing>'
+        }
+        throw "Silent installer exited with code $installerExitCode. ExpectedDir='$expectedInstallRoot'; LogPath='$installerLogPath'; Log='$logTail'."
     }
     Resolve-InstalledPaths
 
@@ -283,9 +291,17 @@ try {
     Assert-ExternalFilesPreserved
 
     # Phase 2: reinstall over retained data, then verify the default silent purge path.
-    & $InstallerPath "/LOG=$reinstallLogPath" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
-    if ($LASTEXITCODE -ne 0) {
-        throw "Reinstall over retained local data exited with code $LASTEXITCODE."
+    $reinstallArguments = '/DIR="' + $expectedInstallRoot + '" /LOG="' + $reinstallLogPath + '" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-'
+    Write-Host "Reinstalling for current user '$env:USERNAME' at '$expectedInstallRoot'. Log: '$reinstallLogPath'"
+    $reinstallProcess = Start-Process -FilePath $InstallerPath -ArgumentList $reinstallArguments -Wait -PassThru
+    $reinstallExitCode = $reinstallProcess.ExitCode
+    if ($reinstallExitCode -ne 0) {
+        $logTail = if (Test-Path -LiteralPath $reinstallLogPath -PathType Leaf) {
+            (Get-Content -LiteralPath $reinstallLogPath -Tail 80 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
+        } else {
+            '<installer log missing>'
+        }
+        throw "Reinstall over retained local data exited with code $reinstallExitCode. ExpectedDir='$expectedInstallRoot'; LogPath='$reinstallLogPath'; Log='$logTail'."
     }
     Resolve-InstalledPaths
     if (!(Test-Path -LiteralPath $installedExe -PathType Leaf)) {
