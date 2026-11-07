@@ -60,7 +60,7 @@ test("page runtime is self-contained and only displays a probe on Steam hosts", 
   const runtime = await readFile(path.join(root, "src", "page-runtime.js"), "utf8");
   assert.match(runtime, /steamcommunity\.com/);
   assert.match(runtime, /steampowered\.com/);
-  assert.match(runtime, /ALAXEE · STANDALONE BRIDGE/);
+  assert.match(runtime, /ALAXEE STEAMHUB/);
   assert.doesNotMatch(runtime, /chrome\.runtime|document\.cookie|localStorage|sessionStorage/);
   assert.match(runtime, /prefers-reduced-motion/);
   assert.match(runtime, /className = "launcher"/);
