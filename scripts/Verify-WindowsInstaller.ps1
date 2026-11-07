@@ -6,6 +6,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $installRoot = Join-Path $env:LOCALAPPDATA 'Programs\ALAXEE\SteamHub'
 $localDataRoot = Join-Path $env:LOCALAPPDATA 'ALAXEE\SteamHub'
+$alaxeeDataRoot = Join-Path $env:LOCALAPPDATA 'ALAXEE'
 
 if (!(Test-Path -LiteralPath $InstallerPath -PathType Leaf)) {
     throw "Installer not found: $InstallerPath"
@@ -67,6 +68,12 @@ if (Test-Path -LiteralPath $installRoot) {
 }
 if (Test-Path -LiteralPath $localDataRoot) {
     throw 'Local settings/cache directory remains after a full silent uninstall.'
+}
+if (Test-Path -LiteralPath $alaxeeDataRoot) {
+    $remainingData = @(Get-ChildItem -LiteralPath $alaxeeDataRoot -Force -ErrorAction SilentlyContinue)
+    if ($remainingData.Count -eq 0) {
+        throw 'An empty ALAXEE data parent directory remains after uninstall.'
+    }
 }
 
 $remaining = @(
