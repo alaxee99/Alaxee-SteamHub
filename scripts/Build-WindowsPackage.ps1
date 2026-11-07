@@ -83,6 +83,7 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'README.zh-CN.md') -Destination $pac
 Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\Start-AlaxeeSteamBridge.ps1') -Destination (Join-Path $packageRoot 'scripts')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\Attach-ToRunningSteam.ps1') -Destination (Join-Path $packageRoot 'scripts')
 Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\Assert-SteamCdpLoopback.ps1') -Destination (Join-Path $packageRoot 'scripts')
+Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\Stop-AlaxeeSteamBridge.ps1') -Destination (Join-Path $packageRoot 'scripts')
 
 [System.IO.Compression.ZipFile]::CreateFromDirectory(
     $packageRoot,
