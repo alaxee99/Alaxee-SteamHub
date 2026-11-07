@@ -23,7 +23,6 @@ $bridgeProcess = $null
 $installedExe = $null
 $uninstaller = $null
 $installRoot = $expectedInstallRoot
-$testOwnedInstallCreated = $false
 
 function Assert-FileSentinel {
     param(
@@ -151,7 +150,6 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Silent installer exited with code $LASTEXITCODE."
     }
-    $testOwnedInstallCreated = $true
     Resolve-InstalledPaths
 
     if (!(Test-Path -LiteralPath $installedExe -PathType Leaf)) {
