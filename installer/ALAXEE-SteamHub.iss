@@ -55,6 +55,21 @@ Name: "{autodesktop}\ALAXEE SteamHub"; Filename: "{app}\Start-Steam-Bridge.bat";
 var
   RemoveLocalDataOnUninstall: Boolean;
 
+function UninstallParameterExists(const Value: String): Boolean;
+var
+  Index: Integer;
+begin
+  Result := False;
+  for Index := 1 to ParamCount do
+  begin
+    if CompareText(ParamStr(Index), Value) = 0 then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
 function InitializeUninstall(): Boolean;
 var
   ResultCode: Integer;
@@ -77,7 +92,9 @@ begin
     Exit;
   end;
 
-  if WizardSilent then
+  if UninstallParameterExists('/KEEPLOCALDATA') then
+    RemoveLocalDataOnUninstall := False
+  else if WizardSilent then
     RemoveLocalDataOnUninstall := True
   else
     RemoveLocalDataOnUninstall :=
