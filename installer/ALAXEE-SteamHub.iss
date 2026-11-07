@@ -81,9 +81,9 @@ var
   LocalDataPath: String;
 begin
   Result := True;
-  StopScript := ExpandConstant('{app}\\scripts\\Stop-AlaxeeSteamBridge.ps1');
-  PowerShellExecutable := ExpandConstant('{sys}\\WindowsPowerShell\\v1.0\\powershell.exe');
-  StopScriptLog := ExpandConstant('{localappdata}\\Temp\\ALAXEE-SteamHub-stop-') +
+  StopScript := ExpandConstant('{app}\scripts\Stop-AlaxeeSteamBridge.ps1');
+  PowerShellExecutable := ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe');
+  StopScriptLog := ExpandConstant('{localappdata}\Temp\ALAXEE-SteamHub-stop-') +
     GetDateTimeString('yyyymmddhhnnss', '', '') + '.log';
 
   Log('ALAXEE SteamHub uninstall preflight started.');
@@ -111,7 +111,7 @@ begin
 
   StopParameters := '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "' +
     StopScript + '" -ExpectedExecutable "' +
-    ExpandConstant('{app}\\AlaxeeSteamBridge.exe') + '" -LogPath "' +
+    ExpandConstant('{app}\AlaxeeSteamBridge.exe') + '" -LogPath "' +
     StopScriptLog + '"';
 
   Log('Launching the ALAXEE SteamHub process-stop script.');

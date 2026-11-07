@@ -77,6 +77,9 @@ test("Windows installer is scoped to SteamHub data and supports an explicit keep
   assert.match(installer, /DefaultDirName=\{localappdata\}\\Programs\\ALAXEE\\SteamHub/);
   assert.ok(installer.includes("Stop-AlaxeeSteamBridge.ps1"));
   assert.ok(installer.includes("WindowsPowerShell\\v1.0\\powershell.exe"));
+  assert.ok(installer.includes("StopScriptLog :="), "Uninstall hook must define a persistent diagnostic log path.");
+  assert.ok(installer.includes("LaunchSucceeded := Exec("), "Uninstall hook must record whether PowerShell actually launched.");
+  assert.ok(installer.includes("FileExists(StopScript)"), "Uninstall hook must fail closed if the bundled stopper is missing.");
   assert.match(installer, /DelTree\(LocalDataPath, True, True, True\)/);
   assert.equal((installer.match(/DelTree\(/g) || []).length, 1, "Only the dedicated SteamHub data directory may be recursively deleted.");
   assert.match(installer, /UninstallParameterExists\('\/KEEPLOCALDATA'\)/);
@@ -92,6 +95,8 @@ test("Windows installer is scoped to SteamHub data and supports an explicit keep
   assert.ok(stop.includes("Stop-Process -Id"));
   assert.ok(stop.includes("[System.StringComparison]::OrdinalIgnoreCase"));
   assert.ok(verify.includes("/KEEPLOCALDATA"));
+  assert.ok(verify.includes("$keepUninstallLogPath"), "Keep-data uninstall must write an Inno Setup diagnostic log.");
+  assert.ok(verify.includes("$purgeUninstallLogPath"), "Full-cleanup uninstall must write an Inno Setup diagnostic log.");
   assert.ok(verify.includes("purge-data-test.sentinel"));
   assert.ok(verify.includes("OtherProduct-"));
   assert.ok(verify.includes("steamapps\\userdata"));
