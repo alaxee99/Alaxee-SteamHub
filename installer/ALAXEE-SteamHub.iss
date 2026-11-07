@@ -58,10 +58,23 @@ var
 function InitializeUninstall(): Boolean;
 var
   ResultCode: Integer;
+  StopScript: String;
+  StopParameters: String;
 begin
   Result := True;
-  Exec(ExpandConstant('{sys}\taskkill.exe'),
-    '/F /T /IM AlaxeeSteamBridge.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  StopScript := ExpandConstant('{app}\scripts\Stop-AlaxeeSteamBridge.ps1');
+  StopParameters := '-NoLogo -NoProfile -ExecutionPolicy Bypass -File "' +
+    StopScript + '" -ExpectedExecutable "' +
+    ExpandConstant('{app}\AlaxeeSteamBridge.exe') + '"';
+  if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+    StopParameters, '', SW_HIDE, ewWaitUntilTerminated, ResultCode) or
+    (ResultCode <> 0) then
+  begin
+    MsgBox('ALAXEE SteamHub is still running. Close the ALAXEE SteamHub bridge and retry uninstall.',
+      mbError, MB_OK);
+    Result := False;
+    Exit;
+  end;
 
   if WizardSilent then
   begin
