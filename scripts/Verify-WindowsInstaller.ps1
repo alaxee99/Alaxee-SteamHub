@@ -21,6 +21,8 @@ $startMenuShortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Progra
 $bridgeProcess = $null
 $installedExe = $null
 $uninstaller = $null
+$installerLogPath = Join-Path $env:TEMP ('ALAXEE-SteamHub-' + $testId + '-install.log')
+$reinstallLogPath = Join-Path $env:TEMP ('ALAXEE-SteamHub-' + $testId + '-reinstall.log')
 $installRoot = $expectedInstallRoot
 
 function Assert-FileSentinel {
@@ -37,6 +39,61 @@ function Assert-FileSentinel {
     if ($actualContent -cne $ExpectedContent) {
         throw "$Description content changed: $Path"
     }
+}
+
+function Get-UninstallRegistryDiagnostics {
+    $uninstallSubKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall'
+    $hives = @(
+        [pscustomobject]@{ Name = 'HKCU'; Value = [Microsoft.Win32.RegistryHive]::CurrentUser },
+        [pscustomobject]@{ Name = 'HKLM'; Value = [Microsoft.Win32.RegistryHive]::LocalMachine }
+    )
+    $views = @(
+        [Microsoft.Win32.RegistryView]::Registry64,
+        [Microsoft.Win32.RegistryView]::Registry32
+    )
+    $rows = @()
+
+    foreach ($hive in $hives) {
+        foreach ($view in $views) {
+            $baseKey = $null
+            $uninstallKey = $null
+            try {
+                $baseKey = [Microsoft.Win32.RegistryKey]::OpenBaseKey($hive.Value, $view)
+                $uninstallKey = $baseKey.OpenSubKey($uninstallSubKey, $false)
+                if (!$uninstallKey) { continue }
+
+                foreach ($subKeyName in $uninstallKey.GetSubKeyNames()) {
+                    $appKey = $null
+                    try {
+                        $appKey = $uninstallKey.OpenSubKey($subKeyName, $false)
+                        if (!$appKey) { continue }
+
+                        $displayName = [string]$appKey.GetValue('DisplayName', '')
+                        if ($subKeyName -like '*A4C5DAD5*' -or
+                            $displayName -like '*SteamHub*' -or
+                            $displayName -like '*ALAXEE*') {
+                            $rows += [pscustomobject]@{
+                                Hive = $hive.Name
+                                View = $view.ToString()
+                                Key = $subKeyName
+                                DisplayName = $displayName
+                                InstallLocation = [string]$appKey.GetValue('InstallLocation', '')
+                                DisplayIcon = [string]$appKey.GetValue('DisplayIcon', '')
+                                UninstallString = [string]$appKey.GetValue('UninstallString', '')
+                            }
+                        }
+                    } finally {
+                        if ($appKey) { $appKey.Dispose() }
+                    }
+                }
+            } finally {
+                if ($uninstallKey) { $uninstallKey.Dispose() }
+                if ($baseKey) { $baseKey.Dispose() }
+            }
+        }
+    }
+
+    return @($rows)
 }
 
 function Get-SteamHubUninstallEntries {
@@ -110,7 +167,19 @@ function Get-RegisteredInstallRoot {
 function Resolve-InstalledPaths {
     $entries = @(Get-SteamHubUninstallEntries)
     if ($entries.Count -ne 1) {
-        throw "Expected exactly one ALAXEE SteamHub Add/Remove Programs entry, found $($entries.Count). LOCALAPPDATA='$env:LOCALAPPDATA'; expected='$expectedInstallRoot'; searched the current user's HKCU 32-bit and 64-bit registry views for AppId '{A4C5DAD5-0D5A-4C96-8EF6-7D23C776A3D1}_is1'."
+        $registryDiagnostics = @(Get-UninstallRegistryDiagnostics | ConvertTo-Json -Depth 4 -Compress)
+        $installRootExists = Test-Path -LiteralPath $expectedInstallRoot -PathType Container
+        $installRootFiles = if ($installRootExists) {
+            @(Get-ChildItem -LiteralPath $expectedInstallRoot -Force -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name) -join ', '
+        } else {
+            '<missing>'
+        }
+        $logTail = if (Test-Path -LiteralPath $script:installerLogPath -PathType Leaf) {
+            (Get-Content -LiteralPath $script:installerLogPath -Tail 80 -ErrorAction SilentlyContinue) -join [Environment]::NewLine
+        } else {
+            '<installer log missing>'
+        }
+        throw "Expected exactly one ALAXEE SteamHub Add/Remove Programs entry, found $($entries.Count). LOCALAPPDATA='$env:LOCALAPPDATA'; expected='$expectedInstallRoot'; installRootExists='$installRootExists'; files='$installRootFiles'; registryCandidates='$registryDiagnostics'; InnoSetupLogTail='$logTail'."
     }
 
     if ($entries[0].DisplayName -cne 'ALAXEE SteamHub') {
@@ -167,7 +236,7 @@ try {
     [System.IO.File]::WriteAllText($steamSaveSentinel, 'steam-save-guard')
 
     # Phase 1: install, then explicitly keep user data during silent uninstall.
-    & $InstallerPath /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+    & $InstallerPath "/LOG=$installerLogPath" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
     if ($LASTEXITCODE -ne 0) {
         throw "Silent installer exited with code $LASTEXITCODE."
     }
@@ -214,7 +283,7 @@ try {
     Assert-ExternalFilesPreserved
 
     # Phase 2: reinstall over retained data, then verify the default silent purge path.
-    & $InstallerPath /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
+    & $InstallerPath "/LOG=$reinstallLogPath" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP-
     if ($LASTEXITCODE -ne 0) {
         throw "Reinstall over retained local data exited with code $LASTEXITCODE."
     }
@@ -280,4 +349,9 @@ finally {
     }
     Remove-DirectoryOnlyWhenEmpty -Path $programsAlaxeeRoot
     Remove-DirectoryOnlyWhenEmpty -Path $alaxeeDataRoot
+    foreach ($logPath in @($installerLogPath, $reinstallLogPath)) {
+        if (Test-Path -LiteralPath $logPath -PathType Leaf) {
+            Remove-Item -LiteralPath $logPath -Force
+        }
+    }
 }
