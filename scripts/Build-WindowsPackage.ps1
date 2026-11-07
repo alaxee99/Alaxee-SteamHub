@@ -94,6 +94,8 @@ Copy-Item -LiteralPath (Join-Path $repoRoot 'scripts\Stop-AlaxeeSteamBridge.ps1'
 
 $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
 $compilerCandidates = @(
+    $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 7\ISCC.exe' }),
+    $(if ($env:LOCALAPPDATA) { Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe' }),
     $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe' }),
     $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe' }),
     $(if ($programFilesX86) { Join-Path $programFilesX86 'Inno Setup 7\ISCC.exe' }),
@@ -104,8 +106,9 @@ $compilerPath = if ($compilerCommand) { $compilerCommand.Source } else {
     $compilerCandidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
 }
 if (!$compilerPath) {
-    throw 'Inno Setup compiler was not found. Install JRSoftware.InnoSetup.7 in the Windows packaging job.'
+    throw "Inno Setup compiler was not found. Checked: $($compilerCandidates -join '; '). Install JRSoftware.InnoSetup.7 in the Windows packaging job."
 }
+Write-Host "Using Inno Setup compiler: $compilerPath"
 
 $installerScript = Join-Path $repoRoot 'installer\ALAXEE-SteamHub.iss'
 & $compilerPath $installerScript
