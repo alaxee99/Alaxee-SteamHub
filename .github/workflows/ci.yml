@@ -63,13 +63,35 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 26.13.0
-      - name: Build and self-test Windows x64 package
+      - name: Install Inno Setup 7.1.1
+        shell: pwsh
+        run: |
+          winget install --id JRSoftware.InnoSetup.7 --exact --version 7.1.1 --source winget --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup installation failed with exit code $LASTEXITCODE."
+          }
+          $programFilesX86 = [Environment]::GetEnvironmentVariable('ProgramFiles(x86)')
+          $candidates = @(
+            $(if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'Inno Setup 7\ISCC.exe' }),
+            $(if ($programFilesX86) { Join-Path $programFilesX86 'Inno Setup 7\ISCC.exe' })
+          )
+          $compiler = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
+          if (!$compiler) {
+            throw 'Inno Setup 7.1.1 was installed but ISCC.exe was not found.'
+          }
+          & $compiler /?
+          if ($LASTEXITCODE -ne 0) {
+            throw "Inno Setup compiler smoke check failed with exit code $LASTEXITCODE."
+          }
+      - name: Build, install and uninstall Windows x64 package
         shell: pwsh
         run: ./scripts/Build-WindowsPackage.ps1
-      - name: Upload self-contained Windows package
+      - name: Upload Windows installer and portable package
         uses: actions/upload-artifact@v4
         with:
           name: Alaxee-SteamHub-Windows-x64-${{ github.sha }}
-          path: dist/Alaxee-SteamHub-Windows-x64.zip
+          path: |
+            dist/ALAXEE-SteamHub-Setup-x64.exe
+            dist/Alaxee-SteamHub-Windows-x64.zip
           if-no-files-found: error
           retention-days: 14
