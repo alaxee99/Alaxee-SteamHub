@@ -37,6 +37,12 @@ if (!(Test-Path -LiteralPath $localDataRoot -PathType Container)) {
 $sentinel = Join-Path $localDataRoot 'uninstall-verification-sentinel.tmp'
 [System.IO.File]::WriteAllText($sentinel, 'This file must be removed by the uninstaller.')
 
+$bridgeProcess = Start-Process -FilePath $installedExe -WindowStyle Hidden -PassThru
+Start-Sleep -Milliseconds 800
+if (!(Get-Process -Id $bridgeProcess.Id -ErrorAction SilentlyContinue)) {
+    throw 'The packaged bridge process exited before the uninstall test.'
+}
+
 $uninstallEntries = @(
     Get-ChildItem -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' -ErrorAction Stop |
     ForEach-Object {
@@ -53,6 +59,9 @@ if ($LASTEXITCODE -ne 0) {
     throw "Silent uninstaller exited with code $LASTEXITCODE."
 }
 
+if (Get-Process -Id $bridgeProcess.Id -ErrorAction SilentlyContinue) {
+    throw 'The installed bridge process remained running after uninstall.'
+}
 if (Test-Path -LiteralPath $installRoot) {
     throw 'Program files remain after uninstall.'
 }
