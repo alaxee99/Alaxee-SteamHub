@@ -5,7 +5,7 @@
   function publishRuntimeStatus(tone, title, details) {
     runtimeStatus?.update({ tone, title, details });
   }
-  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.8.8", "正在初始化 Steam 市场适配器…"]);
+  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.8.9", "正在初始化 Steam 市场适配器…"]);
 
   const marketLocale = globalThis.__ALAXEE_STEAMHUB_MARKET_LOCALE__;
   if (!marketLocale || !window.location) {
@@ -62,7 +62,7 @@
   const localizedTextNodes = new Map();
   let scanScheduled = false;
   const diagnostics = {
-    version: "0.8.8",
+    version: "0.8.9",
     initializedAt: new Date().toISOString(),
     scanCount: 0,
     lastScanAt: null,
@@ -97,11 +97,7 @@
     const identity = globalThis.__ALAXEE_STEAMHUB_ITEM_IDENTITY__;
     const listing = identity?.parseMarketListingUrl(window.location.href);
     if (listing?.appId) return listing.appId;
-    try {
-      return identity?.normalizeAppId(new URL(window.location.href).searchParams.get("appid")) || null;
-    } catch {
-      return null;
-    }
+    return identity?.parseMarketSearchPageAppId(window.location.href) || null;
   }
 
   function preserveMarketNameSuffix(marketHashName, translation) {
@@ -175,7 +171,7 @@
     }
 
     const details = [
-      "版本：0.8.8",
+      "版本：0.8.9",
       "当前页面 AppID：" + (primaryAppId || "未识别"),
       "页面识别商品：" + diagnostics.detectedItems,
       "已命中词条：" + diagnostics.matchedItems,
@@ -435,7 +431,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.8.8",
+    version: "0.8.9",
     getDiagnostics() {
       return Object.freeze({
         ...diagnostics,

@@ -6,6 +6,12 @@
   if (globalThis[API_KEY]) return;
 
   function findListingContainer(anchor, root, marketHashName) {
+    const anchorText = String(anchor.textContent || "").replace(/\s+/g, " ").trim();
+    const anchorClasses = String(anchor.className || "").split(/\s+/);
+    if (anchorClasses.includes("market_listing_row_link") && anchorText.includes(marketHashName)) {
+      return anchor;
+    }
+
     const rowSelectors = [
       ".market_listing_row",
       ".market_listing_searchresult",
@@ -16,7 +22,6 @@
       if (row) return row;
     }
 
-    const anchorText = String(anchor.textContent || "").replace(/\s+/g, " ").trim();
     if (anchorText === marketHashName || anchorText.includes(marketHashName)) return anchor;
 
     const parent = anchor.parentElement;
@@ -34,6 +39,7 @@
     if (!identity) throw new Error("Item identity module is not available.");
 
     const results = new Map();
+    const searchPageAppId = identity.parseMarketSearchPageAppId(pageUrl);
     const currentPageItem = identity.parseMarketListingUrl(pageUrl);
     if (currentPageItem) {
       const titleSelectors = [
@@ -74,7 +80,8 @@
 
       const href = anchor.href || anchor.getAttribute?.("href");
       const itemKey = identity.parseMarketListingUrl(href, pageUrl);
-      if (!itemKey || results.has(itemKey.cacheIdentity)) continue;
+      if (!itemKey || (searchPageAppId && itemKey.appId !== searchPageAppId) ||
+          results.has(itemKey.cacheIdentity)) continue;
 
       const container = findListingContainer(anchor, root, itemKey.marketHashName);
       if (container.hidden || container.getAttribute?.("aria-hidden") === "true") continue;

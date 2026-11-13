@@ -56,10 +56,21 @@
     }
   }
 
+  function parseMarketSearchPageAppId(value) {
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "https:" || !ALLOWED_HOSTS.has(url.hostname.toLowerCase())) return null;
+      if (!/^\/market\/search\/?$/.test(url.pathname)) return null;
+      return normalizeAppId(url.searchParams.get("appid"));
+    } catch {
+      return null;
+    }
+  }
+
   Object.defineProperty(globalThis, API_KEY, {
     configurable: false,
     enumerable: false,
     writable: false,
-    value: Object.freeze({ normalizeAppId, createItemKey, parseMarketListingUrl })
+    value: Object.freeze({ normalizeAppId, createItemKey, parseMarketListingUrl, parseMarketSearchPageAppId })
   });
 })();
