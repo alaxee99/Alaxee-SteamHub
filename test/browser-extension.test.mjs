@@ -13,6 +13,7 @@ const contentSource = await readFile(path.join(extensionRoot, "content.js"), "ut
 const publicPackLoaderSource = await readFile(path.join(extensionRoot, "core/public-pack-loader.js"), "utf8");
 const sourceRecordMapperSource = await readFile(path.join(extensionRoot, "core/source-record-mapper.js"), "utf8");
 const siteSourceDiscoverySource = await readFile(path.join(extensionRoot, "core/site-source-discovery.js"), "utf8");
+const htmlTableParserSource = await readFile(path.join(extensionRoot, "core/html-table-parser.js"), "utf8");
 const API_KEY = "__ALAXEE_STEAMHUB_MARKET_LOCALE__";
 
 function loadPublicPackLoader() {
@@ -52,6 +53,16 @@ function loadSiteSourceDiscovery() {
   const context = vm.createContext({ URL, Object, Set, Map, TypeError, Error, String, Number, Array, RegExp, Promise });
   vm.runInContext(siteSourceDiscoverySource, context, { filename: "site-source-discovery.js" });
   return context.__ALAXEE_STEAMHUB_SITE_DISCOVERY__;
+}
+
+
+function loadHtmlTableParser(DOMParserImpl) {
+  const context = vm.createContext({
+    Object, Array, String, Number, TypeError, RangeError,
+    DOMParser: DOMParserImpl
+  });
+  vm.runInContext(htmlTableParserSource, context, { filename: "html-table-parser.js" });
+  return context.__ALAXEE_STEAMHUB_HTML_TABLE_PARSER__;
 }
 
 function loadSourceRecordMapper() {
@@ -504,4 +515,109 @@ test("site discovery rejects denied permission and never fetches off-origin site
     fetchText: async () => { fetchCount += 1; return { text: "" }; }
   }), /未获准访问/);
   assert.equal(fetchCount, 0);
+});
+
+
+test("HTML table parser extracts header-mapped rows from an inert DOM without reading scripts", () => {
+  const makeCell = (tagName, value, spans = {}) => ({
+    tagName,
+    textContent: value,
+    colSpan: spans.colSpan || 1,
+    rowSpan: spans.rowSpan || 1
+  });
+  const makeRow = (cells, table) => ({
+    cells,
+    closest(selector) { return selector === "table" ? table : null; }
+  });
+  const makeTable = (rows, options = {}) => {
+    const table = {
+      caption: { textContent: options.caption || "" },
+      querySelectorAll(selector) {
+        if (selector === "tr") return rows;
+        if (selector === "thead tr") return options.theadRows || [];
+        return [];
+      },
+      getAttribute(name) { return name === "aria-label" ? (options.ariaLabel || "") : null; }
+    };
+    for (const row of rows) row.closest = (selector) => selector === "table" ? table : null;
+    return table;
+  };
+  const goodTable = makeTable([
+    { cells: [makeCell("TH", "Market name"), makeCell("TH", "zh-Hans"), makeCell("TH", "ID")] },
+    { cells: [makeCell("TD", "Silver Ingot"), makeCell("TD", "银锭"), makeCell("TD", "142001")] },
+    { cells: [makeCell("TD", "Arcane Crystal"), makeCell("TD", "奥术水晶"), makeCell("TD", "115001")] }
+  ], { caption: "Item catalog", ariaLabel: "Public item catalog" });
+  const noHeaderTable = makeTable([
+    { cells: [makeCell("TD", "not a header"), makeCell("TD", "not data")] }
+  ]);
+  class FakeDOMParser {
+    parseFromString(source, type) {
+      assert.equal(type, "text/html");
+      assert.match(source, /<script>/i);
+      return {
+        title: { textContent: "Example Wiki" },
+        querySelector() { return { textContent: "Items" }; },
+        querySelectorAll(selector) {
+          if (selector === "table") return [goodTable, noHeaderTable];
+          if (selector === "h1, h2, h3") return [{ textContent: "Items" }];
+          if (selector.startsWith("script,")) return [{ remove() {} }];
+          return [];
+        }
+      };
+    }
+  }
+
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const result = api.parseHtmlTables("<script>ignored()</script><table></table>", {
+    pageUrl: "https://wiki.example/items",
+    maxRowsPerTable: 1
+  });
+  assert.equal(result.pageTitle, "Example Wiki");
+  assert.deepEqual(Array.from(result.pageHeadings), ["Items"]);
+  assert.equal(result.tableCount, 2);
+  assert.equal(result.skippedTables, 1);
+  assert.equal(result.tables.length, 1);
+  assert.equal(result.tables[0].caption, "Item catalog");
+  assert.deepEqual(
+    Array.from(result.tables[0].headers, (header) => [header.key, header.label]),
+    [["column_1", "Market name"], ["column_2", "zh-Hans"], ["column_3", "ID"]]
+  );
+  assert.equal(result.tables[0].records.length, 1);
+  assert.equal(result.tables[0].records[0].column_1, "Silver Ingot");
+  assert.equal(result.tables[0].records[0].column_2, "银锭");
+  assert.equal(result.tables[0].rowCount, 2);
+  assert.equal(result.tables[0].truncatedRows, true);
+  assert.equal(result.pageUrl, "https://wiki.example/items");
+});
+
+test("HTML table parser rejects oversized pages and tables with ambiguous spanning headers", () => {
+  const makeRow = (cells, table) => ({
+    cells,
+    closest(selector) { return selector === "table" ? table : null; }
+  });
+  const table = {
+    caption: null,
+    querySelectorAll(selector) { return selector === "tr" ? this.rows : []; },
+    getAttribute() { return null; },
+    rows: []
+  };
+  table.rows = [
+    makeRow([{ tagName: "TH", textContent: "Name", colSpan: 2, rowSpan: 1 }], table),
+    makeRow([{ tagName: "TD", textContent: "Item", colSpan: 1, rowSpan: 1 }], table)
+  ];
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        title: null,
+        querySelector() { return null; },
+        querySelectorAll(selector) {
+          if (selector === "table") return [table];
+          return [];
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  assert.throws(() => api.parseHtmlTables("12345", { maxChars: 4 }), /超过 1 MiB/);
+  assert.equal(api.parseHtmlTables("<table></table>").skippedTables, 1);
 });
