@@ -33,6 +33,19 @@
   const MAX_VISIBLE_ITEMS_PER_PASS = 80;
   const localizedTextNodes = new Map();
   let scanScheduled = false;
+  const diagnostics = {
+    version: "0.8.2",
+    initializedAt: new Date().toISOString(),
+    scanCount: 0,
+    lastScanAt: null,
+    detectedItems: 0,
+    translatedNames: 0,
+    translatedDetailNodes: 0,
+    missingPacks: [],
+    disabledGames: [],
+    unmatchedNames: [],
+    errors: []
+  };
 
   function normalizedText(value) {
     return textLocalizer.normalizeText(value);
@@ -46,6 +59,7 @@
 
   function findTextNode(root, expectedText) {
     if (!root || typeof document.createTreeWalker !== "function") return null;
+    let translatedCount = 0;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
     while (node) {
@@ -83,14 +97,15 @@
         if (found) return found;
       }
     }
-    return null;
+    const bodyMatch = findTextNode(document.body || document.documentElement, item.marketHashName);
+    return bodyMatch;
   }
 
   function restoreTextNode(node) {
     const record = localizedTextNodes.get(node);
     if (!record) return;
     if (node.isConnected) {
-      node.nodeValue = record.original;
+      if (node.nodeValue !== record.original) node.nodeValue = record.original;
       if (record.kind === "name" && node.parentElement) {
         if (record.originalTitle === null) node.parentElement.removeAttribute("title");
         else node.parentElement.setAttribute("title", record.originalTitle);
@@ -108,12 +123,12 @@
 
   function applyNameTranslation(item, translation) {
     const node = findNameTextNode(item);
-    if (!node) return;
+    if (!node) return false;
 
     const existing = localizedTextNodes.get(node);
     if (!translation) {
       if (existing?.kind === "name") restoreTextNode(node);
-      return;
+      return false;
     }
 
     if (!existing) {
@@ -124,12 +139,13 @@
         originalTitle: node.parentElement?.getAttribute("title") ?? null
       });
     }
-    node.nodeValue = translation;
+    if (node.nodeValue !== translation) node.nodeValue = translation;
     if (node.parentElement) {
       const original = existing?.original ?? localizedTextNodes.get(node).original;
       node.parentElement.title = "原文：" + original;
       node.parentElement.setAttribute(APP_ATTRIBUTE, item.appId);
     }
+    return true;
   }
 
   function applyGameTextTranslations(appId, mappings) {
@@ -165,26 +181,37 @@
             original
           });
         }
-        node.nodeValue = translated;
+        if (node.nodeValue !== translated) {
+          node.nodeValue = translated;
+          translatedCount += 1;
+        }
       } else if (existing?.kind === "detail" && existing.appId === appId) {
         restoreTextNode(node);
       }
       node = walker.nextNode();
     }
+    return translatedCount;
   }
 
   async function processItem(item, processedTextApps) {
     if (item.element?.isConnected === false) return;
 
     const game = await registry.get(item.appId);
-    if (!game || !game.game.enabled) {
+    if (!game) {
+      if (!diagnostics.missingPacks.includes(item.appId)) diagnostics.missingPacks.push(item.appId);
+      applyNameTranslation(item, "");
+      restoreAppText(item.appId);
+      return;
+    }
+    if (!game.game.enabled) {
+      if (!diagnostics.disabledGames.includes(item.appId)) diagnostics.disabledGames.push(item.appId);
       applyNameTranslation(item, "");
       restoreAppText(item.appId);
       return;
     }
 
     if (!processedTextApps.has(item.appId)) {
-      applyGameTextTranslations(item.appId, game.textTranslations || []);
+      diagnostics.translatedDetailNodes += applyGameTextTranslations(item.appId, game.textTranslations || []);
       processedTextApps.add(item.appId);
     }
 
@@ -192,24 +219,51 @@
       locale: game.game.defaultLocale || "zh-CN"
     });
     if (result.status === "translated") {
-      applyNameTranslation(item, result.record.translation);
+      if (applyNameTranslation(item, result.record.translation)) diagnostics.translatedNames += 1;
     } else {
+      if (diagnostics.unmatchedNames.length < 20) {
+        diagnostics.unmatchedNames.push({
+          appId: item.appId,
+          marketHashName: item.marketHashName,
+          status: result.status
+        });
+      }
       applyNameTranslation(item, "");
     }
   }
 
   async function scanVisibleItems() {
     if (!document.documentElement) return;
+    diagnostics.scanCount += 1;
+    diagnostics.lastScanAt = new Date().toISOString();
+    diagnostics.translatedNames = 0;
+    diagnostics.translatedDetailNodes = 0;
+    diagnostics.missingPacks = [];
+    diagnostics.disabledGames = [];
+    diagnostics.unmatchedNames = [];
+    diagnostics.errors = [];
+
     const items = marketItems.collectMarketListingLinks(document, window.location.href)
       .filter((item) => item.appId && item.marketHashName)
       .slice(0, MAX_VISIBLE_ITEMS_PER_PASS);
+    diagnostics.detectedItems = items.length;
 
     const processedTextApps = new Set();
     for (let index = 0; index < items.length; index += 12) {
       const batch = items.slice(index, index + 12);
-      await Promise.all(batch.map((item) =>
-        processItem(item, processedTextApps).catch(() => undefined)
-      ));
+      await Promise.all(batch.map(async (item) => {
+        try {
+          await processItem(item, processedTextApps);
+        } catch (error) {
+          if (diagnostics.errors.length < 20) {
+            diagnostics.errors.push({
+              appId: item.appId,
+              marketHashName: item.marketHashName,
+              message: error?.message || String(error)
+            });
+          }
+        }
+      }));
     }
   }
 
@@ -223,7 +277,19 @@
   }
 
   const api = Object.freeze({
-    version: "0.8.0",
+    version: "0.8.2",
+    getDiagnostics() {
+      return Object.freeze({
+        ...diagnostics,
+        url: window.location.href,
+        itemCount: diagnostics.detectedItems,
+        localizedNodeCount: localizedTextNodes.size,
+        missingPacks: diagnostics.missingPacks.slice(),
+        disabledGames: diagnostics.disabledGames.slice(),
+        unmatchedNames: diagnostics.unmatchedNames.slice(),
+        errors: diagnostics.errors.slice()
+      });
+    },
     scanMarketItems() {
       return marketItems.collectMarketListingLinks(document, window.location.href)
         .map(({ element, ...item }) => item);
@@ -252,11 +318,18 @@
   if (typeof MutationObserver === "function" && document.documentElement) {
     const observer = new MutationObserver((mutations) => {
       const relevant = mutations.some((mutation) =>
-        Array.from(mutation.addedNodes || []).some((node) => node.nodeType === Node.ELEMENT_NODE)
+        mutation.type === "characterData" ||
+        Array.from(mutation.addedNodes || []).some((node) =>
+          node.nodeType === Node.ELEMENT_NODE || node.nodeType === Node.TEXT_NODE
+        )
       );
       if (relevant) scheduleScan();
     });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
+    observer.observe(document.documentElement, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
   }
 
   chrome.storage.onChanged?.addListener((changes, areaName) => {
