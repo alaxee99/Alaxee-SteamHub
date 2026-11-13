@@ -90,10 +90,10 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.match(optionsSource, /5 \* 1024 \* 1024/);
   assert.match(optionsSource, /registryApi\.normalizePack\(parsed\)/);
   assert.match(optionsSource, /chrome\.permissions\.request/);
-  assert.match(optionsSource, /response\\.body\\.getReader\\(\\)/);
+  assert.ok(optionsSource.includes("response.body.getReader()"));
   assert.match(optionsSource, /new TextDecoder/);
-  assert.match(optionsSource, /window\\.setTimeout/);
-  assert.match(optionsSource, /hostname\\.startsWith/);
+  assert.ok(optionsSource.includes("window.setTimeout"));
+  assert.ok(optionsSource.includes("hostname.startsWith"));
   assert.match(optionsHtml, /options.js/);
 });
 
