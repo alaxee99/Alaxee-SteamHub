@@ -144,7 +144,8 @@
       const meta = document.createElement("p");
       meta.className = "game-meta";
       meta.textContent = "AppID " + pack.game.appId + " · " +
-        pack.translations.length + " 条词条 · " + pack.game.adapter;
+        pack.translations.length + " 条名称词条 · " +
+        (pack.textTranslations?.length || 0) + " 条详情/属性精确词条 · " + pack.game.adapter;
       info.append(name, meta);
 
       const actions = document.createElement("div");
@@ -429,7 +430,9 @@
       if (pack.game.appId !== quickGame.appId) throw new Error("词库 AppID 与当前游戏不一致");
       await registry.importPack(pack, { mode: "merge" });
       await refresh();
-      status.textContent = "导入完成 · 当前词库共 " + (getQuickPack(quickGame.appId)?.translations.length || 0) + " 条。";
+      const importedPack = getQuickPack(quickGame.appId);
+      status.textContent = "导入完成 · 名称 " + (importedPack?.translations.length || 0) +
+        " 条 · 详情/属性精确词条 " + (importedPack?.textTranslations?.length || 0) + " 条。";
       report("已导入 " + pack.game.name + " 中文词库");
       renderQuickGame();
     } catch (error) {
@@ -461,7 +464,8 @@
       (quickGame.developers.length ? " · " + quickGame.developers.join(" / ") : ""));
     const localPack = getQuickPack(quickGame.appId);
     quickText(info, "p", "quick-game-count", localPack
-      ? "本地已有 " + localPack.translations.length + " 条词条"
+      ? "本地已有 " + localPack.translations.length + " 条名称词条 · " +
+        (localPack.textTranslations?.length || 0) + " 条详情/属性精确词条"
       : "尚未建立本地词库");
     if (quickGame.shortDescription) quickText(info, "p", "quick-game-description", quickGame.shortDescription);
     card.append(info);
@@ -485,7 +489,8 @@
       detail.className = "quick-source-info";
       quickText(detail, "strong", "quick-source-name", source.name);
       quickText(detail, "p", "quick-source-provider",
-        source.provider + " · " + source.translationCount.toLocaleString() + " 条 · " + source.locale);
+        source.provider + " · " + source.translationCount.toLocaleString() + " 条名称词条 · " +
+        (source.detailTranslationCount || 0).toLocaleString() + " 条详情/属性精确词条 · " + source.locale);
       quickText(detail, "p", "quick-source-description", source.description);
       quickText(detail, "p", "quick-source-note", source.accessLabel + "；" + source.personalUseNote);
       item.append(detail);
@@ -643,8 +648,10 @@
       const pack = await parseQuickSource(loaded.text, loaded.sourceUrl, quickGame);
       await registry.importPack(pack, { mode: "merge" });
       await refresh();
+      const importedPack = getQuickPack(quickGame.appId);
       status.textContent = "导入完成 · 数据源 " + new URL(loaded.sourceUrl).hostname +
-        " · 当前词库共 " + (getQuickPack(quickGame.appId)?.translations.length || 0) + " 条。";
+        " · 名称 " + (importedPack?.translations.length || 0) + " 条 · 详情/属性精确词条 " +
+        (importedPack?.textTranslations?.length || 0) + " 条。";
       report("数据源已识别并导入：" + quickGame.name);
       renderQuickGame();
     } catch (error) {
@@ -755,8 +762,9 @@
         normalizePack: (parsed) => registryApi.normalizePack(parsed)
       });
       document.getElementById("pack-json").value = JSON.stringify(loaded.pack, null, 2);
-      report("已读取公开数据包：" + loaded.pack.game.name + " · " +
-        loaded.pack.translations.length + " 条；请选择合并或覆盖后再导入");
+      report("已读取公开数据包：" + loaded.pack.game.name + " · 名称 " +
+        loaded.pack.translations.length + " 条 · 详情/属性精确词条 " +
+        (loaded.pack.textTranslations?.length || 0) + " 条；请选择合并或覆盖后再导入");
     } catch (error) {
       report(error.message || "读取远程数据包失败", true);
     } finally {
@@ -1570,7 +1578,8 @@
       gameSelect.value = imported.game.appId;
       manageGameSelect.value = imported.game.appId;
       renderDictionary();
-      report("已导入 " + imported.game.name + "：共 " + imported.translations.length + " 条词条");
+      report("已导入 " + imported.game.name + "：名称 " + imported.translations.length +
+        " 条 · 详情/属性精确词条 " + (imported.textTranslations?.length || 0) + " 条");
     } catch (error) {
       report(error.message || "数据包导入失败", true);
     }
