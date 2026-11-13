@@ -65,3 +65,12 @@ The user configures three pieces of page structure:
 The parser returns only text values and exact IDs. It does not infer the item's Steam key from a display name. The result is limited to 500 cards, previews at most 8 records, skips cards missing an ID or translation, and reuses the already fetched HTML body without another request. Select **Wiki ItemKey / ID** mode to join IDs against an imported reference Game Pack, or **direct market key** mode only when the selected ID node contains an exact Steam `market_hash_name`.
 
 This generic extractor does not run scripts, execute JavaScript, load lazy content, follow links, paginate, or fetch any additional page. CSS selectors are user-defined and must be checked against the page preview. The source's automated-access and reuse terms still apply.
+
+
+## Single-item HTML detail-page extraction
+
+The same selected and already-fetched HTML page can be parsed as one item detail record. The detail parser reads explicit key/value pairs from definition lists (dt / dd), simple two-cell key/value rows, semantic meta values and itemprop values. It recognizes configured source-ID labels such as ItemKey / Item ID and configured localized-name labels such as 简体中文 / Chinese Name. Labels are exact after case / spacing / punctuation normalization; they are not fuzzy-matched.
+
+For site-specific pages, the user may provide a CSS selector for the source ID and/or translation node. A selector overrides the corresponding label matching. The page heading is displayed as context only and is never silently treated as a translation. Multiple different values for the selected ID or translation are marked ambiguous and cannot be converted. The preview shows the extracted ID, translation, page title and matched labels.
+
+A valid detail record contains exactly one source ID and one translation. It enters the same direct-exact-market-key or imported-reference-pack ItemKey mapping path as table/card records. The generated Game Pack remains staged for review; merge / replace must be chosen separately. Extraction reuses the selected page body and performs no second request, link traversal, pagination, JavaScript execution or bulk page fetching.
