@@ -71,6 +71,12 @@ The following are individually checked across TBH Index and the official Steam C
 | `Mystic Bow (Arcana) A` | 神秘之弓 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
 | `Dimensional Gloves (Cosmic) A` | 次元手套 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
 | `Limitless Crossbow (Cosmic) A` | 无限弩 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Emerald Bracer (Divine) A` | 祖母绿护腕 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Fate Axe (Beyond) A` | 命运之斧 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Empire Gloves (Legendary) A` | 帝国手套 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Iron Bolt (Beyond) A` | 铁制弩箭 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Orichalcum Ore` | 山铜矿石 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
+| `Lapis Lazuli` | 青金石 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
 
 Evidence pages:
 
@@ -115,7 +121,7 @@ A small, importable, personally maintained starter pack is available at:
 
 `docs/game-pack.tbhindex-seed.json`
 
-It contains sixteen checked mappings: the initial three plus four Arcana materials/inscription entries, five further market items, and four exact A-variant equipment entries. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
+It contains twenty-two checked mappings: the initial three plus four Arcana materials/inscription entries, five further market items, four A-variant equipment entries, and six additional verified records. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
 
 ## Collection rules
 
@@ -138,7 +144,7 @@ Other community sites remain useful for cross-checking missing names and game-ve
 - `taskbarherowiki.com`: auxiliary catalog; the inspected `/data/items.json` exposed English names and item metadata but not the required Chinese-to-Steam crosswalk.
 - `tbherohelper.com`: auxiliary data reference; its reported game version and collection counts differ from TBH Index.
 
-**Current status: TBH Index selected as the primary Chinese market-name reference; a sixteen-entry verified local seed exists; full current-market coverage has not yet been established.**
+**Current status: TBH Index selected as the primary Chinese market-name reference; a twenty-two-entry verified local seed exists; full current-market coverage has not yet been established.**
 
 ## Latest collection batch (2026-11-13)
 
@@ -206,3 +212,35 @@ Evidence:
 The related Wiki pages were checked, but the fetched readable content did not explicitly expose ItemKey. No `sourceItemId` is set for this batch.
 
 A candidate `Celestial Earring (Rare)` was excluded from the pack because its TBH page did not expose a readable localized market label or Steam listing link during this check; do not infer a mapping from its page title.
+## Fourth collection batch (2026-11-13)
+
+Six more records passed the same cross-check: TBH localized market label, direct Steam listing URL, exact Steam listing title, and corresponding Wiki item page. Four preserve the exact A variant.
+
+- `Emerald Bracer (Divine) A` → `祖母绿护腕`
+- `Fate Axe (Beyond) A` → `命运之斧`
+- `Empire Gloves (Legendary) A` → `帝国手套`
+- `Iron Bolt (Beyond) A` → `铁制弩箭`
+- `Orichalcum Ore` → `山铜矿石`
+- `Lapis Lazuli` → `青金石`
+
+Evidence:
+- Emerald Bracer Market Info: https://tbhindex.com/zh/market/item/emerald-bracer-divine
+- Emerald Bracer Wiki: https://tbhindex.com/wiki/gear/emerald-bracer-divine-638111
+- Steam Emerald Bracer A: https://steamcommunity.com/market/listings/3678970/Emerald%20Bracer%20(Divine)%20A
+- Fate Axe Market Info: https://tbhindex.com/zh/market/item/fate-axe-beyond
+- Fate Axe Wiki: https://tbhindex.com/wiki/gear/fate-axe-beyond-356111
+- Steam Fate Axe A: https://steamcommunity.com/market/listings/3678970/Fate%20Axe%20(Beyond)%20A
+- Empire Gloves Market Info: https://tbhindex.com/zh/market/item/empire-gloves-legendary
+- Empire Gloves Wiki: https://tbhindex.com/wiki/gear/empire-gloves-legendary-523021
+- Steam Empire Gloves A: https://steamcommunity.com/market/listings/3678970/Empire%20Gloves%20(Legendary)%20A
+- Iron Bolt Market Info: https://tbhindex.com/zh/market/item/iron-bolt-beyond
+- Iron Bolt Wiki: https://tbhindex.com/wiki/gear/iron-bolt-beyond-446071
+- Steam Iron Bolt A: https://steamcommunity.com/market/listings/3678970/Iron%20Bolt%20(Beyond)%20A
+- Orichalcum Ore Market Info: https://tbhindex.com/zh/market/item/orichalcum-ore-beyond
+- Orichalcum Ore Wiki: https://tbhindex.com/wiki/materials/orichalcum-ore-beyond-146002
+- Steam Orichalcum Ore: https://steamcommunity.com/market/listings/3678970/Orichalcum%20Ore
+- Lapis Lazuli Market Info: https://tbhindex.com/zh/market/item/lapis-lazuli-immortal
+- Lapis Lazuli Wiki: https://tbhindex.com/wiki/materials/lapis-lazuli-immortal-114003
+- Steam Lapis Lazuli: https://steamcommunity.com/market/listings/3678970/Lapis%20Lazuli
+
+The six entries do not set `sourceItemId`: ItemKey was not explicitly exposed in the readable Wiki page content. `Dusk Bow (Rare)` and `Scroll of Beyond Inscription (Beyond)` were not added because their localized Market Info fetches returned no readable Chinese label or Steam link.
