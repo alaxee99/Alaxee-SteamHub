@@ -977,11 +977,11 @@
       ? ""
       : "简体中文|简体中文名|中文名称|中文名|Chinese Name|zh-CN|zh-Hans";
     document.getElementById("html-detail-id-selector").value = taskBarHero
-      ? "span.font-mono.text-xs.text-text-faint > span:nth-child(2)"
+      ? "span.font-mono.text-xs.text-text-faint"
       : "";
     document.getElementById("html-detail-id-attribute").value = taskBarHero ? "textContent" : "auto";
     document.getElementById("html-detail-translation-selector").value = taskBarHero
-      ? "h1.text-white.text-4xl.font-bold"
+      ? "heading.pixel"
       : "";
   });
 
