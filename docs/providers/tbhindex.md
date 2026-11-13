@@ -62,6 +62,11 @@ The following are individually checked across TBH Index and the official Steam C
 | `Arcane Crystal` | 奥术水晶 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
 | `Enchanted Ruby` | 附魔红宝石 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
 | `Scroll of Arcana Inscription` | 奥术铭文卷轴 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
+| `Sunstone` | 太阳石 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
+| `Jade Stone` | 翡翠石 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
+| `Gold Ingot` | 金锭 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
+| `Eternal Scepter (Legendary) C` | 永恒权杖 | Not recorded | TBH Chinese Market Info label, exact C-variant Steam listing link and Steam listing title match |
+| `Plague Fruit (Immortal)` | 瘟疫之果 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
 
 Evidence pages:
 
@@ -85,7 +90,7 @@ Evidence pages:
 - Scroll of Arcana Inscription Wiki: https://tbhindex.com/wiki/materials/scroll-of-arcana-inscription-arcana-135001
 - Steam Scroll of Arcana Inscription: https://steamcommunity.com/market/listings/3678970/Scroll%20of%20Arcana%20Inscription
 
-The four newly added sourceItemId fields are intentionally omitted: the Wiki routes were confirmed, but the fetched readable page content did not explicitly expose an ItemKey value. The route suffix is not treated as proof of the catalog key.
+The nine newly added sourceItemId fields are intentionally omitted: the Wiki routes were confirmed, but the fetched readable page content did not explicitly expose an ItemKey value. The route suffix is not treated as proof of the catalog key.
 
 
 - Mystic Armor Market Info: https://tbhindex.com/zh/market/item/mystic-armor-beyond
@@ -106,7 +111,7 @@ A small, importable, personally maintained starter pack is available at:
 
 `docs/game-pack.tbhindex-seed.json`
 
-It contains seven checked mappings: three original entries plus four newly cross-checked Arcana materials/inscription entries. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
+It contains twelve checked mappings: three original entries plus four Arcana materials/inscription entries and five further market items. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
 
 ## Collection rules
 
@@ -129,7 +134,7 @@ Other community sites remain useful for cross-checking missing names and game-ve
 - `taskbarherowiki.com`: auxiliary catalog; the inspected `/data/items.json` exposed English names and item metadata but not the required Chinese-to-Steam crosswalk.
 - `tbherohelper.com`: auxiliary data reference; its reported game version and collection counts differ from TBH Index.
 
-**Current status: TBH Index selected as the primary Chinese market-name reference; a seven-entry verified local seed exists; full current-market coverage has not yet been established.**
+**Current status: TBH Index selected as the primary Chinese market-name reference; a twelve-entry verified local seed exists; full current-market coverage has not yet been established.**
 
 ## Latest collection batch (2026-11-13)
 
@@ -141,3 +146,32 @@ Four additional records were checked in a small batch. For each item, the TBH Si
 - `Scroll of Arcana Inscription` → `奥术铭文卷轴`
 
 The Wiki route suffixes are retained only in the evidence URLs. Since the fetched readable page content did not explicitly expose the actual `ItemKey` field, `sourceItemId` remains unset for these four records.
+
+## Second collection batch (2026-11-13)
+
+Five additional records passed the same three-way check: the Chinese label on the TBH Market Info page, its direct AppID 3678970 Steam link, and the official Steam listing title. One equipment entry intentionally preserves the exact C variant suffix.
+
+- `Sunstone` → `太阳石`
+- `Jade Stone` → `翡翠石`
+- `Gold Ingot` → `金锭`
+- `Eternal Scepter (Legendary) C` → `永恒权杖`
+- `Plague Fruit (Immortal)` → `瘟疫之果`
+
+Evidence:
+- Sunstone Market Info: https://tbhindex.com/zh/market/item/sunstone-celestial
+- Sunstone Wiki: https://tbhindex.com/wiki/materials/sunstone-celestial-147002
+- Steam Sunstone: https://steamcommunity.com/market/listings/3678970/Sunstone
+- Jade Stone Market Info: https://tbhindex.com/zh/market/item/jade-stone-uncommon
+- Jade Stone Wiki: https://tbhindex.com/wiki/materials/jade-stone-uncommon-111003
+- Steam Jade Stone: https://steamcommunity.com/market/listings/3678970/Jade%20Stone
+- Gold Ingot Market Info: https://tbhindex.com/zh/market/item/gold-ingot-rare
+- Gold Ingot Wiki: https://tbhindex.com/wiki/materials/gold-ingot-rare-142002
+- Steam Gold Ingot: https://steamcommunity.com/market/listings/3678970/Gold%20Ingot
+- Eternal Scepter Market Info: https://tbhindex.com/zh/market/item/eternal-scepter-legendary
+- Eternal Scepter Wiki: https://tbhindex.com/wiki/gear/eternal-scepter-legendary-333193
+- Steam Eternal Scepter C: https://steamcommunity.com/market/listings/3678970/Eternal%20Scepter%20(Legendary)%20C
+- Plague Fruit Market Info: https://tbhindex.com/zh/market/item/plague-fruit-immortal
+- Plague Fruit Wiki: https://tbhindex.com/wiki/materials/plague-fruit-immortal-150105
+- Steam Plague Fruit: https://steamcommunity.com/market/listings/3678970/Plague%20Fruit%20(Immortal)
+
+The five entries omit `sourceItemId`: the fetched Wiki pages identify the corresponding catalog article, but do not explicitly expose an ItemKey field in the readable content.
