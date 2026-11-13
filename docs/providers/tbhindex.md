@@ -67,6 +67,10 @@ The following are individually checked across TBH Index and the official Steam C
 | `Gold Ingot` | 金锭 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
 | `Eternal Scepter (Legendary) C` | 永恒权杖 | Not recorded | TBH Chinese Market Info label, exact C-variant Steam listing link and Steam listing title match |
 | `Plague Fruit (Immortal)` | 瘟疫之果 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
+| `Buckler (Legendary) A` | 小圆盾 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Mystic Bow (Arcana) A` | 神秘之弓 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Dimensional Gloves (Cosmic) A` | 次元手套 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Limitless Crossbow (Cosmic) A` | 无限弩 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
 
 Evidence pages:
 
@@ -111,7 +115,7 @@ A small, importable, personally maintained starter pack is available at:
 
 `docs/game-pack.tbhindex-seed.json`
 
-It contains twelve checked mappings: three original entries plus four Arcana materials/inscription entries and five further market items. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
+It contains sixteen checked mappings: the initial three plus four Arcana materials/inscription entries, five further market items, and four exact A-variant equipment entries. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
 
 ## Collection rules
 
@@ -134,7 +138,7 @@ Other community sites remain useful for cross-checking missing names and game-ve
 - `taskbarherowiki.com`: auxiliary catalog; the inspected `/data/items.json` exposed English names and item metadata but not the required Chinese-to-Steam crosswalk.
 - `tbherohelper.com`: auxiliary data reference; its reported game version and collection counts differ from TBH Index.
 
-**Current status: TBH Index selected as the primary Chinese market-name reference; a twelve-entry verified local seed exists; full current-market coverage has not yet been established.**
+**Current status: TBH Index selected as the primary Chinese market-name reference; a sixteen-entry verified local seed exists; full current-market coverage has not yet been established.**
 
 ## Latest collection batch (2026-11-13)
 
@@ -175,3 +179,30 @@ Evidence:
 - Steam Plague Fruit: https://steamcommunity.com/market/listings/3678970/Plague%20Fruit%20(Immortal)
 
 The five entries omit `sourceItemId`: the fetched Wiki pages identify the corresponding catalog article, but do not explicitly expose an ItemKey field in the readable content.
+
+## Third collection batch (2026-11-13)
+
+Four equipment entries passed the same three-way identity check. The exact Steam A-variant suffix is preserved in the dictionary key; translated labels use the TBH localized market-facing wording.
+
+- `Buckler (Legendary) A` → `小圆盾`
+- `Mystic Bow (Arcana) A` → `神秘之弓`
+- `Dimensional Gloves (Cosmic) A` → `次元手套`
+- `Limitless Crossbow (Cosmic) A` → `无限弩`
+
+Evidence:
+- Buckler Market Info: https://tbhindex.com/zh/market/item/buckler-legendary
+- Buckler Wiki: https://tbhindex.com/wiki/gear/buckler-legendary-403011
+- Steam Buckler A: https://steamcommunity.com/market/listings/3678970/Buckler%20(Legendary)%20A
+- Mystic Bow Market Info: https://tbhindex.com/zh/market/item/mystic-bow-arcana
+- Mystic Bow Wiki: https://tbhindex.com/wiki/gear/mystic-bow-arcana-315111
+- Steam Mystic Bow A: https://steamcommunity.com/market/listings/3678970/Mystic%20Bow%20(Arcana)%20A
+- Dimensional Gloves Market Info: https://tbhindex.com/zh/market/item/dimensional-gloves-cosmic
+- Dimensional Gloves Wiki: https://tbhindex.com/wiki/gear/dimensional-gloves-cosmic-529171
+- Steam Dimensional Gloves A: https://steamcommunity.com/market/listings/3678970/Dimensional%20Gloves%20(Cosmic)%20A
+- Limitless Crossbow Market Info: https://tbhindex.com/zh/market/item/limitless-crossbow-cosmic
+- Limitless Crossbow Wiki: https://tbhindex.com/wiki/gear/limitless-crossbow-cosmic-349141
+- Steam Limitless Crossbow A: https://steamcommunity.com/market/listings/3678970/Limitless%20Crossbow%20(Cosmic)%20A
+
+The related Wiki pages were checked, but the fetched readable content did not explicitly expose ItemKey. No `sourceItemId` is set for this batch.
+
+A candidate `Celestial Earring (Rare)` was excluded from the pack because its TBH page did not expose a readable localized market label or Steam listing link during this check; do not infer a mapping from its page title.
