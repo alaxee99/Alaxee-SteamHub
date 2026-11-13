@@ -703,3 +703,67 @@ test("market listing identity remains available when Steam uses a generated titl
   assert.equal(result[0].marketHashName, "Abyss Amulet (Arcana) C");
   assert.equal(result[0].element, null);
 });
+
+test("bundled pack sync adds missing entries, upgrades only the known old term, and preserves custom data", async () => {
+  const context = await loadModules(coreFiles);
+  const api = context.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
+  const values = new Map();
+  const storage = {
+    async get(key) { return values.get(key) ?? null; },
+    async set(key, value) { values.set(key, value); },
+    async delete(key) { values.delete(key); },
+    async getAll() { return Object.fromEntries(values); }
+  };
+  const registry = api.createGameRegistry(storage);
+  await registry.importPack({
+    format: "alaxee-steamhub-game-pack", schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name", defaultLocale: "zh-CN", enabled: false },
+    translations: [
+      { marketHashName: "Bundled Item", locale: "zh-CN", translation: "旧版译文", source: "task-bar-trade-center" },
+      { marketHashName: "User Custom Item", locale: "zh-CN", translation: "用户自定义", source: "manual" }
+    ],
+    textTranslations: [
+      { sourceText: "Arcana Grade", translation: "奥术品阶" },
+      { sourceText: "Custom Effect", translation: "用户自定义效果" }
+    ]
+  }, { mode: "replace" });
+  const result = await registry.syncBundledPack({
+    format: "alaxee-steamhub-game-pack", schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name", defaultLocale: "zh-CN", enabled: true },
+    translations: [
+      { marketHashName: "Bundled Item", locale: "zh-CN", translation: "新版官方译文", source: "task-bar-trade-center" },
+      { marketHashName: "User Custom Item", locale: "zh-CN", translation: "官方译文", source: "task-bar-trade-center" },
+      { marketHashName: "Dimensional Bolt (Divine) C", locale: "zh-CN", translation: "次元弩箭", source: "task-bar-trade-center; steamcommunity.com" }
+    ],
+    textTranslations: [
+      { sourceText: "Arcana Grade", translation: "至宝品阶" },
+      { sourceText: "Custom Effect", translation: "官方效果" },
+      { sourceText: "Crossbow Turret cooldown is reduced by 50%.", translation: "弩炮的冷却时间缩短 50%。" }
+    ]
+  }, { sourceId: "taskbarhero-bundled-dictionary", version: 2,
+    legacyTextUpgrades: [{ sourceText: "Arcana Grade", previousTranslation: "奥术品阶", translation: "至宝品阶" }] });
+  assert.equal(result.status, "synced");
+  assert.equal(result.addedTranslations, 1);
+  assert.equal(result.addedTextTranslations, 1);
+  assert.equal(result.upgradedTextTranslations, 1);
+  assert.equal(result.preservedConflicts, 3);
+  const saved = await registry.get("3678970");
+  assert.equal(saved.game.enabled, false);
+  const names = new Map(saved.translations.map((entry) => [entry.marketHashName, entry.translation]));
+  assert.equal(names.get("Bundled Item"), "旧版译文");
+  assert.equal(names.get("User Custom Item"), "用户自定义");
+  assert.equal(names.get("Dimensional Bolt (Divine) C"), "次元弩箭");
+  const texts = new Map(saved.textTranslations.map((entry) => [entry.sourceText, entry.translation]));
+  assert.equal(texts.get("Arcana Grade"), "至宝品阶");
+  assert.equal(texts.get("Custom Effect"), "用户自定义效果");
+  assert.equal(texts.get("Crossbow Turret cooldown is reduced by 50%."), "弩炮的冷却时间缩短 50%。");
+  const second = await registry.syncBundledPack({
+    format: "alaxee-steamhub-game-pack", schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name", defaultLocale: "zh-CN" },
+    translations: [], textTranslations: []
+  }, { sourceId: "taskbarhero-bundled-dictionary", version: 2 });
+  assert.equal(second.status, "already-current");
+  await registry.remove("3678970");
+  assert.equal(values.has("alaxee-steamhub:bundled-sync:v1:3678970:taskbarhero-bundled-dictionary"), false);
+});
+

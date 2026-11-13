@@ -5,7 +5,7 @@
   function publishRuntimeStatus(tone, title, details) {
     runtimeStatus?.update({ tone, title, details });
   }
-  publishRuntimeStatus("info", "SteamHub 已注入，正在检查市场内容", ["版本：0.9.7", "页面：" + window.location.href]);
+  publishRuntimeStatus("info", "SteamHub 已注入，正在检查市场内容", ["版本：0.9.8", "页面：" + window.location.href]);
 
   const marketLocale = globalThis.__ALAXEE_STEAMHUB_MARKET_LOCALE__;
   if (!marketLocale || !window.location) {
@@ -25,6 +25,7 @@
   const registryApi = globalThis.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
   const storageApi = globalThis.__ALAXEE_STEAMHUB_STORAGE_ADAPTER__;
   const textLocalizer = globalThis.__ALAXEE_STEAMHUB_GAME_TEXT_LOCALIZER__;
+  const sourceCatalogApi = globalThis.__ALAXEE_STEAMHUB_GAME_SOURCE_CATALOG__;
 
   const missingDependencies = [];
   if (!marketItems) missingDependencies.push("市场商品识别模块");
@@ -58,11 +59,14 @@
   }
 
   const APP_ATTRIBUTE = "data-alaxee-steamhub-app-id";
-  const MAX_VISIBLE_ITEMS_PER_PASS = 80;
+  const MAX_VISIBLE_ITEMS_PER_PASS = 200;
   const localizedTextNodes = new Map();
+  const bundledSyncPromises = new Map();
   let scanScheduled = false;
+  let activeScanPromise = null;
+  let rescanRequested = false;
   const diagnostics = {
-    version: "0.9.7",
+    version: "0.9.8",
     initializedAt: new Date().toISOString(),
     scanCount: 0,
     lastScanAt: null,
@@ -76,6 +80,8 @@
     missingPacks: [],
     disabledGames: [],
     unmatchedNames: [],
+    bundleSyncs: [],
+    omittedItems: 0,
     errors: []
   };
 
@@ -115,7 +121,34 @@
     return identity?.parseMarketSearchPageAppId(window.location.href) || null;
   }
 
-  function preserveMarketNameSuffix(marketHashName, translation) {
+  async function ensureBundledProfileSynced(appId) {
+    if (!sourceCatalogApi || typeof sourceCatalogApi.listSources !== "function" ||
+        typeof registry.syncBundledPack !== "function") return null;
+    const source = sourceCatalogApi.listSources(appId).find((entry) =>
+      entry.assetPath && Number.isSafeInteger(entry.bundleVersion) && entry.bundleVersion > 0
+    );
+    if (!source) return null;
+    const existing = await registry.get(appId);
+    if (!existing) return { status: "profile-missing", appId, sourceId: source.id, version: source.bundleVersion,
+      addedTranslations: 0, addedTextTranslations: 0, upgradedTextTranslations: 0, preservedConflicts: 0 };
+    if (bundledSyncPromises.has(appId)) {
+      const previous = await bundledSyncPromises.get(appId);
+      return previous ? { ...previous, status: "already-current", addedTranslations: 0,
+        addedTextTranslations: 0, upgradedTextTranslations: 0, preservedConflicts: 0 } : null;
+    }
+    const pending = (async () => {
+      const response = await fetch(chrome.runtime.getURL(source.assetPath), { credentials: "omit", cache: "no-store" });
+      if (!response.ok) throw new Error("无法读取扩展内置游戏词库。");
+      return registry.syncBundledPack(await response.json(), {
+        sourceId: source.id, version: source.bundleVersion, legacyTextUpgrades: source.legacyTextUpgrades || []
+      });
+    })();
+    bundledSyncPromises.set(appId, pending);
+    try { return await pending; }
+    catch (error) { bundledSyncPromises.delete(appId); throw error; }
+  }
+
+  function preserveMarketNameSuffix(marketHashName, translation)
     const source = String(marketHashName || "");
     const translated = String(translation || "").trimEnd();
     const suffixMatch = source.match(/((?:\s+\([^()]+\))*)(?:\s+([A-Z]))?$/);
@@ -189,12 +222,13 @@
     }
 
     const details = [
-      "版本：0.9.7",
+      "版本：0.9.8",
       "当前页面 AppID：" + (primaryAppId || "未识别"),
       "页面发现商品链接：" + diagnostics.detectedItems,
       "视口范围内商品：" + diagnostics.visibleItems,
       "本轮实际扫描：" + diagnostics.scannedItems,
       "是否回退扫描已发现链接：" + (diagnostics.scanFallbackUsed ? "是" : "否"),
+      "超出单轮扫描上限未扫描：" + diagnostics.omittedItems,
       "已命中词条：" + diagnostics.matchedItems,
       "当前游戏已替换名称节点：" + diagnostics.translatedNames,
       "当前游戏已替换详情节点：" + diagnostics.translatedDetailNodes
@@ -207,6 +241,14 @@
     if (unrelatedDisabled.length) details.push("其他关联商品已关闭汉化：" + unrelatedDisabled.join("、"));
     if (primaryUnmatched.length) {
       details.push("当前游戏未命中示例：" + primaryUnmatched.slice(0, 3).map((item) => item.marketHashName).join("；"));
+    }
+    for (const sync of diagnostics.bundleSyncs) {
+      if (sync.status === "profile-missing") continue;
+      const summary = sync.status === "synced"
+        ? "新增名称 " + sync.addedTranslations + " · 新增详情 " + sync.addedTextTranslations +
+          " · 旧术语修正 " + sync.upgradedTextTranslations + " · 保留冲突 " + sync.preservedConflicts
+        : "已是最新";
+      details.push("内置词库同步 v" + sync.version + "（AppID " + sync.appId + "）：" + summary);
     }
     if (primaryErrors.length) {
       details.push("当前商品处理错误：" + primaryErrors.slice(0, 3).map((item) => item.message).join("；"));
@@ -413,7 +455,7 @@
     }
   }
 
-  async function scanVisibleItems() {
+  async function runScanPass() {
     if (!document.documentElement) return;
     diagnostics.scanCount += 1;
     diagnostics.lastScanAt = new Date().toISOString();
@@ -424,8 +466,9 @@
     diagnostics.missingPacks = [];
     diagnostics.disabledGames = [];
     diagnostics.unmatchedNames = [];
+    diagnostics.bundleSyncs = [];
+    diagnostics.omittedItems = 0;
     diagnostics.errors = [];
-
     const discoveredItems = marketItems.collectMarketListingLinks(document, window.location.href)
       .filter((item) => item.appId && item.marketHashName);
     const visibleItems = discoveredItems.filter(isWithinScanViewport);
@@ -435,26 +478,41 @@
     diagnostics.detectedItems = discoveredItems.length;
     diagnostics.visibleItems = visibleItems.length;
     diagnostics.scannedItems = items.length;
+    diagnostics.omittedItems = Math.max(0, scanCandidates.length - items.length);
     diagnostics.scanFallbackUsed = scanFallbackUsed;
-
+    const appIds = Array.from(new Set(items.map((item) => item.appId)));
+    const syncResults = await Promise.all(appIds.map(async (appId) => {
+      try { return await ensureBundledProfileSynced(appId); }
+      catch (error) {
+        if (diagnostics.errors.length < 20) diagnostics.errors.push({
+          appId, message: "内置词库同步失败：" + (error?.message || String(error))
+        });
+        return null;
+      }
+    }));
+    diagnostics.bundleSyncs = syncResults.filter(Boolean);
     const processedTextApps = new Set();
     for (let index = 0; index < items.length; index += 12) {
       const batch = items.slice(index, index + 12);
       await Promise.all(batch.map(async (item) => {
-        try {
-          await processItem(item, processedTextApps);
-        } catch (error) {
-          if (diagnostics.errors.length < 20) {
-            diagnostics.errors.push({
-              appId: item.appId,
-              marketHashName: item.marketHashName,
-              message: error?.message || String(error)
-            });
-          }
+        try { await processItem(item, processedTextApps); }
+        catch (error) {
+          if (diagnostics.errors.length < 20) diagnostics.errors.push({
+            appId: item.appId, marketHashName: item.marketHashName, message: error?.message || String(error)
+          });
         }
       }));
     }
     publishDiagnostics();
+  }
+
+  async function scanVisibleItems() {
+    if (activeScanPromise) { rescanRequested = true; return activeScanPromise; }
+    activeScanPromise = (async () => {
+      do { rescanRequested = false; await runScanPass(); } while (rescanRequested);
+    })();
+    try { await activeScanPromise; }
+    finally { activeScanPromise = null; }
   }
 
   function scheduleScan() {
@@ -470,7 +528,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.9.7",
+    version: "0.9.8",
     getDiagnostics() {
       return Object.freeze({
         ...diagnostics,

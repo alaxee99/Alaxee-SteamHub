@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ALAXEE SteamHub",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "description": "Steam Community Market item name and detail localization with per-game dictionaries.",
   "permissions": [
     "storage"
@@ -22,6 +22,7 @@
         "core/translation-engine.js",
         "core/rate-limiter.js",
         "core/game-registry.js",
+        "core/game-source-catalog.js",
         "market-items.js",
         "storage-adapter.js",
         "market-text-localizer.js",

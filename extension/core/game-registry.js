@@ -3,6 +3,7 @@
 
   const API_KEY = "__ALAXEE_STEAMHUB_GAME_REGISTRY__";
   const STORAGE_PREFIX = "alaxee-steamhub:game-pack:v1:";
+  const BUNDLED_SYNC_PREFIX = "alaxee-steamhub:bundled-sync:v1:";
   const PACK_FORMAT = "alaxee-steamhub-game-pack";
   const PACK_VERSION = 1;
   const ADAPTER = "steam-community-market";
@@ -277,6 +278,50 @@
       return pack;
     }
 
+    async function syncBundledPack(input, options = {}) {
+      const incoming = normalizePack(input);
+      const sourceId = typeof options.sourceId === "string" ? options.sourceId : "";
+      const version = Number(options.version);
+      if (!/^[a-z0-9][a-z0-9._-]{0,79}$/.test(sourceId) || !Number.isSafeInteger(version) || version < 1) {
+        throw new TypeError("A valid bundled source ID and positive version are required.");
+      }
+      const existing = await get(incoming.game.appId);
+      if (!existing) return Object.freeze({ status: "profile-missing", appId: incoming.game.appId, sourceId, version, addedTranslations: 0, addedTextTranslations: 0, upgradedTextTranslations: 0, preservedConflicts: 0 });
+      const markerKey = BUNDLED_SYNC_PREFIX + incoming.game.appId + ":" + sourceId;
+      const marker = await storage.get(markerKey);
+      if (marker?.version === version) return Object.freeze({ status: "already-current", appId: incoming.game.appId, sourceId, version, addedTranslations: 0, addedTextTranslations: 0, upgradedTextTranslations: 0, preservedConflicts: 0 });
+      const translationsByKey = new Map(existing.translations.map((entry) => [entry.locale + "\u0000" + entry.marketHashName, entry]));
+      let addedTranslations = 0;
+      let preservedConflicts = 0;
+      for (const entry of incoming.translations) {
+        const key = entry.locale + "\u0000" + entry.marketHashName;
+        const previous = translationsByKey.get(key);
+        if (!previous) { translationsByKey.set(key, entry); addedTranslations += 1; }
+        else if (previous.translation !== entry.translation || previous.source !== entry.source || (previous.sourceItemId || "") !== (entry.sourceItemId || "")) preservedConflicts += 1;
+      }
+      const incomingTextBySource = new Map((incoming.textTranslations || []).map((entry) => [entry.sourceText, entry]));
+      const textBySource = new Map((existing.textTranslations || []).map((entry) => [entry.sourceText, entry]));
+      let upgradedTextTranslations = 0;
+      let addedTextTranslations = 0;
+      for (const upgrade of Array.isArray(options.legacyTextUpgrades) ? options.legacyTextUpgrades : []) {
+        const previous = textBySource.get(upgrade?.sourceText);
+        const replacement = incomingTextBySource.get(upgrade?.sourceText);
+        if (previous && replacement && previous.translation === upgrade.previousTranslation && replacement.translation === upgrade.translation) {
+          textBySource.set(upgrade.sourceText, replacement);
+          upgradedTextTranslations += 1;
+        }
+      }
+      for (const entry of incoming.textTranslations || []) {
+        const previous = textBySource.get(entry.sourceText);
+        if (!previous) { textBySource.set(entry.sourceText, entry); addedTextTranslations += 1; }
+        else if (previous.translation !== entry.translation) preservedConflicts += 1;
+      }
+      const pack = normalizePack({ ...existing, game: { ...existing.game }, translations: Array.from(translationsByKey.values()), textTranslations: Array.from(textBySource.values()) });
+      await storage.set(storageKey(pack.game.appId), pack);
+      await storage.set(markerKey, { version, syncedAt: Date.now(), addedTranslations, addedTextTranslations, upgradedTextTranslations, preservedConflicts });
+      return Object.freeze({ status: "synced", appId: incoming.game.appId, sourceId, version, addedTranslations, addedTextTranslations, upgradedTextTranslations, preservedConflicts });
+    }
+
     async function upsertTranslation(appId, input) {
       const current = await get(appId);
       if (!current) throw new Error("Register this game before adding translations.");
@@ -392,7 +437,12 @@
     }
 
     async function remove(appId) {
-      await storage.delete(storageKey(appId));
+      const normalizedAppId = normalizeAppId(appId);
+      if (!normalizedAppId) throw new TypeError("A valid Steam AppID is required.");
+      await storage.delete(storageKey(normalizedAppId));
+      const all = await storage.getAll();
+      const prefix = BUNDLED_SYNC_PREFIX + normalizedAppId + ":";
+      for (const key of Object.keys(all || {})) if (key.startsWith(prefix)) await storage.delete(key);
     }
 
     async function exportPack(appId) {
@@ -409,7 +459,7 @@
       };
     }
 
-    return Object.freeze({ get, list, addGame, importPack, upsertTranslation, updateTranslation, removeTranslation, setEnabled, remove, exportPack });
+    return Object.freeze({ get, list, addGame, importPack, syncBundledPack, upsertTranslation, updateTranslation, removeTranslation, setEnabled, remove, exportPack });
   }
 
   function createGamePackProvider(registry) {

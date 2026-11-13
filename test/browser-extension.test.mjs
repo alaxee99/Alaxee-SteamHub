@@ -246,6 +246,7 @@ test("Steam Market search overview localizes titles inside the current clickable
     "core/translation-engine.js",
     "core/rate-limiter.js",
     "core/game-registry.js",
+    "core/game-source-catalog.js",
     "market-items.js",
     "storage-adapter.js",
     "market-text-localizer.js",
@@ -364,6 +365,7 @@ test("Steam Market search overview localizes titles inside the current clickable
   };
   const context = vm.createContext({
     URL,
+    fetch: async () => ({ ok: true, async json() { return { format: "alaxee-steamhub-game-pack", schemaVersion: 1, game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name", defaultLocale: "zh-CN" }, translations: [], textTranslations: [] }; } }),
     NodeFilter: { SHOW_TEXT: 4 },
     window: {
       location,
@@ -373,6 +375,7 @@ test("Steam Market search overview localizes titles inside the current clickable
     },
     document,
     chrome: {
+      runtime: { getURL(path) { return path; } },
       storage: {
         local: storageArea,
         onChanged: { addListener() {} }
@@ -388,7 +391,7 @@ test("Steam Market search overview localizes titles inside the current clickable
 
   assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.7");
+  assert.equal(diagnostics.version, "0.9.8");
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.detectedItems, 1);
   assert.equal(diagnostics.visibleItems, 0);
@@ -435,7 +438,7 @@ test("runtime status keeps a compact badge visible for startup, warnings, and su
   const status = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__;
 
   assert.equal(mountedHosts.length, 0);
-  status.update({ tone: "info", title: "SteamHub 已注入", details: ["版本：0.9.7"] });
+  status.update({ tone: "info", title: "SteamHub 已注入", details: ["版本：0.9.8"] });
   assert.equal(mountedHosts.length, 1);
   assert.equal(mountedHosts[0].isConnected, true);
 
@@ -450,9 +453,20 @@ test("runtime status keeps a compact badge visible for startup, warnings, and su
   assert.equal(mountedHosts[0].shadowRoot.children[1].children[1].textContent, "汉化已生效");
 });
 
+test("market scan supports 87 visible listings and serializes overlapping passes", async () => {
+  assert.match(contentSource, /MAX_VISIBLE_ITEMS_PER_PASS = 200/);
+  assert.match(contentSource, /let activeScanPromise = null/);
+  assert.match(contentSource, /rescanRequested = true/);
+  assert.match(contentSource, /diagnostics\.omittedItems = Math\.max\(0, scanCandidates\.length - items\.length\)/);
+  const sourceCatalog = await readFile(path.join(extensionRoot, "core", "game-source-catalog.js"), "utf8");
+  assert.match(sourceCatalog, /translationCount:1116/);
+  assert.match(sourceCatalog, /detailTranslationCount:18/);
+  assert.match(sourceCatalog, /bundleVersion:2/);
+});
+
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.9.7");
+  assert.equal(manifest.version, "0.9.8");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -475,6 +489,7 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
     "core/translation-engine.js",
     "core/rate-limiter.js",
     "core/game-registry.js",
+    "core/game-source-catalog.js",
     "market-items.js",
     "storage-adapter.js",
     "market-text-localizer.js",
@@ -1478,6 +1493,7 @@ test("Steam Market content script replaces exact item names and localizes detail
     "core/translation-engine.js",
     "core/rate-limiter.js",
     "core/game-registry.js",
+    "core/game-source-catalog.js",
     "market-items.js",
     "storage-adapter.js",
     "market-text-localizer.js",
@@ -1632,6 +1648,7 @@ test("Steam Market content script replaces exact item names and localizes detail
   };
   const context = vm.createContext({
     URL,
+    fetch: async () => ({ ok: true, async json() { return { format: "alaxee-steamhub-game-pack", schemaVersion: 1, game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name", defaultLocale: "zh-CN" }, translations: [], textTranslations: [] }; } }),
     NodeFilter: { SHOW_TEXT: 4 },
     window: {
       location,
@@ -1639,6 +1656,7 @@ test("Steam Market content script replaces exact item names and localizes detail
     },
     document,
     chrome: {
+      runtime: { getURL(path) { return path; } },
       storage: {
         local: storageArea,
         onChanged: { addListener() {} }
@@ -1671,7 +1689,7 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.7");
+  assert.equal(diagnostics.version, "0.9.8");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);

@@ -76,3 +76,12 @@ Do not copy the entire upstream 3.6 MB catalog into SteamHub. The generated pack
 ## Import compatibility
 
 For the 27 earlier manually checked mappings, the bulk pack preserves the prior `source: tbhindex.com` label and the prior presence/absence of `sourceItemId`. This is intentional: a user who already imported `docs/game-pack.tbhindex-seed.json` can merge the full pack without those same keys appearing as conflicting provenance updates. The other bulk-generated entries use `source: task-bar-trade-center` and retain a unique game item ID when available.
+
+
+## 内置词库版本同步（SteamHub 0.9.8）
+
+- 已存在的 Task Bar Hero 游戏档案会在市场页首次扫描时同步扩展内置词库，不再要求用户先删除旧档案或手动重新导入。
+- 同步只追加缺失的精确名称和详情词条；已有冲突译文保留，并在运行诊断中报告冲突数量。
+- 对已知旧版内置术语 `Arcana Grade → 奥术品阶` 执行一次精确兼容迁移，更新为 `至宝品阶`；其他自定义详情译文不会被覆盖。
+- 同步版本记录保存在扩展本地存储中；删除游戏档案时同时清理对应同步标记。
+- 单轮可见商品扫描上限由 80 提升为 200；重叠触发的扫描串行执行，并对超出上限的条目给出数量诊断。
