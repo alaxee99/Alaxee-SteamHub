@@ -105,6 +105,30 @@ test("market-page scanning returns unique exact listing keys and skips hidden an
   ]);
 });
 
+test("market item detail pages bind the current Steam item name element", async () => {
+  const context = await loadModules(coreFiles);
+  const scanner = context.__ALAXEE_STEAMHUB_MARKET_ITEMS__;
+  const titleElement = { id: "largeiteminfo_item_name" };
+  const root = {
+    querySelector(selector) {
+      if (selector === "#largeiteminfo_item_name") return titleElement;
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  };
+
+  const result = scanner.collectMarketListingLinks(
+    root,
+    "https://steamcommunity.com/market/listings/3678970/Example%20Item"
+  );
+  assert.equal(result.length, 1);
+  assert.equal(result[0].appId, "3678970");
+  assert.equal(result[0].marketHashName, "Example Item");
+  assert.equal(result[0].element, titleElement);
+});
+
 test("translation engine accepts only one exact provider match and caches successful translations", async () => {
   const context = await loadModules(coreFiles);
   const engineApi = context.__ALAXEE_STEAMHUB_TRANSLATION_ENGINE__;

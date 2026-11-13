@@ -12,10 +12,19 @@
     const results = new Map();
     const currentPageItem = identity.parseMarketListingUrl(pageUrl);
     if (currentPageItem) {
+      const titleSelectors = [
+        "#largeiteminfo .market_listing_nav .market_listing_item_name",
+        ".market_listing_nav .market_listing_item_name",
+        "#largeiteminfo_item_name"
+      ];
+      const titleElement = typeof root?.querySelector === "function"
+        ? titleSelectors.map((selector) => root.querySelector(selector)).find(Boolean) || null
+        : null;
+
       results.set(currentPageItem.cacheIdentity, {
         ...currentPageItem,
         href: pageUrl,
-        element: null
+        element: titleElement
       });
     }
 

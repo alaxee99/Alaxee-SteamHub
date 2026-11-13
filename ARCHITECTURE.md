@@ -49,7 +49,7 @@ The registry and pack format are host-independent. The first adapter supports St
 - Pack imports validate the versioned schema and reject duplicate item/locale keys. Merge import rejects conflicting translations; replace import replaces only that game's dictionary.
 - The translation engine accepts a provider record only when AppID, exact market hash name, and locale match and there is exactly one candidate.
 - Local game packs are persistent extension-local dictionaries. The 30-day translation cache remains available for future remote providers; local packs do not depend on expiring cache entries.
-- Visible market listing links are scanned in small batches. Exact local matches are displayed alongside the original Steam item name. Dynamic page updates and game-pack changes trigger a refresh.
+- Visible market listing links and the current item title on a Steam Market detail page are scanned. Exact local matches are displayed alongside the original Steam item name. Dynamic page updates and game-pack changes trigger a refresh.
 
 ## Game pack data model
 
