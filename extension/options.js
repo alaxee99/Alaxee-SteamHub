@@ -634,6 +634,12 @@
     extractedHtmlSource = "";
     htmlCardCandidates = [];
     extractedHtmlCardResult = null;
+    extractedHtmlDetailResult = null;
+    document.getElementById("extract-html-detail").disabled = true;
+    document.getElementById("convert-html-detail").disabled = true;
+    document.getElementById("html-detail-preview").replaceChildren();
+    document.getElementById("html-detail-summary").textContent = "正在读取页面…";
+    document.getElementById("html-detail-conversion-summary").textContent = "";
     document.getElementById("html-card-candidates").replaceChildren();
     document.getElementById("html-card-candidates").disabled = true;
     document.getElementById("extract-html-cards").disabled = true;
@@ -697,6 +703,7 @@
       });
       extractedHtmlTables = result.tables;
       extractedHtmlPage = result;
+      document.getElementById("extract-html-detail").disabled = false;
       const selector = document.getElementById("html-table-select");
       if (!result.tables.length) {
         selector.append(Object.assign(document.createElement("option"), {
