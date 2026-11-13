@@ -992,11 +992,16 @@ test("Options page wires detail extraction to the existing exact mapping workflo
     "html-detail-translation-selector",
     "extract-html-detail",
     "convert-html-detail",
-    "html-detail-preview"
+    "html-detail-preview",
+    "html-local-file"
   ]) {
     assert.match(optionsHtml, new RegExp('id="' + id + '"'));
   }
   assert.match(optionsJs, /parseHtmlDetailRecord\(extractedHtmlSource/);
+  assert.match(optionsJs, /file\.size > 1024 \* 1024/);
+  assert.match(optionsJs, /await file\.text\(\)/);
+  assert.match(optionsJs, /parseHtmlTables\(localHtml/);
+  assert.match(optionsJs, /credentials|chrome\.permissions\.request/);
   assert.match(optionsJs, /buildGamePackFromSourceIds\(extractedHtmlDetailResult\.records/);
   assert.match(optionsJs, /buildGamePackFromRecords\(\s*extractedHtmlDetailResult\.records/);
 });
@@ -1042,7 +1047,7 @@ test("HTML detail parser reads explicit meta and itemprop fields", () => {
 
 test("TaskBarHeroWiki Minor Ruby detail page ID matches the exact reference catalog entry", () => {
   const itemIdNode = { tagName: "SPAN", textContent: "110001" };
-  const itemHeading = { tagName: "H1", textContent: "Minor Ruby" };
+  const itemHeading = { tagName: "H1", textContent: "小红宝石" };
   class FakeDOMParser {
     parseFromString() {
       return {
@@ -1071,13 +1076,13 @@ test("TaskBarHeroWiki Minor Ruby detail page ID matches the exact reference cata
     translationSelector: "h1.text-white.text-4xl.font-bold"
   });
   assert.equal(parsed.sourceId, "110001");
-  assert.equal(parsed.translation, "Minor Ruby");
+  assert.equal(parsed.translation, "小红宝石");
   assert.equal(parsed.records.length, 1);
 
   const mapper = loadSourceRecordMapper();
   const mapped = mapper.buildGamePackFromSourceIds([{
     sourceId: parsed.sourceId,
-    translation: "小红宝石"
+    translation: parsed.translation
   }], {
     referencePack: taskBarHeroReferencePack,
     locale: "zh-CN",
