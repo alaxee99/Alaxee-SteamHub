@@ -26,6 +26,16 @@ v0.6.0 在多游戏独立配置基础上，增加词库搜索、单条编辑和�
 
 Task Bar Hero 现在优先使用批量结构化数据，而不是逐页手工录入。完整导入包见 `docs/game-pack.taskbar-hero-zh-CN.json`，包含 1,106 条唯一的简体中文 Steam 市场键，可直接通过扩展选项中的 JSON 导入功能导入。主数据来自公开的 Task Bar Trade Center 游戏物品目录（7,031 条记录、16 种语言，含 `zh-Hans`、marketable、grade、level 和 Item ID）；Steam Bulk Sell 的公开 commodity JSON 提供 342 个精确 Steam 市场键，完成四个已核实命名例外后与词库 342/342 精确对齐。前述 27 条逐页核对词条仍保留在 `docs/game-pack.tbhindex-seed.json`，TBH Index 作为补充人工核验来源，不再承担逐条生成整个词库的任务。注意 1,106 条表示游戏目录中可交易物品推导出的唯一市场键，不等同于当前有挂单的 Steam 商品数量；未匹配时扩展仍按精确键保留原文。数据来源、变体命名、四个 Steam 例外及更新流程见 `docs/providers/taskbar-trade-center.md`；342 条 commodity 原始目录见 `docs/market-catalogs/steam-bulk-sell-3678970.json`。
 
+## 通过公开 JSON 链接导入
+
+扩展选项中的“批量导入数据包”支持粘贴一个公开 HTTPS JSON 数据包直链。首次读取时只请求该链接所在站点的可选访问权限；不发送 Cookie、登录凭据或 Referer，拒绝跨站跳转，并限制读取大小为 5 MiB、最长 20 秒。读取完成后仍需在文本框检查数据，并明确选择合并或覆盖。
+
+该入口只接受 `alaxee-steamhub-game-pack` v1，不会把任意 Wiki 首页、HTML、站点地图或 CSV 自动转换成词库。普通 Wiki 需要站点专用解析器，把页面记录映射到精确的 Steam `market_hash_name` 后才能生成词条。详细说明见 `docs/importing/public-json-url.md`。
+
+Task Bar Hero 当前数据包直链：
+
+`https://raw.githubusercontent.com/alaxee99/Alaxee-SteamHub/feat/browser-extension-first/docs/game-pack.taskbar-hero-zh-CN.json`
+
 ## 数据包格式
 
 数据包使用 alaxee-steamhub-game-pack 格式，当前 schemaVersion 为 1。每个词条包含：
@@ -54,4 +64,4 @@ taskbarherowiki.com、taskbarhero.wiki 等其他公开社区站点仅作为辅�
 
 ## 安全
 
-只申请 storage 权限，用于扩展本地游戏配置、词库和未来数据源缓存。不会读取 Steam Cookie、登录凭据、账户资料、库存或存档，也没有遥测、云同步或远程代码。
+安装时只要求 storage 权限；用户主动读取公开 JSON 链接时，扩展才会针对该链接所在的单一 HTTPS 源申请可选访问权限。不会读取 Steam Cookie、登录凭据、账户资料、库存或存档，也没有遥测、云同步或远程代码。不会读取 Steam Cookie、登录凭据、账户资料、库存或存档，也没有遥测、云同步或远程代码。
