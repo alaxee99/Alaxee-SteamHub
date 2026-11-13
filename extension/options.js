@@ -615,6 +615,108 @@
     convertButton.disabled = false;
   }
 
+
+  document.getElementById("html-local-file").addEventListener("change", async (event) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const pageSummary = document.getElementById("html-page-summary");
+    const cardSummary = document.getElementById("html-card-summary");
+    const detailSummary = document.getElementById("html-detail-summary");
+    try {
+      if (!/\.(?:html?|xhtml)$/i.test(file.name) &&
+          !(file.type && /text\/html|application\/xhtml\+xml/i.test(file.type))) {
+        throw new TypeError("请选择 .html / .htm 页面文件");
+      }
+      if (!Number.isSafeInteger(file.size) || file.size < 1 || file.size > 1024 * 1024) {
+        throw new RangeError("本地 HTML 文件必须大于 0 且不超过 1 MiB");
+      }
+      const localHtml = await file.text();
+      if (localHtml.length > 1024 * 1024) {
+        throw new RangeError("本地 HTML 文本超过 1 MiB 解析上限");
+      }
+
+      const pageUrl = "local-html:///" + encodeURIComponent(file.name);
+      const parsedPage = htmlTableParserApi.parseHtmlTables(localHtml, {
+        pageUrl,
+        maxTables: 20,
+        maxRowsPerTable: 500
+      });
+      const candidates = htmlTableParserApi.discoverHtmlCardSelectors(localHtml);
+
+      // Replace the previously selected source only after the new file passes validation and parsing.
+      extractedHtmlSource = localHtml;
+      extractedHtmlPage = parsedPage;
+      extractedHtmlTables = parsedPage.tables;
+      htmlCardCandidates = candidates;
+      extractedHtmlCardResult = null;
+      extractedHtmlDetailResult = null;
+
+      const candidateSelect = document.getElementById("html-card-candidates");
+      candidateSelect.replaceChildren();
+      if (candidates.length) {
+        for (const candidate of candidates) {
+          const option = document.createElement("option");
+          option.value = candidate.selector;
+          option.textContent = candidate.selector + " · " + candidate.count + " 个卡片 · " +
+            candidate.sampleText.slice(0, 55);
+          candidateSelect.append(option);
+        }
+        document.getElementById("html-card-selector").value = candidates[0].selector;
+        candidateSelect.value = candidates[0].selector;
+      } else {
+        candidateSelect.append(Object.assign(document.createElement("option"), {
+          value: "",
+          textContent: "未自动识别；可以手动填写 CSS 选择器"
+        }));
+        document.getElementById("html-card-selector").value = "";
+      }
+      candidateSelect.disabled = !candidates.length;
+      document.getElementById("extract-html-cards").disabled = false;
+      document.getElementById("convert-html-cards").disabled = true;
+      document.getElementById("html-card-preview").replaceChildren();
+      cardSummary.textContent = candidates.length + " 种重复卡片选择器候选；本地文件不会再次联网";
+      document.getElementById("html-card-conversion-summary").textContent = "";
+
+      document.getElementById("extract-html-detail").disabled = false;
+      document.getElementById("convert-html-detail").disabled = true;
+      document.getElementById("html-detail-preview").replaceChildren();
+      detailSummary.textContent = "本地页面已载入；可提取当前语言下的单物品字段";
+      document.getElementById("html-detail-conversion-summary").textContent = "";
+
+      const tableSelect = document.getElementById("html-table-select");
+      tableSelect.replaceChildren();
+      if (parsedPage.tables.length) {
+        for (const table of parsedPage.tables) {
+          const option = document.createElement("option");
+          option.value = String(table.index);
+          option.textContent = (table.caption || table.ariaLabel || ("表格 " + (table.index + 1))) +
+            " · " + table.rowCount + " 行 · " + table.headers.length + " 列";
+          tableSelect.append(option);
+        }
+        tableSelect.value = String(parsedPage.tables[0].index);
+      } else {
+        tableSelect.append(Object.assign(document.createElement("option"), {
+          value: "",
+          textContent: "没有识别到可映射的数据表格"
+        }));
+      }
+      tableSelect.disabled = !parsedPage.tables.length;
+      renderSelectedHtmlTable();
+
+      pageSummary.textContent = (parsedPage.pageTitle ? parsedPage.pageTitle + " · " : "") +
+        "本地文件 " + file.name + " · " + file.size.toLocaleString() +
+        " 字节 · " + parsedPage.tables.length + " 张表格 · " + candidates.length + " 种卡片结构";
+      report("已载入本地 HTML；请确认预览显示的是所需语言，再提取详情页 / 表格 / 卡片");
+    } catch (error) {
+      pageSummary.textContent = "";
+      report(error.message || "本地 HTML 文件读取失败", true);
+    } finally {
+      input.value = "";
+    }
+  });
+
   document.getElementById("html-mapping-mode").addEventListener("change", updateHtmlMappingMode);
   document.getElementById("html-reference-game").addEventListener("change", updateHtmlReferenceTarget);
   document.getElementById("html-table-select").addEventListener("change", renderSelectedHtmlTable);
