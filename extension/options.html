@@ -193,6 +193,10 @@
             <button id="extract-html-page" type="button" class="quiet">读取并分析表格</button>
           </div>
           <p id="html-page-summary" class="source-summary" aria-live="polite">尚未读取 HTML 页面。</p>
+          <label class="file-label">导入浏览器保存的 HTML 页面（用于语言切换后的动态译文）
+            <input id="html-local-file" type="file" accept=".html,.htm,text/html">
+          </label>
+          <p class="hint">如果网站切换中文后 URL 抓取仍返回英文，请在物品页切换到中文、刷新确认，再用浏览器“另存为网页，仅 HTML”，然后在这里选择保存的文件。仅解析这一个本地 HTML 文件；不执行其中脚本、不联网、不读取 Cookie / 站点存储。文件上限 1 MiB。</p>
           <label>识别到的表格
             <select id="html-table-select" disabled><option value="">先读取一个 HTML 页面</option></select>
           </label>
