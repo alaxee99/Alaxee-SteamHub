@@ -298,10 +298,72 @@
     nextPageButton.disabled = currentPage >= pageCount - 1;
   }
 
+  function updateHtmlReferenceTarget() {
+    const appId = document.getElementById("html-reference-game").value;
+    const pack = cachedPacks.find((candidate) => candidate.game.appId === appId);
+    if (!pack) return;
+    document.getElementById("html-app-id").value = pack.game.appId;
+    document.getElementById("html-game-name").value = pack.game.name;
+  }
+
+  function renderHtmlReferenceGames() {
+    const selector = document.getElementById("html-reference-game");
+    const previous = selector.value;
+    const eligible = cachedPacks.map((pack) => ({
+      pack,
+      ids: new Set(pack.translations
+        .filter((entry) => entry.sourceItemId)
+        .map((entry) => entry.sourceItemId))
+    })).filter((item) => item.ids.size > 0);
+
+    selector.replaceChildren();
+    if (!eligible.length) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "尚无带来源 ID 的参考词库；先导入 Steam 目录";
+      selector.append(option);
+      selector.disabled = true;
+      return;
+    }
+
+    for (const item of eligible) {
+      const option = document.createElement("option");
+      option.value = item.pack.game.appId;
+      option.textContent = item.pack.game.name + " · AppID " + item.pack.game.appId +
+        " · " + item.ids.size + " 个可反查 ID";
+      selector.append(option);
+    }
+    selector.disabled = false;
+    selector.value = eligible.some((item) => item.pack.game.appId === previous)
+      ? previous
+      : eligible.find((item) => item.pack.game.appId === "3678970")?.pack.game.appId ||
+        eligible[0].pack.game.appId;
+    updateHtmlReferenceTarget();
+  }
+
+  function updateHtmlMappingMode() {
+    const sourceIdMode = document.getElementById("html-mapping-mode").value === "source-id";
+    const referenceWrap = document.getElementById("html-reference-game-wrap");
+    const keyLabel = document.getElementById("html-key-field-label");
+    const sourceIdWrap = document.getElementById("html-source-id-field-wrap");
+    const appIdWrap = document.getElementById("html-app-id-wrap");
+    const gameNameWrap = document.getElementById("html-game-name-wrap");
+    referenceWrap.hidden = !sourceIdMode;
+    sourceIdWrap.hidden = sourceIdMode;
+    appIdWrap.hidden = sourceIdMode;
+    gameNameWrap.hidden = sourceIdMode;
+    keyLabel.firstChild.textContent = sourceIdMode ? "游戏内部 ItemKey / ID 列" : "Steam market_hash_name 列";
+    document.getElementById("html-app-id").disabled = sourceIdMode;
+    document.getElementById("html-game-name").disabled = sourceIdMode;
+    if (sourceIdMode) updateHtmlReferenceTarget();
+  }
+
   async function refresh() {
     cachedPacks = await registry.list();
     renderGames(cachedPacks);
     renderDictionary(cachedPacks);
+    renderHtmlReferenceGames();
+    updateHtmlMappingMode();
   }
 
   document.getElementById("add-game-form").addEventListener("submit", async (event) => {
@@ -549,6 +611,8 @@
     convertButton.disabled = false;
   }
 
+  document.getElementById("html-mapping-mode").addEventListener("change", updateHtmlMappingMode);
+  document.getElementById("html-reference-game").addEventListener("change", updateHtmlReferenceTarget);
   document.getElementById("html-table-select").addEventListener("change", renderSelectedHtmlTable);
 
   document.getElementById("extract-html-page").addEventListener("click", async (event) => {
@@ -634,33 +698,53 @@
       if (!table || !extractedHtmlPage) throw new Error("请先读取并选择一张页面表格");
       const marketField = document.getElementById("html-market-field").value;
       const translationField = document.getElementById("html-translation-field").value;
-      const sourceIdField = document.getElementById("html-source-id-field").value;
+      const sourceIdMode = document.getElementById("html-mapping-mode").value === "source-id";
       if (!marketField || !translationField || marketField === translationField) {
-        throw new Error("请选择不同的 Steam 市场键列和译文列");
+        throw new Error("请选择不同的 ID / Steam 市场键列和译文列");
       }
-      const mapped = sourceMapperApi.buildGamePackFromRecords(table.records, {
-        game: {
-          appId: document.getElementById("html-app-id").value.trim(),
-          name: document.getElementById("html-game-name").value.trim(),
-          adapter: "steam-community-market",
-          itemKey: "market_hash_name"
-        },
-        locale: document.getElementById("html-locale").value,
-        fields: {
-          marketHashName: marketField,
-          translation: translationField,
-          sourceItemId: sourceIdField && sourceIdField !== "__none__" ? sourceIdField : ""
-        },
-        source: document.getElementById("html-source-label").value.trim() || "wiki-html"
-      });
+      const locale = document.getElementById("html-locale").value;
+      const source = document.getElementById("html-source-label").value.trim() || "wiki-html";
+      let mapped;
+      if (sourceIdMode) {
+        const referencePack = cachedPacks.find((candidate) =>
+          candidate.game.appId === document.getElementById("html-reference-game").value
+        );
+        if (!referencePack) throw new Error("请先导入并选择带来源 ID 的 Steam 参考词库");
+        mapped = sourceMapperApi.buildGamePackFromSourceIds(table.records, {
+          referencePack,
+          locale,
+          fields: { sourceItemId: marketField, translation: translationField },
+          source
+        });
+      } else {
+        const sourceIdField = document.getElementById("html-source-id-field").value;
+        mapped = sourceMapperApi.buildGamePackFromRecords(table.records, {
+          game: {
+            appId: document.getElementById("html-app-id").value.trim(),
+            name: document.getElementById("html-game-name").value.trim(),
+            adapter: "steam-community-market",
+            itemKey: "market_hash_name"
+          },
+          locale,
+          fields: {
+            marketHashName: marketField,
+            translation: translationField,
+            sourceItemId: sourceIdField && sourceIdField !== "__none__" ? sourceIdField : ""
+          },
+          source
+        });
+      }
       const validated = registryApi.normalizePack(mapped.pack);
       document.getElementById("pack-json").value = JSON.stringify(validated, null, 2);
       const stats = mapped.stats;
       summary.textContent = "页面 " + new URL(extractedHtmlPage.pageUrl).pathname +
         " · 扫描 " + stats.scanned + " 行 · 生成 " + stats.imported +
         " 条 · 重复 " + stats.duplicateRows + " · 冲突 " + stats.conflictingKeys +
-        " · 缺键 " + stats.missingMarketKey + " · 缺译文 " + stats.missingTranslation;
-      report("HTML 表格已转换；请检查生成的 JSON 并选择合并或覆盖");
+        (sourceIdMode
+          ? " · 未匹配 ID " + stats.unmatchedSourceId + " · 歧义 ID " + stats.ambiguousSourceId +
+            " · 缺 ID " + stats.missingSourceId + " · 缺译文 " + stats.missingTranslation
+          : " · 缺键 " + stats.missingMarketKey + " · 缺译文 " + stats.missingTranslation);
+      report(sourceIdMode ? "Wiki ID 已按参考目录精确反查；请检查生成的 JSON" : "HTML 表格已转换；请检查生成的 JSON，并选择合并或覆盖");
     } catch (error) {
       summary.textContent = "";
       report(error.message || "HTML 表格转换失败", true);
