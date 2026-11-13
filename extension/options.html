@@ -13,9 +13,9 @@
       <div>
         <p class="eyebrow">ALAXEE STEAMHUB · GAME PROFILES</p>
         <h1>游戏适配中心</h1>
-        <p class="subtitle">每款游戏独立配置，翻译词条按 Steam AppID 隔离。</p>
+        <p class="subtitle">每款游戏独立配置，支持词条检索与维护。</p>
       </div>
-      <span class="version">v0.5.0</span>
+      <span class="version">v0.6.0</span>
     </header>
 
     <section class="panel">
@@ -64,14 +64,39 @@
           <input id="entry-translation" autocomplete="off" placeholder="输入准确译名" maxlength="1000" required>
         </label>
         <button type="submit" class="primary">保存词条</button>
+        <button id="cancel-entry-edit" type="button" class="quiet" hidden>取消编辑</button>
       </form>
       <p class="hint">market_hash_name 用于精确匹配 Steam 页面；游戏数据库物品 ID / Code 用于记录它对应的游戏内数据项；数据源名称用于追溯词条出处。三者用途不同，不要互相替代。</p>
       <p class="hint">同一游戏、同一物品和同一语言的再次录入会更新原词条。不同游戏即使物品原名相同，也不会互相覆盖。</p>
     </section>
 
+
     <section class="panel">
       <div class="section-heading">
-        <div><span class="step">03</span><h2>批量导入数据包</h2></div>
+        <div><span class="step">03</span><h2>管理翻译词库</h2></div>
+        <p>按游戏隔离词条，支持搜索、分页、单条编辑和删除。</p>
+      </div>
+      <div class="dictionary-toolbar">
+        <label>所属游戏
+          <select id="manage-game"><option value="">选择要管理的游戏</option></select>
+        </label>
+        <label>搜索词条
+          <input id="entry-search" type="search" autocomplete="off" placeholder="搜索原名、译文、语言、来源或物品 ID">
+        </label>
+      </div>
+      <div id="entry-list" class="entry-list" aria-live="polite">
+        <p class="empty">正在读取本地翻译词库…</p>
+      </div>
+      <div class="entry-pagination">
+        <button id="entry-prev" type="button" class="quiet" disabled>上一页</button>
+        <span id="entry-page-info">0 条词条</span>
+        <button id="entry-next" type="button" class="quiet" disabled>下一页</button>
+      </div>
+      <p class="hint">每页最多显示 30 条。编辑可修改 Steam 原始名称、语言、译文和来源；清空来源 ID 可解除该词条与原游戏目录的 ID 关联。删除只移除当前游戏中的该条译文。</p>
+    </section>
+    <section class="panel">
+      <div class="section-heading">
+        <div><span class="step">04</span><h2>批量导入数据包</h2></div>
         <p>适合为不同游戏制作、共享和维护独立翻译词库。</p>
       </div>
       <label class="file-label">选择 JSON 数据包文件
@@ -95,7 +120,7 @@
 
     <section class="panel">
       <div class="section-heading list-heading">
-        <div><span class="step">04</span><h2>已配置游戏</h2></div>
+        <div><span class="step">05</span><h2>已配置游戏</h2></div>
         <button id="refresh-games" type="button" class="quiet">刷新列表</button>
       </div>
       <div id="game-list" class="game-list" aria-live="polite">
