@@ -14,6 +14,7 @@ const publicPackLoaderSource = await readFile(path.join(extensionRoot, "core/pub
 const sourceRecordMapperSource = await readFile(path.join(extensionRoot, "core/source-record-mapper.js"), "utf8");
 const siteSourceDiscoverySource = await readFile(path.join(extensionRoot, "core/site-source-discovery.js"), "utf8");
 const htmlTableParserSource = await readFile(path.join(extensionRoot, "core/html-table-parser.js"), "utf8");
+const taskBarHeroReferencePack = JSON.parse(await readFile(path.join(root, "docs/game-pack.taskbar-hero-zh-CN.json"), "utf8"));
 const API_KEY = "__ALAXEE_STEAMHUB_MARKET_LOCALE__";
 
 function loadPublicPackLoader() {
@@ -1036,4 +1037,58 @@ test("HTML detail parser reads explicit meta and itemprop fields", () => {
   assert.equal(result.sourceId, "516111");
   assert.equal(result.translation, "神秘盔甲");
   assert.equal(result.records.length, 1);
+});
+
+
+test("TaskBarHeroWiki Minor Ruby detail page ID matches the exact reference catalog entry", () => {
+  const itemIdNode = { tagName: "SPAN", textContent: "110001" };
+  const itemHeading = { tagName: "H1", textContent: "Minor Ruby" };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === "dl dt" || selector === "tr" || selector.startsWith("meta[") ||
+              selector === "[itemprop]" || selector.includes("data-item-key")) return [];
+          if (selector === "span.font-mono.text-xs.text-text-faint > span:nth-child(2)") {
+            return [itemIdNode];
+          }
+          if (selector === "h1.text-white.text-4xl.font-bold") return [itemHeading];
+          if (selector === "h1, h2, h3") return [itemHeading];
+          return [];
+        },
+        querySelector(selector) {
+          if (selector === "h1") return itemHeading;
+          return null;
+        }
+      };
+    }
+  }
+  const parser = loadHtmlTableParser(FakeDOMParser);
+  const parsed = parser.parseHtmlDetailRecord("<h1>Minor Ruby</h1>", {
+    pageUrl: "https://taskbarherowiki.com/items/110001",
+    sourceIdSelector: "span.font-mono.text-xs.text-text-faint > span:nth-child(2)",
+    translationSelector: "h1.text-white.text-4xl.font-bold"
+  });
+  assert.equal(parsed.sourceId, "110001");
+  assert.equal(parsed.translation, "Minor Ruby");
+  assert.equal(parsed.records.length, 1);
+
+  const mapper = loadSourceRecordMapper();
+  const mapped = mapper.buildGamePackFromSourceIds([{
+    sourceId: parsed.sourceId,
+    translation: "小红宝石"
+  }], {
+    referencePack: taskBarHeroReferencePack,
+    locale: "zh-CN",
+    fields: { sourceItemId: "sourceId", translation: "translation" },
+    source: "taskbarherowiki.com:single-page-id-cross-check"
+  });
+  assert.equal(mapped.stats.imported, 1);
+  assert.deepEqual(
+    Array.from(mapped.pack.translations, (entry) => [
+      entry.marketHashName, entry.sourceItemId, entry.locale, entry.translation
+    ]),
+    [["Minor Ruby", "110001", "zh-CN", "小红宝石"]]
+  );
 });
