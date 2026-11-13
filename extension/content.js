@@ -59,7 +59,6 @@
 
   function findTextNode(root, expectedText) {
     if (!root || typeof document.createTreeWalker !== "function") return null;
-    let translatedCount = 0;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
     while (node) {
@@ -151,8 +150,9 @@
   function applyGameTextTranslations(appId, mappings) {
     const exactMappings = textLocalizer.validateMappings(mappings);
     const root = document.body || document.documentElement;
-    if (!root || typeof document.createTreeWalker !== "function") return;
+    if (!root || typeof document.createTreeWalker !== "function") return 0;
 
+    let translatedCount = 0;
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     let node = walker.nextNode();
     while (node) {
