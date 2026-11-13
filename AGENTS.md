@@ -18,6 +18,7 @@
 - The storage permission is allowed only for extension-local game profiles, dictionaries, and translation cache; never use page-origin storage for these records.
 - Do not add other API permissions or broader host permissions unless a concrete feature requires them and the change is reviewed.
 - Public JSON pack URL import may request one HTTPS origin through `optional_host_permissions` only after an explicit click; fetch with omitted credentials, reject redirects, cap payloads, and never crawl links or inject scripts.
+- Wiki site discovery may read only same-origin `robots.txt` and sitemap documents after an explicit click; cap discovery at 8 sitemaps / 500 page URLs, apply robots rules, and do not fetch page bodies or follow ordinary HTML links until a source-specific adapter and source-access review are implemented.
 - Do not read Steam cookies, auth/session tokens, Steam account credentials, private profiles, inventory, or save files.
 - Do not add telemetry, remote code, accounts, cloud sync, or proxy control without explicit product approval.
 - Do not silently connect to local debugging ports or launch/modify the Steam client from the browser extension.
