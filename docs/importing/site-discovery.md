@@ -32,6 +32,8 @@ The site directory now offers a manual **选作解析页面** action. The extens
 
 The HTML parser uses the extension options page's inert `DOMParser` document. It never inserts source markup into the extension UI and reads only explicit table rows and header cells. It skips tables without a recognizable header and tables with spanning header/data cells that could shift column alignment. Limits are 20 tables per page and 500 data rows per table. Preview text is rendered with DOM text nodes.
 
+The page fetch is enabled only after a successful site-directory analysis. The selected page must match that directory's origin and pass the parsed robots.txt rules; if robots.txt cannot be read for a reason other than HTTP 404, page reading fails closed. The request explicitly accepts HTML, uses the same 1 MiB / 10-second cap, and still sends no credentials.
+
 The user must manually choose the exact Steam `market_hash_name` column, translation column, locale, and optional source ID column. A generic item-name column is not treated as a Steam market key. The resulting Game Pack is staged in the JSON editor; merge/replace remains a separate explicit action.
 
 This is a bounded generic table extractor, not permission to crawl a site. It does not follow links, paginate, run JavaScript, load lazy content, submit forms, or fetch more pages. Review source terms before using extracted data; no site terms or redistribution rights are inferred. TBH Index remains excluded from automated bulk crawling.
