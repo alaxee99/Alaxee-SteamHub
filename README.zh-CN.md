@@ -2,47 +2,48 @@
 
 **ALAXEE 自主维护的 Steam 市场中文增强项目。**
 
-项目调整为 **浏览器扩展优先**：先在 Edge / Chrome 的 Steam 社区市场网页中实现功能，不再把 Steam 客户端注入作为首要运行条件。
+正式开发方向为浏览器扩展优先。当前版本从“网页简体中文切换”推进到了“市场物品识别 + 精确匹配翻译核心 + 本地缓存基础”。
 
-## 当前版本
+## 当前版本 0.3.0
 
-当前仅完成浏览器扩展基础：
+已实现：
 
-- 只在 Steam Community Market 页面运行。
-- 自动使用 Steam 官方简体中文网页语言参数 `l=schinese`。
-- 保留原有市场路径、搜索参数、筛选参数和 URL fragment。
+- Manifest V3 扩展，只在 HTTPS Steam Community Market 页面运行。
+- 自动使用 Steam 官方简体中文网页语言参数 `l=schinese`，保留原有市场路径、筛选参数、搜索参数和 URL fragment。
+- 从 Steam 市场物品链接中提取精确的 `appid + market_hash_name`。
+- 独立翻译引擎：只接受 AppID、物品 hash name 和目标语言全部精确一致的唯一结果。
+- 使用扩展本地存储保存成功的精确翻译，默认 30 天过期。
+- Provider 串行限速器，避免并发请求突破数据源频率限制。
 - 不读取 Steam Cookie、登录凭据、账户资料、库存或游戏存档。
-- **尚未实现物品名称汉化。** 当前只是切换 Steam 官方网页界面语言，不代表游戏物品名称已经完成翻译。
 
-## 在 Edge 中安装测试
+**目前还没有可用的物品汉化数据源。** 翻译核心和缓存已经准备好，但 Provider 注册表保持为空，不会伪装成已经接入 TBHIndex。
 
-1. 打开 `edge://extensions`。
-2. 打开左下角或页面中的“开发人员模式”。
+## 本地安装
+
+1. 打开 Edge 的 `edge://extensions`，或 Chrome 的 `chrome://extensions`。
+2. 开启“开发人员模式”。
 3. 点击“加载解压缩的扩展”。
-4. 选择仓库中的 `extension` 文件夹（其中包含 `manifest.json`）。
-5. 打开或刷新 Steam 社区市场页面。
+4. 选择仓库中的 `extension` 文件夹。
+5. 打开或刷新 Steam 社区市场网页。
 
-Chrome 对应入口为 `chrome://extensions`。修改扩展源文件后，需要在扩展管理页点击刷新，并重新加载市场页面。
+当前是本地开发源码版，不代表已发布到浏览器扩展商店。
 
-当前提供的是本地开发版源码，不代表已经发布到 Edge Add-ons 或 Chrome Web Store。
+## 接下来
 
-## 后续开发顺序
+1. 核实数据源的公开 API、自动访问许可、跨域策略、限速和缓存政策。
+2. 建立 Task Bar Hero（AppID `3678970`）的精确物品数据映射。
+3. 接入已验证 Provider，按当前页面可见物品按需查询。
+4. 在市场物品名称旁展示中文，并提供原文/译文切换和翻译状态。
+5. 有明确价值时，再考虑把 Steam 客户端 CEF/CDP 做成可选适配器。
 
-1. 完成浏览器扩展基础与市场页面适配。
-2. 建立与浏览器、Steam CEF 无关的翻译核心。
-3. 以 `appid + market_hash_name` 作为精确物品匹配键。
-4. 建立按需查询、限速和本地缓存。
-5. 实现页面内中文翻译展示、状态和用户控制。
-6. 有明确价值时，再把 Steam 客户端 CEF/CDP 作为可选适配器。
+## TBHIndex 状态
 
-Taskbar Hero 的 Steam AppID 为 `3678970`。TBHIndex 只有在确认具体数据访问方式与使用条款后才接入；不得批量爬取或猜测物品译名。无法精确匹配时保留 Steam 原文。
+TBHIndex 的公开网页提供装备资料库和 Steam 市场价格信息，但本次没有找到可供扩展稳定调用的公开开发者 API 说明。因此暂不调用网页内部接口、不批量抓取页面，也不假定其许可自动化访问。具体评估见 [docs/providers/tbhindex.md](docs/providers/tbhindex.md)。
 
-## 架构与安全
+## 安全原则
 
-- 浏览器扩展是第一宿主；翻译核心不得依赖 `chrome.*`、Steam CEF 或 Millennium。
-- 扩展只匹配 HTTPS Steam Community Market 路径，不注入其他网站。
-- 不申请 `cookies`、`tabs`、`webRequest`、`debugger` 等非必要权限。
-- 不加入遥测、账号体系、云同步、远程代码或代理控制，除非另行明确批准。
-- Steam 客户端旧 CEF/CDP 原型保留为独立历史开发分支，不属于当前浏览器扩展运行依赖。
-
-详见 [ARCHITECTURE.md](ARCHITECTURE.md) 和 [AGENTS.md](AGENTS.md)。
+- 扩展只匹配 Steam Community Market HTTPS 路径。
+- 只申请 `storage` 权限，用于本地翻译缓存。
+- 市场匹配键保留原始大小写和字符，不进行模糊匹配。
+- 查不到、匹配不唯一或数据异常时，一律保留 Steam 原文。
+- 不增加遥测、账号、云同步、远程代码或代理控制。

@@ -1,16 +1,20 @@
 # ALAXEE SteamHub
 
-ALAXEE SteamHub is a browser-extension-first project for improving Steam Community Market pages with accurate Chinese localization and, later, exact-match item translations.
+ALAXEE SteamHub is a browser-extension-first project for improving Steam Community Market pages with accurate Chinese localization and exact-match item translations.
 
 ## Current status
 
-The first browser extension slice:
+Version 0.3.0 includes:
 
-- Runs only on Steam Community Market pages in Edge and Chrome.
-- Applies Steam's official Simplified Chinese web locale (`l=schinese`).
-- Preserves the existing market path, search parameters, filters, and URL fragment.
-- Does not read Steam cookies, account credentials, inventory, or private profile data.
-- Does not yet translate item names. Steam's own locale support is not a substitute for the planned item-translation engine.
+- Manifest V3 extension restricted to Steam Community Market pages in Edge and Chrome.
+- Steam's official Simplified Chinese web locale (`l=schinese`), preserving market paths, filters, query parameters, and URL fragments.
+- Market listing URL recognition using the exact `appid + market_hash_name` identity pair.
+- A host-independent translation engine with strict exact-match validation.
+- A namespaced local translation cache using extension storage and expiry.
+- A serialized provider rate limiter.
+- No Steam cookies, authentication tokens, private profiles, inventory, saves, or remote code access.
+
+The provider registry is intentionally empty. Item recognition and cache infrastructure are implemented, but item-name translations are not available until a supported data provider is verified.
 
 ## Install for local testing
 
@@ -20,23 +24,29 @@ The first browser extension slice:
 4. Choose this repository's `extension/` directory (the directory containing `manifest.json`).
 5. Open or reload a Steam Community Market page.
 
-The extension is currently distributed as source for local testing. No browser-store publication or signed package is implied.
+This is source for local testing, not a browser-store release.
 
 ## Product architecture
 
-The translation engine, AppID registry, exact item matching, provider adapters, throttling, cache, and UI belong to this repository and must remain independent of any host environment.
+The translation engine, AppID registry, exact item matching, provider adapters, throttling, cache, and UI belong to this repository and remain independent of any host environment.
 
-The browser extension is the first host adapter. A Steam desktop CEF/CDP adapter may be revived later as an optional adapter; it must not become a prerequisite for browser functionality.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the implementation decision and [AGENTS.md](AGENTS.md) for development constraints.
+The browser extension is the first host adapter. A Steam desktop CEF/CDP adapter may be revived later as an optional adapter; it is not required for browser functionality.
 
 ## Roadmap
 
-1. Browser extension foundation and narrow Steam Market URL scope.
-2. Host-independent translation core and per-game AppID registry.
-3. Exact item-key matching using `appid + market_hash_name`.
-4. Verified, low-rate, on-demand provider lookups with local caching.
-5. Accessible in-page translation controls and status UI.
-6. Optional Steam desktop adapter only if it provides a meaningful additional use case.
+1. Browser extension foundation and narrow Steam Market URL scope. **Implemented.**
+2. Exact market item identity, translation engine, namespaced local cache, and provider throttling. **Foundation implemented.**
+3. Verify and enable a supported provider; TBH Index is currently unconnected pending a documented/approved access method.
+4. Add an AppID registry and exact translation records for Task Bar Hero (AppID `3678970`).
+5. Add accessible in-page translation controls and status UI.
+6. Re-evaluate the optional Steam desktop adapter only if it provides a meaningful additional use case.
 
-Taskbar Hero uses Steam AppID `3678970`. TBHIndex may be used only after its relevant data access path and terms are verified. Missing or ambiguous matches must leave the original Steam text unchanged.
+See [ARCHITECTURE.md](ARCHITECTURE.md), [AGENTS.md](AGENTS.md), and [docs/providers/tbhindex.md](docs/providers/tbhindex.md).
+
+## Safety
+
+- Static content scripts run only on HTTPS Steam Community Market routes.
+- The extension requests only the `storage` permission for its local translation cache.
+- Exact matching is case-sensitive and preserves Steam's `market_hash_name`; no fuzzy matching is performed.
+- Unknown and ambiguous matches leave original Steam text untouched.
+- No bulk data crawling, hidden endpoint reverse engineering, telemetry, accounts, cloud sync, or proxy control.
