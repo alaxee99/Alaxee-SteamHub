@@ -26,6 +26,7 @@
   let editingIdentity = null;
   let extractedHtmlTables = [];
   let extractedHtmlPage = null;
+  let discoveredSite = null;
 
   if (!storageApi || !registryApi || !publicPackLoaderApi || !sourceMapperApi || !siteDiscoveryApi || !htmlTableParserApi || typeof chrome === "undefined" || !chrome.storage?.local) {
     statusNode.textContent = "扩展存储不可用";
@@ -424,6 +425,9 @@
 
     button.disabled = true;
     list.replaceChildren();
+    discoveredSite = null;
+    extractedHtmlTables = [];
+    extractedHtmlPage = null;
     try {
       const result = await siteDiscoveryApi.discoverSiteMap(rawUrl, {
         validatePublicHttpsUrl: (value) => publicPackLoaderApi.validatePublicHttpsUrl(value),
@@ -435,6 +439,7 @@
         })
       });
 
+      discoveredSite = result;
       summary.textContent = "站点：" + result.origin +
         " · sitemap：" + result.sitemaps.length +
         " · 同域页面：" + result.urls.length +
@@ -564,12 +569,17 @@
     document.getElementById("convert-html-table").disabled = true;
     try {
       const pageUrl = publicPackLoaderApi.validatePublicHttpsUrl(rawUrl);
-      const directoryUrl = document.getElementById("site-index-url").value.trim();
-      if (directoryUrl) {
-        const directory = publicPackLoaderApi.validatePublicHttpsUrl(directoryUrl);
-        if (directory.origin !== pageUrl.origin) {
-          throw new Error("页面必须与已分析的 Wiki / 网站入口保持同源");
-        }
+      if (!discoveredSite) {
+        throw new Error("请先分析站点目录，以读取并应用同站 robots.txt 规则");
+      }
+      if (discoveredSite.origin !== pageUrl.origin) {
+        throw new Error("页面必须与已分析的 Wiki / 网站入口保持同源");
+      }
+      if (discoveredSite.robotsError && !/\\bHTTP 404\\b/.test(discoveredSite.robotsError)) {
+        throw new Error("未能可靠读取 robots.txt，已停止页面读取：" + discoveredSite.robotsError);
+      }
+      if (!siteDiscoveryApi.isRobotsAllowed(pageUrl, discoveredSite.robots)) {
+        throw new Error("robots.txt 禁止读取该页面，已停止");
       }
 
       const loaded = await publicPackLoaderApi.fetchPublicTextFromUrl(pageUrl.href, {
