@@ -426,7 +426,9 @@
         validatePublicHttpsUrl: (value) => publicPackLoaderApi.validatePublicHttpsUrl(value),
         requestPermission: (originPattern) => chrome.permissions.request({ origins: [originPattern] }),
         fetchText: (url) => publicPackLoaderApi.fetchPublicTextFromUrl(url, {
-          requestPermission: () => Promise.resolve(true)
+          requestPermission: () => Promise.resolve(true),
+          maxBytes: 1024 * 1024,
+          timeoutMs: 10000
         })
       });
 
