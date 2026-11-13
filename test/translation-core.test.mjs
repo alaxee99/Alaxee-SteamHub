@@ -96,7 +96,7 @@ test("market-page scanning returns unique exact listing keys and skips hidden an
   ];
   const root = { querySelectorAll: () => anchors };
   const scanner = context.__ALAXEE_STEAMHUB_MARKET_ITEMS__;
-  const result = scanner.collectMarketListingLinks(root, "https://steamcommunity.com/market/search?appid=3678970");
+  const result = scanner.collectMarketListingLinks(root, "https://steamcommunity.com/market/search?l=english");
 
   assert.equal(result.length, 2);
   assert.deepEqual(result.map((item) => item.marketHashName), [
