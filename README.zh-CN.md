@@ -1,49 +1,50 @@
 # ALAXEE SteamHub
 
-**ALAXEE 自主维护的 Steam 市场中文增强项目。**
+**ALAXEE SteamHub：面向多款 Steam 游戏的浏览器市场汉化扩展。**
 
-正式开发方向为浏览器扩展优先。当前版本从“网页简体中文切换”推进到了“市场物品识别 + 精确匹配翻译核心 + 本地缓存基础”。
+v0.4.0 开始支持按游戏独立配置，不再把 Task Bar Hero 写死在翻译核心里。
 
-## 当前版本 0.3.0
+## 多游戏配置
 
-已实现：
+每款游戏都有独立档案，以 Steam AppID 作为唯一主键，分别保存：
 
-- Manifest V3 扩展，只在 HTTPS Steam Community Market 页面运行。
-- 自动使用 Steam 官方简体中文网页语言参数 `l=schinese`，保留原有市场路径、筛选参数、搜索参数和 URL fragment。
-- 从 Steam 市场物品链接中提取精确的 `appid + market_hash_name`。
-- 独立翻译引擎：只接受 AppID、物品 hash name 和目标语言全部精确一致的唯一结果。
-- 使用扩展本地存储保存成功的精确翻译，默认 30 天过期。
-- Provider 串行限速器，避免并发请求突破数据源频率限制。
-- 不读取 Steam Cookie、登录凭据、账户资料、库存或游戏存档。
+- Steam AppID 和游戏名称。
+- 使用的页面适配器（当前为 Steam Community Market）。
+- 物品识别字段（当前为 market_hash_name）。
+- 独立启用/停用状态。
+- 该游戏自己的多语言翻译词库。
 
-**目前还没有可用的物品汉化数据源。** 翻译核心和缓存已经准备好，但 Provider 注册表保持为空，不会伪装成已经接入 TBHIndex。
+打开 Edge / Chrome 扩展管理页，进入 ALAXEE SteamHub 的“扩展选项”，即可：
 
-## 本地安装
+1. 输入 Steam AppID 和游戏名称，添加游戏。
+2. 手工输入物品原始名称、目标语言和准确译名。
+3. 批量导入游戏 JSON 数据包。
+4. 导出每款游戏独立的数据包，备份或分享词库。
+5. 单独启用、停用或删除游戏配置。
 
-1. 打开 Edge 的 `edge://extensions`，或 Chrome 的 `chrome://extensions`。
-2. 开启“开发人员模式”。
-3. 点击“加载解压缩的扩展”。
-4. 选择仓库中的 `extension` 文件夹。
-5. 打开或刷新 Steam 社区市场网页。
+数据包示例见 docs/game-pack.example.json。示例中的物品和译文只是格式演示，不是经过验证的 Task Bar Hero 真实词条。
 
-当前是本地开发源码版，不代表已发布到浏览器扩展商店。
+## 数据包格式
 
-## 接下来
+数据包使用 alaxee-steamhub-game-pack 格式，当前 schemaVersion 为 1。每个词条包含：
 
-1. 核实数据源的公开 API、自动访问许可、跨域策略、限速和缓存政策。
-2. 建立 Task Bar Hero（AppID `3678970`）的精确物品数据映射。
-3. 接入已验证 Provider，按当前页面可见物品按需查询。
-4. 在市场物品名称旁展示中文，并提供原文/译文切换和翻译状态。
-5. 有明确价值时，再考虑把 Steam 客户端 CEF/CDP 做成可选适配器。
+- marketHashName：Steam 原始市场物品名称，必须精确一致，区分大小写。
+- locale：目标语言，例如 zh-CN。
+- translation：准确译文。
+- source：可选的数据来源标记。
 
-## TBHIndex 状态
+同一个物品在不同游戏中的词条互相隔离；同一游戏、同一物品、同一语言只能有一条有效译文。导入支持“合并”和“覆盖”：合并遇到不同译文冲突会拒绝，覆盖只替换对应 AppID 的词库。
 
-TBHIndex 的公开网页提供装备资料库和 Steam 市场价格信息，但本次没有找到可供扩展稳定调用的公开开发者 API 说明。因此暂不调用网页内部接口、不批量抓取页面，也不假定其许可自动化访问。具体评估见 [docs/providers/tbhindex.md](docs/providers/tbhindex.md)。
+## 当前适配范围
 
-## 安全原则
+首期使用 Steam Community Market 适配器。因此当前能够直接在市场页面展示译文的游戏，需要有 Steam 市场物品链接及对应 AppID。
 
-- 扩展只匹配 Steam Community Market HTTPS 路径。
-- 只申请 `storage` 权限，用于本地翻译缓存。
-- 市场匹配键保留原始大小写和字符，不进行模糊匹配。
-- 查不到、匹配不唯一或数据异常时，一律保留 Steam 原文。
-- 不增加遥测、账号、云同步、远程代码或代理控制。
+不使用 Steam Community Market 的游戏，后续可以增加独立的页面识别适配器或数据源，不需要重写游戏注册表和翻译核心。不要把不同游戏的物品 ID、代码格式或页面结构强行混成一套规则。
+
+## 翻译匹配
+
+翻译严格按 AppID + market_hash_name + locale 匹配，不做模糊搜索、不擅自改写大小写。匹配不到时保留 Steam 原文。每个游戏词库保存在浏览器扩展本地存储中，不依赖会过期的远程查询缓存。
+
+## 安全
+
+只申请 storage 权限，用于扩展本地游戏配置、词库和未来数据源缓存。不会读取 Steam Cookie、登录凭据、账户资料、库存或存档，也没有遥测、云同步或远程代码。

@@ -114,7 +114,9 @@
       marketHashName: candidate.marketHashName,
       locale,
       translation: record.translation,
-      source: providerId,
+      source: typeof record.source === "string" && record.source.trim()
+        ? record.source
+        : providerId,
       updatedAt: Number.isFinite(record.updatedAt) ? record.updatedAt : now()
     });
   }

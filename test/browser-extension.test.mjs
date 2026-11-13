@@ -32,7 +32,7 @@ function runContentScript(href) {
   return replacements;
 }
 
-test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", () => {
+test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.content_scripts.length, 1);
 
@@ -48,6 +48,7 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
     "core/item-identity.js",
     "core/translation-engine.js",
     "core/rate-limiter.js",
+    "core/game-registry.js",
     "market-items.js",
     "storage-adapter.js",
     "content.js"
@@ -57,8 +58,17 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.equal(script.world, "ISOLATED");
 
   assert.deepEqual(manifest.permissions, ["storage"]);
+  assert.equal(manifest.options_page, "options.html");
   assert.equal(manifest.host_permissions, undefined);
   assert.equal(manifest.background, undefined);
+
+  const optionsHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
+  assert.match(optionsHtml, /id="game-app-id"/);
+  assert.match(optionsHtml, /id="game-name"/);
+  assert.match(optionsHtml, /id="entry-market-name"/);
+  assert.match(optionsHtml, /id="entry-translation"/);
+  assert.match(optionsHtml, /id="pack-json"/);
+  assert.match(optionsHtml, /options.js/);
 });
 
 test("recognizes only HTTPS Steam Community Market routes", () => {

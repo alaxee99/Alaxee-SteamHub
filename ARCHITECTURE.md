@@ -16,47 +16,62 @@ Build the browser extension first. The primary use case is improving Steam Commu
 
 The previous standalone CDP proof of concept remains on its separate development branch. It is not part of the browser extension's dependency graph.
 
-## Target architecture
+## Multi-game architecture
 
 ```text
-ALAXEE Translation Core
-  ├─ Market item identity (appid + exact market_hash_name)
-  ├─ AppID/game registry
-  ├─ Exact-match translation resolver
-  ├─ Verified provider adapters
-  ├─ Namespaced extension-local cache + expiry
-  ├─ Per-provider serialized rate limiter
-  └─ DOM translation rules + UI
-       ├─ Edge / Chrome Manifest V3 adapter  (first)
-       └─ Steam CEF/CDP adapter              (optional later)
+ALAXEE SteamHub
+  ├─ Game registry (one profile per Steam AppID)
+  │    ├─ game name + enabled state
+  │    ├─ page adapter ID
+  │    └─ item-key strategy
+  ├─ Versioned game packs
+  │    ├─ exact item identifiers
+  │    ├─ locale-specific translations
+  │    └─ source / provenance metadata
+  ├─ Exact resolver (AppID + market_hash_name + locale)
+  ├─ Translation cache + expiry (for remote providers)
+  └─ Host adapters
+       ├─ Edge / Chrome Steam Market adapter (first)
+       └─ Steam CEF/CDP adapter (optional later)
 ```
 
-The identity and translation modules do not import `chrome.*`, `browser.*`, Steam CEF/CDP classes, or Millennium. Host adapters supply page identity, DOM access, storage, and UI mounting.
+Every game has its own profile and dictionary. Identical item names in two games never share a translation because AppID is part of the identity. Game packs are versioned and can be manually edited, imported, exported, enabled, disabled, or removed from the extension options page.
+
+The registry and pack format are host-independent. The first adapter supports Steam Community Market using market_hash_name. Other game surfaces can add a different adapter and item-key strategy without rewriting the registry or translation resolver; they are not implicitly claimed to work in this release.
 
 ## Current implementation
 
 - Manifest V3 static content scripts run only on HTTPS Steam Community Market routes.
-- Steam's official Community Market language parameter `l=schinese` is applied while preserving the original path, query parameters, and fragment.
-- Listing links are parsed into an exact `appid + market_hash_name` pair. Market hash names are case-sensitive and are not lowercased, trimmed, or fuzzy-normalized.
+- Steam's official Community Market language parameter l=schinese is applied while preserving the original path, query parameters, and fragment.
+- Listing links are parsed into an exact appid + market_hash_name pair. Market hash names are case-sensitive and are not lowercased, trimmed, or fuzzy-normalized.
+- The game registry supports independent profiles keyed by Steam AppID.
+- The options page supports manual game registration, manual translation entry, JSON pack import/export, per-game enable/disable, and per-game deletion.
+- Pack imports validate the versioned schema and reject duplicate item/locale keys. Merge import rejects conflicting translations; replace import replaces only that game's dictionary.
 - The translation engine accepts a provider record only when AppID, exact market hash name, and locale match and there is exactly one candidate.
-- Successful exact translations can be stored in a namespaced extension-local cache with a default 30-day TTL.
-- Provider lookups can be serialized through a configurable minimum-interval limiter.
-- The provider registry is currently empty. No item-name translation is claimed to be available yet.
+- Local game packs are persistent extension-local dictionaries. The 30-day translation cache remains available for future remote providers; local packs do not depend on expiring cache entries.
+- Visible market listing links are scanned in small batches. Exact local matches are displayed alongside the original Steam item name. Dynamic page updates and game-pack changes trigger a refresh.
 
-## Translation data model
+## Game pack data model
 
-A market item is resolved using the exact identity pair:
+A pack uses format alaxee-steamhub-game-pack, schema version 1:
 
-- `appid`: Steam application identifier.
-- `market_hash_name`: Steam's exact market item key.
+- game.appId: Steam AppID and primary game-profile key.
+- game.name: display name.
+- game.adapter: steam-community-market in this release.
+- game.itemKey: market_hash_name in this release.
+- game.defaultLocale: default translation locale.
+- game.enabled: per-game enable state.
+- translations[]: exact market hash name, locale, translation, source, and update timestamp.
 
-A provider record contains the same identity pair, locale, translation, and source. Cache metadata adds a retrieval timestamp and expiry. A result with a different key, different locale, empty translation, or multiple exact candidates is rejected. Original Steam text remains unchanged unless a unique exact translation is available.
+At most 5,000 translation records are accepted per game. The same exact item key may have separate translations for different locales, but duplicate item/locale pairs are rejected.
 
-Task Bar Hero is AppID `3678970`. TBHIndex is a candidate provider for this game only after its data access path and usage terms are verified. See [the provider assessment](docs/providers/tbhindex.md).
+A provider record is usable only when AppID, exact market hash name, and locale match. Missing or ambiguous matches leave the original Steam text unchanged. See the example game pack at docs/game-pack.example.json.
+
+Task Bar Hero is AppID 3678970. TBHIndex remains a candidate provider only after its data access path and usage terms are verified. See docs/providers/tbhindex.md.
 
 ## Privacy and permissions
 
-The extension requests only the `storage` permission for its local translation cache. It does not need a background service worker, `cookies`, `tabs`, `webRequest`, `scripting`, `debugger`, `nativeMessaging`, broad host permissions, or remote code. Cache records are kept in the extension's storage area, not Steam page localStorage. Add any other capability only when an implemented feature demonstrably needs it.
+The extension requests only the storage permission for local game profiles, dictionaries, and provider cache. It does not need cookies, tabs, webRequest, scripting, debugger, nativeMessaging, broad host permissions, or remote code. Game packs are kept in the extension's storage area, not Steam page localStorage.
 
 The extension does not read authentication state, account information, private inventory, or saves. It does not add telemetry, account login, cloud sync, or proxy control.
 
@@ -66,6 +81,6 @@ Do not reverse-engineer undocumented front-end endpoints or bulk scrape a provid
 
 ## Verification boundary
 
-Automated tests cover URL scope, item-key extraction, exact match validation, cache expiry, provider throttling, and storage namespacing. They cannot prove that Steam serves every page component in Simplified Chinese or that the extension works across real Steam Market navigation. Those claims require manual verification in Edge / Chrome.
+Automated tests cover URL scope, game-profile isolation, pack import/export, item-key extraction, exact match validation, cache expiry, provider throttling, and storage namespacing. They cannot prove that Steam serves every page component in Simplified Chinese or that the extension works across real Steam Market navigation. Those claims require manual verification in Edge / Chrome.
 
-Item-name translation remains unavailable until a verified provider is enabled and real exact matches are checked.
+Item-name translation is available only for exact entries in an enabled local game pack or a verified future provider.

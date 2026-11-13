@@ -20,6 +20,7 @@ async function loadModules(paths, extra = {}) {
 const coreFiles = [
   "extension/core/item-identity.js",
   "extension/core/translation-engine.js",
+  "extension/core/game-registry.js",
   "extension/core/rate-limiter.js",
   "extension/storage-adapter.js",
   "extension/market-items.js"
@@ -261,20 +262,200 @@ test("rate-limited providers serialize concurrent lookups", async () => {
   assert.deepEqual(results, [0, 1000, 2000]);
 });
 
+
+test("game registry keeps profiles and translations isolated by Steam AppID", async () => {
+  const context = await loadModules(coreFiles);
+  const api = context.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
+  const values = new Map();
+  const storage = {
+    async get(key) { return values.get(key) ?? null; },
+    async set(key, value) { values.set(key, value); },
+    async delete(key) { values.delete(key); },
+    async getAll() { return Object.fromEntries(values); }
+  };
+  const registry = api.createGameRegistry(storage);
+
+  await registry.addGame({ appId: "3678970", name: "Task Bar Hero" });
+  await registry.addGame({ appId: "730", name: "Counter-Strike 2" });
+
+  await registry.upsertTranslation("3678970", {
+    marketHashName: "Rare Gem",
+    locale: "zh-CN",
+    translation: "稀有宝石"
+  });
+  await registry.upsertTranslation("730", {
+    marketHashName: "Rare Gem",
+    locale: "zh-CN",
+    translation: "稀有宝石（饰品）"
+  });
+
+  const first = await registry.get("3678970");
+  const second = await registry.get("730");
+  assert.equal(first.translations.length, 1);
+  assert.equal(second.translations.length, 1);
+  assert.notEqual(first.translations[0].translation, second.translations[0].translation);
+  assert.deepEqual((await registry.list()).map((pack) => pack.game.appId).sort(), ["3678970", "730"]);
+
+  const provider = api.createGamePackProvider(registry);
+  const a = await provider.lookup({ appId: "3678970", marketHashName: "Rare Gem", locale: "zh-CN" });
+  const b = await provider.lookup({ appId: "730", marketHashName: "Rare Gem", locale: "zh-CN" });
+  assert.equal(a.translation, "稀有宝石");
+  assert.equal(b.translation, "稀有宝石（饰品）");
+
+  await registry.setEnabled("730", false);
+  assert.equal(await provider.lookup({ appId: "730", marketHashName: "Rare Gem", locale: "zh-CN" }), null);
+  assert.equal((await registry.get("3678970")).game.enabled, true);
+});
+
+test("game pack import validates schema, merges safely, rejects conflicts, and exports per game", async () => {
+  const context = await loadModules(coreFiles);
+  const api = context.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
+  const values = new Map();
+  const storage = {
+    async get(key) { return values.get(key) ?? null; },
+    async set(key, value) { values.set(key, value); },
+    async delete(key) { values.delete(key); },
+    async getAll() { return Object.fromEntries(values); }
+  };
+  const registry = api.createGameRegistry(storage);
+  const initial = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: {
+      appId: "3678970",
+      name: "Task Bar Hero",
+      adapter: "steam-community-market",
+      itemKey: "market_hash_name",
+      defaultLocale: "zh-CN"
+    },
+    translations: [
+      { marketHashName: "Soulstone A", locale: "zh-CN", translation: "灵魂石甲" }
+    ]
+  };
+
+  const imported = await registry.importPack(initial);
+  assert.equal(imported.translations.length, 1);
+
+  await registry.importPack({
+    ...initial,
+    translations: [
+      { marketHashName: "Soulstone B", locale: "zh-CN", translation: "灵魂石乙" }
+    ]
+  }, { mode: "merge" });
+  assert.equal((await registry.get("3678970")).translations.length, 2);
+
+  await assert.rejects(
+    registry.importPack({
+      ...initial,
+      translations: [
+        { marketHashName: "Soulstone A", locale: "zh-CN", translation: "冲突译文" }
+      ]
+    }, { mode: "merge" }),
+    /Conflicting translation/
+  );
+  assert.equal((await registry.get("3678970")).translations.find((entry) =>
+    entry.marketHashName === "Soulstone A"
+  ).translation, "灵魂石甲");
+
+  const replaced = await registry.importPack({
+    ...initial,
+    translations: [
+      { marketHashName: "Soulstone A", locale: "zh-CN", translation: "替换译文" }
+    ]
+  }, { mode: "replace" });
+  assert.equal(replaced.translations.length, 1);
+  assert.equal(replaced.translations[0].translation, "替换译文");
+
+  const exported = await registry.exportPack("3678970");
+  assert.equal(exported.format, "alaxee-steamhub-game-pack");
+  assert.equal(exported.game.appId, "3678970");
+  assert.equal(exported.translations.length, 1);
+});
+
+test("game pack validation rejects duplicate item-locale keys and unsupported adapters", async () => {
+  const context = await loadModules(coreFiles);
+  const api = context.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
+  const values = new Map();
+  const storage = {
+    async get(key) { return values.get(key) ?? null; },
+    async set(key, value) { values.set(key, value); },
+    async delete(key) { values.delete(key); },
+    async getAll() { return Object.fromEntries(values); }
+  };
+  const registry = api.createGameRegistry(storage);
+  const pack = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero" },
+    translations: [
+      { marketHashName: "Same Key", locale: "zh-CN", translation: "甲" },
+      { marketHashName: "Same Key", locale: "zh-CN", translation: "乙" }
+    ]
+  };
+
+  await assert.rejects(registry.importPack(pack), /duplicate/);
+  await assert.rejects(
+    registry.importPack({ ...pack, game: { ...pack.game, adapter: "arbitrary-site" }, translations: [] }),
+    /supports the steam-community-market/
+  );
+  await assert.rejects(
+    registry.addGame({ appId: "not-an-app-id", name: "Invalid" }),
+    /valid Steam AppID/
+  );
+});
+
+test("game-pack provider connects configured local translations to the translation engine", async () => {
+  const context = await loadModules(coreFiles);
+  const api = context.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
+  const translationApi = context.__ALAXEE_STEAMHUB_TRANSLATION_ENGINE__;
+  const values = new Map();
+  const storage = {
+    async get(key) { return values.get(key) ?? null; },
+    async set(key, value) { values.set(key, value); },
+    async delete(key) { values.delete(key); },
+    async getAll() { return Object.fromEntries(values); }
+  };
+  const registry = api.createGameRegistry(storage);
+  await registry.importPack({
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero" },
+    translations: [
+      { marketHashName: "Vol Soulstone - Normal", locale: "zh-CN", translation: "普通灵魂石" }
+    ]
+  });
+
+  const provider = api.createGamePackProvider(registry);
+  const engine = translationApi.createTranslationEngine({ providers: [provider] });
+  const result = await engine.resolve({
+    appId: "3678970",
+    marketHashName: "Vol Soulstone - Normal"
+  });
+  assert.equal(result.status, "translated");
+  assert.equal(result.record.translation, "普通灵魂石");
+  assert.equal(result.record.source, "game-pack:3678970");
+});
+
 test("Chrome storage adapter isolates keys under the SteamHub namespace", async () => {
   const context = await loadModules(coreFiles);
   const api = context.__ALAXEE_STEAMHUB_STORAGE_ADAPTER__;
   const values = new Map();
   const storageArea = {
-    async get(key) { return values.has(key) ? { [key]: values.get(key) } : {}; },
+    async get(key) {
+      if (key === null) return Object.fromEntries(values);
+      return values.has(key) ? { [key]: values.get(key) } : {};
+    },
     async set(items) { for (const [key, value] of Object.entries(items)) values.set(key, value); },
     async remove(key) { values.delete(key); }
   };
   const store = api.createChromeStorageAdapter(storageArea);
 
   await store.set("alaxee-steamhub:translation:test", { translation: "测试" });
+  await store.set("alaxee-steamhub:game-pack:v1:3678970", { game: { appId: "3678970" } });
   assert.deepEqual(await store.get("alaxee-steamhub:translation:test"), { translation: "测试" });
+  assert.equal(Object.keys(await store.getAll()).length, 2);
   await store.delete("alaxee-steamhub:translation:test");
   assert.equal(await store.get("alaxee-steamhub:translation:test"), null);
+  assert.equal(Object.keys(await store.getAll()).length, 1);
   await assert.rejects(store.get("other-extension:data"), /namespace/);
 });

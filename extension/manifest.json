@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "ALAXEE SteamHub",
-  "version": "0.3.0",
-  "description": "Simplified Chinese localization and exact-match translation for Steam Community Market pages.",
+  "version": "0.4.0",
+  "description": "Multi-game Steam Community Market localization and exact-match translation.",
   "permissions": [
     "storage"
   ],
+  "options_page": "options.html",
   "content_scripts": [
     {
       "matches": [
@@ -19,6 +20,7 @@
         "core/item-identity.js",
         "core/translation-engine.js",
         "core/rate-limiter.js",
+        "core/game-registry.js",
         "market-items.js",
         "storage-adapter.js",
         "content.js"

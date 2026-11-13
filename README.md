@@ -1,52 +1,49 @@
 # ALAXEE SteamHub
 
-ALAXEE SteamHub is a browser-extension-first project for improving Steam Community Market pages with accurate Chinese localization and exact-match item translations.
+ALAXEE SteamHub is a multi-game browser extension for improving Steam Community Market pages with exact-match Chinese translations.
 
-## Current status
+## Current status — v0.4.0
 
-Version 0.3.0 includes:
+- Manifest V3 extension restricted to Steam Community Market pages.
+- Per-game profiles keyed by Steam AppID; each game has its own enable state and translation dictionary.
+- Settings page supports manual game registration, individual translation entry, JSON game-pack import/export, per-game enable/disable, and deletion.
+- Game-pack schema is versioned and supports up to 5,000 exact translation entries per game.
+- Market item identity uses the exact appid + market_hash_name pair.
+- Local dictionaries are resolved by exact AppID, market hash name, and locale; no fuzzy matching.
+- Local game packs are persistent extension data. The 30-day translation cache remains available for future remote providers.
+- A Steam market adapter is implemented first. Other game surfaces that do not use Steam Community Market require their own adapter; they are not silently treated as supported.
 
-- Manifest V3 extension restricted to Steam Community Market pages in Edge and Chrome.
-- Steam's official Simplified Chinese web locale (`l=schinese`), preserving market paths, filters, query parameters, and URL fragments.
-- Market listing URL recognition using the exact `appid + market_hash_name` identity pair.
-- A host-independent translation engine with strict exact-match validation.
-- A namespaced local translation cache using extension storage and expiry.
-- A serialized provider rate limiter.
-- No Steam cookies, authentication tokens, private profiles, inventory, saves, or remote code access.
+The provider registry remains independent from any undocumented TBH Index endpoint. User-created or imported game packs are currently the usable source for local translations.
 
-The provider registry is intentionally empty. Item recognition and cache infrastructure are implemented, but item-name translations are not available until a supported data provider is verified.
+## Configure games
+
+Open the extension's Options page from edge://extensions or chrome://extensions.
+
+For each game:
+
+1. Enter its Steam AppID and display name.
+2. Enter exact item keys and translations manually, or import a game pack JSON file.
+3. Enable or disable the game independently.
+4. Export the game's pack to back it up or share it.
+
+A pack example is available at docs/game-pack.example.json. Its translation entries are illustrative placeholders, not verified Task Bar Hero translations.
 
 ## Install for local testing
 
-1. Open `edge://extensions` in Microsoft Edge or `chrome://extensions` in Chrome.
+1. Open edge://extensions in Microsoft Edge or chrome://extensions in Chrome.
 2. Enable Developer mode.
-3. Select **Load unpacked**.
-4. Choose this repository's `extension/` directory (the directory containing `manifest.json`).
-5. Open or reload a Steam Community Market page.
+3. Select Load unpacked and choose the repository's extension/ directory.
+4. Open the extension's Details page and select Extension options, or open its options page directly.
+5. Add a game and import or enter translations before opening its Steam Market page.
 
 This is source for local testing, not a browser-store release.
 
-## Product architecture
+## Privacy and data handling
 
-The translation engine, AppID registry, exact item matching, provider adapters, throttling, cache, and UI belong to this repository and remain independent of any host environment.
+- The extension requests only the storage permission for local game packs and translation cache.
+- It does not read Steam cookies, authentication tokens, account details, private inventory, or save files.
+- Imported packs are stored locally in the browser's extension storage.
+- Merge import rejects conflicting translations; replace import replaces only the selected game's pack.
+- No telemetry, account login, cloud sync, bulk crawling, or remote code is included.
 
-The browser extension is the first host adapter. A Steam desktop CEF/CDP adapter may be revived later as an optional adapter; it is not required for browser functionality.
-
-## Roadmap
-
-1. Browser extension foundation and narrow Steam Market URL scope. **Implemented.**
-2. Exact market item identity, translation engine, namespaced local cache, and provider throttling. **Foundation implemented.**
-3. Verify and enable a supported provider; TBH Index is currently unconnected pending a documented/approved access method.
-4. Add an AppID registry and exact translation records for Task Bar Hero (AppID `3678970`).
-5. Add accessible in-page translation controls and status UI.
-6. Re-evaluate the optional Steam desktop adapter only if it provides a meaningful additional use case.
-
-See [ARCHITECTURE.md](ARCHITECTURE.md), [AGENTS.md](AGENTS.md), and [docs/providers/tbhindex.md](docs/providers/tbhindex.md).
-
-## Safety
-
-- Static content scripts run only on HTTPS Steam Community Market routes.
-- The extension requests only the `storage` permission for its local translation cache.
-- Exact matching is case-sensitive and preserves Steam's `market_hash_name`; no fuzzy matching is performed.
-- Unknown and ambiguous matches leave original Steam text untouched.
-- No bulk data crawling, hidden endpoint reverse engineering, telemetry, accounts, cloud sync, or proxy control.
+See ARCHITECTURE.md, AGENTS.md, and docs/providers/tbhindex.md.

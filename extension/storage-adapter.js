@@ -34,6 +34,9 @@
       async delete(key) {
         assertKey(key);
         await storageArea.remove(key);
+      },
+      async getAll() {
+        return storageArea.get(null);
       }
     });
   }
