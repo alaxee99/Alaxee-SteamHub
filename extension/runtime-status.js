@@ -13,6 +13,8 @@
   let titleNode = null;
   let detailNode = null;
   let panelNode = null;
+  let pendingObserver = null;
+  let pendingMountListener = null;
 
   function render() {
     if (!titleNode || !detailNode) return;
@@ -21,12 +23,30 @@
     detailNode.textContent = state.details.join("\n");
   }
 
+  function stopPendingMount() {
+    if (pendingObserver) pendingObserver.disconnect();
+    pendingObserver = null;
+    if (pendingMountListener && typeof document?.removeEventListener === "function") {
+      document.removeEventListener("DOMContentLoaded", pendingMountListener);
+    }
+    pendingMountListener = null;
+  }
+
+  function dismiss() {
+    stopPendingMount();
+    if (host?.isConnected) host.remove();
+    host = null;
+    titleNode = null;
+    detailNode = null;
+    panelNode = null;
+  }
+
   function mount() {
     if (host?.isConnected) return true;
     if (!document?.createElement || !document.documentElement) return false;
 
     host = document.createElement("div");
-    host.setAttribute("data-alaxee-steamhub-runtime-status", "0.8.5");
+    host.setAttribute("data-alaxee-steamhub-runtime-status", "0.8.6");
     host.style.cssText = "all:initial!important;position:fixed!important;right:12px!important;bottom:12px!important;z-index:2147483647!important;";
 
     const shadow = typeof host.attachShadow === "function"
@@ -66,6 +86,36 @@
     return true;
   }
 
+  function mountWhenAvailable() {
+    if (mount()) return true;
+
+    if (!pendingMountListener && typeof document?.addEventListener === "function") {
+      pendingMountListener = () => {
+        if (state.tone !== "warning" && state.tone !== "error") return;
+        if (mount()) {
+          render();
+          stopPendingMount();
+        }
+      };
+      document.addEventListener("DOMContentLoaded", pendingMountListener, { once: true });
+    }
+
+    if (!pendingObserver && typeof MutationObserver === "function" && document) {
+      pendingObserver = new MutationObserver(() => {
+        if (state.tone !== "warning" && state.tone !== "error") {
+          stopPendingMount();
+          return;
+        }
+        if (mount()) {
+          render();
+          stopPendingMount();
+        }
+      });
+      pendingObserver.observe(document, { childList: true, subtree: true });
+    }
+    return false;
+  }
+
   const api = Object.freeze({
     update(next) {
       if (next && typeof next === "object") {
@@ -73,7 +123,11 @@
         if (typeof next.title === "string") state.title = next.title;
         if (Array.isArray(next.details)) state.details = next.details.map((value) => String(value));
       }
-      mount();
+      if (state.tone === "success" || state.tone === "info") {
+        dismiss();
+        return;
+      }
+      mountWhenAvailable();
       render();
     },
     snapshot() {
@@ -92,13 +146,4 @@
     value: api
   });
 
-  if (!mount() && typeof document?.addEventListener === "function") {
-    document.addEventListener("DOMContentLoaded", mount, { once: true });
-    if (typeof MutationObserver === "function") {
-      const observer = new MutationObserver(() => {
-        if (mount()) observer.disconnect();
-      });
-      observer.observe(document, { childList: true, subtree: true });
-    }
-  }
 })();

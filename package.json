@@ -1,6 +1,6 @@
 {
   "name": "alaxee-steamhub",
-  "version": "0.8.5",
+  "version": "0.8.6",
   "private": true,
   "type": "module",
   "description": "Steam Community Market item name and detail localization with per-game dictionaries.",

@@ -6,17 +6,17 @@
   if (globalThis[API_KEY]) return;
 
   const EXACT_TERMS = Object.freeze({
-    "Arcana Grade": "奥术品阶",
-    "Inherent Stats": "固有属性",
     "Common Grade": "普通品阶",
-    "Uncommon Grade": "优秀品阶",
+    "Uncommon Grade": "非凡品阶",
     "Rare Grade": "稀有品阶",
-    "Legendary Grade": "传奇品阶",
+    "Legendary Grade": "传说品阶",
     "Immortal Grade": "不朽品阶",
-    "Beyond Grade": "超越品阶",
+    "Arcana Grade": "奥秘品阶",
+    "Beyond Grade": "超凡品阶",
     "Celestial Grade": "天界品阶",
     "Divine Grade": "神圣品阶",
     "Cosmic Grade": "宇宙品阶",
+    "Inherent Stats": "固有属性",
     "Attack Speed": "攻击速度",
     "Attack Damage": "攻击伤害",
     "Critical Chance": "暴击几率",
@@ -51,12 +51,12 @@
 
   const GRADE_NAMES = Object.freeze({
     Common: "普通",
-    Uncommon: "优秀",
+    Uncommon: "非凡",
     Rare: "稀有",
-    Legendary: "传奇",
+    Legendary: "传说",
     Immortal: "不朽",
-    Arcana: "奥术",
-    Beyond: "超越",
+    Arcana: "奥秘",
+    Beyond: "超凡",
     Celestial: "天界",
     Divine: "神圣",
     Cosmic: "宇宙"

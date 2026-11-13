@@ -9,6 +9,7 @@ const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const extensionRoot = path.join(root, "extension");
 const manifest = JSON.parse(await readFile(path.join(extensionRoot, "manifest.json"), "utf8"));
 const localeSource = await readFile(path.join(extensionRoot, "market-locale.js"), "utf8");
+const runtimeStatusSource = await readFile(path.join(extensionRoot, "runtime-status.js"), "utf8");
 const contentSource = await readFile(path.join(extensionRoot, "content.js"), "utf8");
 const publicPackLoaderSource = await readFile(path.join(extensionRoot, "core/public-pack-loader.js"), "utf8");
 const sourceRecordMapperSource = await readFile(path.join(extensionRoot, "core/source-record-mapper.js"), "utf8");
@@ -92,9 +93,57 @@ function runContentScript(href) {
   return replacements;
 }
 
+test("runtime status hides success UI and only shows actionable warnings or errors", () => {
+  const mountedHosts = [];
+  function makeElement(tagName) {
+    return {
+      tagName,
+      style: {},
+      dataset: {},
+      attributes: Object.create(null),
+      children: [],
+      hidden: false,
+      isConnected: false,
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      append(...children) { this.children.push(...children); },
+      attachShadow() { this.shadowRoot = makeElement("shadow"); return this.shadowRoot; },
+      addEventListener() {},
+      remove() { this.isConnected = false; }
+    };
+  }
+  const document = {
+    createElement: makeElement,
+    documentElement: {
+      append(...nodes) {
+        for (const node of nodes) {
+          node.isConnected = true;
+          mountedHosts.push(node);
+        }
+      }
+    },
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const context = vm.createContext({ document });
+  vm.runInContext(runtimeStatusSource, context, { filename: "runtime-status.js" });
+  const status = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__;
+
+  assert.equal(mountedHosts.length, 0);
+  status.update({ tone: "success", title: "汉化已生效", details: [] });
+  assert.equal(mountedHosts.length, 0);
+
+  status.update({ tone: "warning", title: "缺少本地词库", details: ["AppID 3678970"] });
+  assert.equal(mountedHosts.length, 1);
+  assert.equal(mountedHosts[0].isConnected, true);
+
+  status.update({ tone: "success", title: "汉化已生效", details: [] });
+  assert.equal(mountedHosts[0].isConnected, false);
+  assert.equal(status.snapshot().tone, "success");
+});
+
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.8.5");
+  assert.equal(manifest.version, "0.8.6");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1295,12 +1344,12 @@ test("Steam Market content script replaces exact item names and localizes detail
 
   await context.__ALAXEE_STEAMHUB__.refresh();
 
-  assert.equal(breadcrumbTitleText.nodeValue, "深渊护符 (奥术) C");
-  assert.equal(titleText.nodeValue, "深渊护符 (奥术) C");
+  assert.equal(breadcrumbTitleText.nodeValue, "深渊护符 (奥秘) C");
+  assert.equal(titleText.nodeValue, "深渊护符 (奥秘) C");
   assert.equal(titleElement.getAttribute("title"), "原文：Abyss Amulet (Arcana) C");
   assert.equal(titleElement.getAttribute("data-alaxee-steamhub-app-id"), "3678970");
   assert.equal(itemLevelText.nodeValue, "护符 · 等级 90");
-  assert.equal(gradeText.nodeValue, "奥术品阶");
+  assert.equal(gradeText.nodeValue, "奥秘品阶");
   assert.equal(inherentText.nodeValue, "固有属性");
   assert.equal(speedText.nodeValue, "攻击速度提高 22%");
   assert.equal(skillText.nodeValue, "所有技能等级 +2");
@@ -1313,16 +1362,16 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.8.5");
+  assert.equal(diagnostics.version, "0.8.6");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);
   assert.equal(diagnostics.translatedNames, 2);
   assert.ok(diagnostics.translatedDetailNodes >= 11);
   assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Amber Ring (Immortal) A", "琥珀戒指"), "琥珀戒指 (不朽) A");
-  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Abyss Amulet (Arcana) C", "深渊护符"), "深渊护符 (奥术) C");
-  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Mystic Armor (Beyond) A", "神秘盔甲"), "神秘盔甲 (超越) A");
-  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Arcana)", "被污染的圣物"), "被污染的圣物 (奥术)");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Abyss Amulet (Arcana) C", "深渊护符"), "深渊护符 (奥秘) C");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Mystic Armor (Beyond) A", "神秘盔甲"), "神秘盔甲 (超凡) A");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Arcana)", "被污染的圣物"), "被污染的圣物 (奥秘)");
   assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Unlisted Grade)", "被污染的圣物"), "被污染的圣物 (Unlisted Grade)");
   assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Plain Item", "普通物品"), "普通物品");
   assert.deepEqual(Array.from(diagnostics.missingPacks), ["440"]);

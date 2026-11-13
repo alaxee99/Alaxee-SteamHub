@@ -15,22 +15,25 @@ function loadLocalizer() {
 }
 
 
-test("Task Bar Hero grade names translate using the existing Simplified Chinese glossary", () => {
+test("Task Bar Hero rarity names use the dedicated Simplified Chinese game terminology", () => {
   const localizer = loadLocalizer();
   const cases = [
     ["Common", "普通"],
-    ["Uncommon", "优秀"],
+    ["Uncommon", "非凡"],
     ["Rare", "稀有"],
-    ["Legendary", "传奇"],
+    ["Legendary", "传说"],
     ["Immortal", "不朽"],
-    ["Arcana", "奥术"],
-    ["Beyond", "超越"],
+    ["Arcana", "奥秘"],
+    ["Beyond", "超凡"],
     ["Celestial", "天界"],
     ["Divine", "神圣"],
     ["Cosmic", "宇宙"]
   ];
   for (const [source, expected] of cases) assert.equal(localizer.translateGrade(source), expected);
   assert.equal(localizer.translateGrade("Unknown"), null);
+  assert.equal(localizer.translateText("3678970", "Arcana Grade"), "奥秘品阶");
+  assert.equal(localizer.translateText("3678970", "Beyond Grade"), "超凡品阶");
+  assert.equal(localizer.translateText("3678970", "Legendary Grade"), "传说品阶");
 });
 
 test("Task Bar Hero item descriptions and attributes translate while retaining numbers", () => {
