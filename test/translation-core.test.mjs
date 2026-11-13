@@ -686,3 +686,22 @@ test("game pack export and re-import preserve exact detail text translations", a
     textTranslations.map((entry) => [entry.sourceText, entry.translation])
   );
 });
+
+
+test("market item detail pages recognize Steam's item-name class selector", async () => {
+  const context = await loadModules(coreFiles);
+  const scanner = context.__ALAXEE_STEAMHUB_MARKET_ITEMS__;
+  const titleElement = { textContent: "Abyss Amulet (Arcana) C" };
+  const root = {
+    querySelectorAll(selector) {
+      return selector === ".item-name" ? [titleElement] : [];
+    }
+  };
+  const result = scanner.collectMarketListingLinks(
+    root,
+    "https://steamcommunity.com/market/listings/3678970/Abyss%20Amulet%20%28Arcana%29%20C?l=schinese"
+  );
+  assert.equal(result.length, 1);
+  assert.equal(result[0].marketHashName, "Abyss Amulet (Arcana) C");
+  assert.equal(result[0].element, titleElement);
+});
