@@ -279,6 +279,9 @@
           <p class="extractor-title">单物品详情页提取</p>
           <p class="hint">适用于每个物品独立页面。默认只读取明确标注的 ItemKey / ID 与中文名称字段；若页面用标题或自定义节点展示译文，可指定 CSS 选择器。此操作复用当前已读取的单页 HTML，不会打开或抓取其他链接。</p>
           <div class="form-grid html-mapping-fields">
+            <label class="wide">详情页结构模板
+              <select id="html-detail-template"><option value="generic">通用字段标签 / 自定义 CSS</option><option value="taskbarherowiki">TaskBarHeroWiki 详情页（中文标题）</option></select>
+            </label>
             <label class="wide">来源 ID 字段标签（精确匹配，以 | 分隔）
               <input id="html-detail-id-labels" autocomplete="off" spellcheck="false" value="ItemKey|Item Key|Item ID|ItemId|ID|物品ID|物品 ID">
             </label>
