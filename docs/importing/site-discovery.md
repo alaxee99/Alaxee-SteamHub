@@ -7,7 +7,7 @@ Options → Batch Import → **分析 Wiki / 网站目录（站点发现）** ac
 1. Validates the user-supplied HTTPS URL and requests access to that single origin after the button click.
 2. Reads the same-origin robots.txt.
 3. Uses sitemap URLs declared in robots.txt. If no sitemap is declared, it tries /sitemap.xml. If the user supplied an XML URL directly, it also treats that URL as a sitemap entry.
-4. Resolves sitemap indexes up to 8 sitemap documents and collects at most 500 same-origin page URLs.
+4. Resolves sitemap indexes up to 8 sitemap documents and collects at most 500 same-origin page URLs. Each robots / sitemap response is capped at 1 MiB with a 10-second timeout.
 5. Applies the selected robots.txt Allow / Disallow rules to discovered page URLs.
 6. Shows the count and a preview of up to 30 discovered URLs.
 
