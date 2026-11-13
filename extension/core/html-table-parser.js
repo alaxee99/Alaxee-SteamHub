@@ -130,7 +130,194 @@
     };
   }
 
+
+  const MAX_CARD_SELECTORS = 30;
+  const DEFAULT_MAX_CARDS = 500;
+  const AUTO_ID_ATTRIBUTES = ["data-item-key", "data-item-id", "data-itemid", "data-id", "data-key"];
+
+  function createInertDocument(html, Parser) {
+    if (typeof Parser !== "function") throw new TypeError("当前环境不支持安全的 DOMParser");
+    const parsedDocument = new Parser().parseFromString(html, "text/html");
+    if (!parsedDocument || typeof parsedDocument.querySelectorAll !== "function") {
+      throw new TypeError("HTML 页面解析失败");
+    }
+    for (const node of parsedDocument.querySelectorAll(
+      "script, style, noscript, iframe, object, embed, form, svg, canvas, template"
+    )) {
+      node.remove?.();
+    }
+    return parsedDocument;
+  }
+
+  function getCardText(node) {
+    return textOf(node).replace(/ +/g, " ");
+  }
+
+  function discoverHtmlCardSelectors(html, options = {}) {
+    if (typeof html !== "string") throw new TypeError("HTML 页面内容必须是文本");
+    const maxChars = Number.isSafeInteger(options.maxChars) && options.maxChars > 0
+      ? Math.min(options.maxChars, DEFAULT_MAX_CHARS)
+      : DEFAULT_MAX_CHARS;
+    if (html.length > maxChars) throw new RangeError("HTML 页面超过 1 MiB 解析上限");
+
+    const Parser = options.DOMParserImpl || globalThis.DOMParser;
+    const parsedDocument = createInertDocument(html, Parser);
+    const selectors = new Map();
+    const addSelector = (selector, score, reason) => {
+      if (!selectors.has(selector)) selectors.set(selector, { selector, score, reasons: new Set([reason]) });
+      else {
+        const current = selectors.get(selector);
+        current.score = Math.max(current.score, score);
+        current.reasons.add(reason);
+      }
+    };
+
+    for (const element of parsedDocument.querySelectorAll("*")) {
+      const tag = String(element.tagName || "").toLowerCase();
+      if (tag === "article") addSelector("article", 6, "article");
+      for (const attribute of AUTO_ID_ATTRIBUTES) {
+        if (element.hasAttribute?.(attribute)) {
+          addSelector("[" + attribute + "]", 18, attribute);
+        }
+      }
+      const classes = Array.from(element.classList || []);
+      for (const className of classes) {
+        if (/^(?:item|card|product|entry|equipment|listing)(?:[-_]|$)|(?:^|[-_])(?:item|card|product|entry|equipment|listing)(?:[-_]|$)/i.test(className) &&
+            /^[A-Za-z_][A-Za-z0-9_-]{0,63}$/.test(className)) {
+          addSelector("." + className, 12, "semantic-class");
+          if (/^[a-z][a-z0-9-]*$/.test(tag)) {
+            addSelector(tag + "." + className, 13, "tag-and-class");
+          }
+        }
+      }
+    }
+
+    const candidates = [];
+    for (const candidate of selectors.values()) {
+      let nodes;
+      try {
+        nodes = Array.from(parsedDocument.querySelectorAll(candidate.selector));
+      } catch {
+        continue;
+      }
+      if (nodes.length < 2 || nodes.length > DEFAULT_MAX_CARDS) continue;
+      const sampleText = getCardText(nodes[0]).slice(0, 120);
+      const averageTextLength = nodes.reduce((sum, node) => sum + getCardText(node).length, 0) / nodes.length;
+      if (averageTextLength < 2 || averageTextLength > 4000) continue;
+      candidates.push({
+        selector: candidate.selector,
+        count: nodes.length,
+        score: candidate.score + (averageTextLength >= 12 && averageTextLength <= 1200 ? 3 : 0),
+        reasons: Array.from(candidate.reasons),
+        sampleText
+      });
+    }
+
+    candidates.sort((left, right) =>
+      right.score - left.score || left.count - right.count || left.selector.localeCompare(right.selector)
+    );
+    return candidates.slice(0, MAX_CARD_SELECTORS);
+  }
+
+  function findCardField(card, selector) {
+    if (!selector) return null;
+    if (typeof card.matches === "function" && card.matches(selector)) return card;
+    return card.querySelector(selector);
+  }
+
+  function readCardId(node, card, attribute) {
+    if (attribute === "textContent") return getCardText(node || card);
+    const targets = node === card ? [card] : [node, card];
+    if (attribute === "auto") {
+      for (const target of targets) {
+        for (const name of AUTO_ID_ATTRIBUTES) {
+          const value = target?.getAttribute?.(name);
+          if (typeof value === "string" && value.trim()) return value.trim();
+        }
+      }
+      return "";
+    }
+    if (!/^[A-Za-z_:][A-Za-z0-9_.:-]{0,63}$/.test(attribute)) {
+      throw new TypeError("来源 ID 属性名无效");
+    }
+    for (const target of targets) {
+      const value = target?.getAttribute?.(attribute);
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+    return "";
+  }
+
+  function parseHtmlCards(html, options = {}) {
+    if (typeof html !== "string") throw new TypeError("HTML 页面内容必须是文本");
+    const maxChars = Number.isSafeInteger(options.maxChars) && options.maxChars > 0
+      ? Math.min(options.maxChars, DEFAULT_MAX_CHARS)
+      : DEFAULT_MAX_CHARS;
+    const maxCards = Number.isSafeInteger(options.maxCards) && options.maxCards > 0
+      ? Math.min(options.maxCards, DEFAULT_MAX_CARDS)
+      : DEFAULT_MAX_CARDS;
+    if (html.length > maxChars) throw new RangeError("HTML 页面超过 1 MiB 解析上限");
+
+    const cardSelector = typeof options.cardSelector === "string" ? options.cardSelector.trim() : "";
+    const sourceIdSelector = typeof options.sourceIdSelector === "string" ? options.sourceIdSelector.trim() : "";
+    const translationSelector = typeof options.translationSelector === "string"
+      ? options.translationSelector.trim()
+      : "";
+    const sourceIdAttribute = typeof options.sourceIdAttribute === "string"
+      ? options.sourceIdAttribute.trim()
+      : "auto";
+    if (!cardSelector || cardSelector.length > 256) throw new TypeError("请指定有效的商品卡片 CSS 选择器");
+    if (!translationSelector || translationSelector.length > 256) {
+      throw new TypeError("请指定商品译文 CSS 选择器");
+    }
+    if (sourceIdSelector.length > 256) throw new TypeError("来源 ID CSS 选择器过长");
+
+    const Parser = options.DOMParserImpl || globalThis.DOMParser;
+    const parsedDocument = createInertDocument(html, Parser);
+    let cards;
+    try {
+      cards = Array.from(parsedDocument.querySelectorAll(cardSelector));
+    } catch {
+      throw new TypeError("商品卡片 CSS 选择器无效");
+    }
+    const totalCards = cards.length;
+    const records = [];
+    let missingSourceId = 0;
+    let missingTranslation = 0;
+
+    for (const card of cards.slice(0, maxCards)) {
+      let idNode;
+      let translationNode;
+      try {
+        idNode = sourceIdSelector ? findCardField(card, sourceIdSelector) : card;
+        translationNode = findCardField(card, translationSelector);
+      } catch {
+        throw new TypeError("来源 ID 或译文 CSS 选择器无效");
+      }
+      const sourceId = readCardId(idNode, card, sourceIdAttribute);
+      const translation = getCardText(translationNode);
+      const titleNode = findCardField(card, "h1, h2, h3, h4, [itemprop='name'], [data-item-name]");
+      const title = titleNode ? getCardText(titleNode) : "";
+      if (!sourceId) missingSourceId += 1;
+      if (!translation) missingTranslation += 1;
+      if (!sourceId || !translation) continue;
+      records.push({ sourceId, translation, title });
+    }
+
+    return {
+      cardSelector,
+      totalCards,
+      scanned: Math.min(totalCards, maxCards),
+      records,
+      missingSourceId,
+      missingTranslation,
+      skipped: missingSourceId + missingTranslation,
+      truncated: totalCards > maxCards
+    };
+  }
+
   globalThis.__ALAXEE_STEAMHUB_HTML_TABLE_PARSER__ = Object.freeze({
-    parseHtmlTables
+    parseHtmlTables,
+    discoverHtmlCardSelectors,
+    parseHtmlCards
   });
 })();
