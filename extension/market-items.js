@@ -16,7 +16,7 @@
       if (row) return row;
     }
 
-    const anchorText = String(anchor.textContent || "").replace(/\\s+/g, " ").trim();
+    const anchorText = String(anchor.textContent || "").replace(/\s+/g, " ").trim();
     if (anchorText === marketHashName || anchorText.includes(marketHashName)) return anchor;
 
     const parent = anchor.parentElement;
