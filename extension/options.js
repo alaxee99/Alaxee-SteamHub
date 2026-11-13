@@ -399,7 +399,7 @@
     }
 
     const hostname = sourceUrl.hostname.toLowerCase();
-    const privateIPv4 = /^(?:10\\.|127\\.|169\\.254\\.|192\\.168\\.|172\\.(?:1[6-9]|2[0-9]|3[01])\\.|0\\.)/;
+    const privateIPv4 = /^(?:10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2[0-9]|3[01])\.|0\.)/;
     if (sourceUrl.protocol !== "https:" || sourceUrl.username || sourceUrl.password ||
         (sourceUrl.port && sourceUrl.port !== "443") ||
         hostname === "localhost" || hostname.endsWith(".localhost") ||
