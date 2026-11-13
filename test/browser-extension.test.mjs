@@ -993,11 +993,15 @@ test("Options page wires detail extraction to the existing exact mapping workflo
     "extract-html-detail",
     "convert-html-detail",
     "html-detail-preview",
-    "html-local-file"
+    "html-local-file",
+    "html-detail-template"
   ]) {
     assert.match(optionsHtml, new RegExp('id="' + id + '"'));
   }
   assert.match(optionsJs, /parseHtmlDetailRecord\(extractedHtmlSource/);
+  assert.match(optionsJs, /html-detail-template/);
+  assert.match(optionsJs, /span\.font-mono\.text-xs\.text-text-faint/);
+  assert.match(optionsJs, /h1\.text-white\.text-4xl\.font-bold/);
   assert.match(optionsJs, /file\.size > 1024 \* 1024/);
   assert.match(optionsJs, /await file\.text\(\)/);
   assert.match(optionsJs, /parseHtmlTables\(localHtml/);
