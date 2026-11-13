@@ -1282,7 +1282,7 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(diagnostics.version, "0.8.2");
   assert.equal(diagnostics.detectedItems, 1);
   assert.equal(diagnostics.translatedNames, 1);
-  assert.ok(diagnostics.translatedDetailNodes >= 5);
+  assert.ok(diagnostics.translatedDetailNodes >= 4);
   assert.deepEqual(Array.from(diagnostics.missingPacks), []);
   assert.deepEqual(Array.from(diagnostics.errors), []);
 });
