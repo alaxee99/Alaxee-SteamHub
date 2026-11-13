@@ -1,37 +1,42 @@
-# Alaxee SteamHub
+# ALAXEE SteamHub
 
-ALAXEE's independently maintained Steam translation and browser enhancement project.
-
-## Product direction
-
-- Translation logic and game/item data matching are owned by ALAXEE.
-- Prefer a standalone Steam integration over requiring Millennium or Extendium.
-- Keep host integration replaceable: a standalone Steam CEF/CDP adapter is the first path being validated; a Millennium adapter is an optional fallback, not the translation core.
-- Start with Steam Store and Community Market pages. Support game-specific configurations keyed by Steam AppID.
-- For Taskbar Hero (AppID `3678970`), use TBHIndex as an on-demand public data provider where exact item matches can be established. Do not bulk crawl or guess translations.
-- Keep all translation data and caches local by default. No Steam account login, inventory reading, cookies, or private game-save access in the initial scope.
+ALAXEE SteamHub is a browser-extension-first project for improving Steam Community Market pages with accurate Chinese localization and, later, exact-match item translations.
 
 ## Current status
 
-This repository is being initialized from the standalone CDP injection proof of concept. The first version demonstrates how ALAXEE can enter Steam pages without Millennium/Extendium; it is not yet the finished translator.
+The first browser extension slice:
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the host-independence decision and security boundaries.
+- Runs only on Steam Community Market pages in Edge and Chrome.
+- Applies Steam's official Simplified Chinese web locale (`l=schinese`).
+- Preserves the existing market path, search parameters, filters, and URL fragment.
+- Does not read Steam cookies, account credentials, inventory, or private profile data.
+- Does not yet translate item names. Steam's own locale support is not a substitute for the planned item-translation engine.
 
-## Development
+## Install for local testing
 
-The standalone bridge requires Node.js 22+ and uses built-in Node APIs only.
+1. Open `edge://extensions` in Microsoft Edge or `chrome://extensions` in Chrome.
+2. Enable Developer mode.
+3. Select **Load unpacked**.
+4. Choose this repository's `extension/` directory (the directory containing `manifest.json`).
+5. Open or reload a Steam Community Market page.
 
-```powershell
-npm test
-npm run check
-npm start
-```
+The extension is currently distributed as source for local testing. No browser-store publication or signed package is implied.
 
-## Scope and safety
+## Product architecture
 
-- Do not inject scripts into non-Steam origins.
-- Keep the Steam CDP endpoint bound to loopback; fail closed if it is exposed on a LAN/public interface.
-- Never use `-dev`, disable the CEF sandbox, or accept arbitrary remote CDP endpoints.
-- Do not read Steam cookies, authentication tokens, private profiles, inventory, or game save files.
-- Respect third-party data-provider terms; only perform low-rate on-demand lookups for visible items.
-- Never claim a page translation or proxy route is working without real Steam client verification.
+The translation engine, AppID registry, exact item matching, provider adapters, throttling, cache, and UI belong to this repository and must remain independent of any host environment.
+
+The browser extension is the first host adapter. A Steam desktop CEF/CDP adapter may be revived later as an optional adapter; it must not become a prerequisite for browser functionality.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the implementation decision and [AGENTS.md](AGENTS.md) for development constraints.
+
+## Roadmap
+
+1. Browser extension foundation and narrow Steam Market URL scope.
+2. Host-independent translation core and per-game AppID registry.
+3. Exact item-key matching using `appid + market_hash_name`.
+4. Verified, low-rate, on-demand provider lookups with local caching.
+5. Accessible in-page translation controls and status UI.
+6. Optional Steam desktop adapter only if it provides a meaningful additional use case.
+
+Taskbar Hero uses Steam AppID `3678970`. TBHIndex may be used only after its relevant data access path and terms are verified. Missing or ambiguous matches must leave the original Steam text unchanged.

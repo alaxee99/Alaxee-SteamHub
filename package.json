@@ -1,0 +1,14 @@
+{
+  "name": "alaxee-steamhub",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-extension-first Steam Community Market localization and translation.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check extension/market-locale.js && node --check extension/content.js && node --check test/browser-extension.test.mjs"
+  }
+}
