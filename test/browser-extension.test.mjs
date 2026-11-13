@@ -9,6 +9,8 @@ const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const extensionRoot = path.join(root, "extension");
 const manifest = JSON.parse(await readFile(path.join(extensionRoot, "manifest.json"), "utf8"));
 const localeSource = await readFile(path.join(extensionRoot, "market-locale.js"), "utf8");
+const itemIdentitySource = await readFile(path.join(extensionRoot, "core/item-identity.js"), "utf8");
+const marketItemsSource = await readFile(path.join(extensionRoot, "market-items.js"), "utf8");
 const runtimeStatusSource = await readFile(path.join(extensionRoot, "runtime-status.js"), "utf8");
 const contentSource = await readFile(path.join(extensionRoot, "content.js"), "utf8");
 const publicPackLoaderSource = await readFile(path.join(extensionRoot, "core/public-pack-loader.js"), "utf8");
@@ -93,6 +95,217 @@ function runContentScript(href) {
   return replacements;
 }
 
+test("Steam Market search collection resolves the full listing row around overlay links", () => {
+  const context = vm.createContext({ URL, Set, Object, String, Number, RegExp });
+  vm.runInContext(itemIdentitySource, context, { filename: "item-identity.js" });
+  vm.runInContext(marketItemsSource, context, { filename: "market-items.js" });
+
+  const marketHashName = "Mystic Boots (Divine) A";
+  const titleText = { nodeType: 3, nodeValue: marketHashName, parentElement: null };
+  const titleElement = { nodeType: 1, tagName: "SPAN", childNodes: [titleText], parentElement: null };
+  const row = {
+    nodeType: 1,
+    tagName: "DIV",
+    className: "market_listing_row market_listing_searchresult",
+    childNodes: [],
+    hidden: false,
+    getClientRects() { return [{}]; },
+    getBoundingClientRect() { return { top: 100, bottom: 180 }; },
+    closest(selector) { return selector === ".market_listing_row" ? this : null; },
+    querySelectorAll() { return []; },
+    getAttribute() { return null; }
+  };
+  const href = "https://steamcommunity.com/market/listings/3678970/Mystic%20Boots%20%28Divine%29%20A";
+  const anchor = {
+    nodeType: 1,
+    tagName: "A",
+    className: "market_listing_row_link",
+    href,
+    hidden: false,
+    parentElement: row,
+    getClientRects() { return [{}]; },
+    getAttribute(name) { return name === "href" ? href : null; },
+    closest(selector) { return selector === ".market_listing_row" ? row : null; }
+  };
+  row.childNodes = [anchor, titleElement];
+  titleElement.parentElement = row;
+  const root = {
+    querySelectorAll(selector) {
+      return selector === 'a[href*="/market/listings/"]' || selector === "a.market_listing_row_link"
+        ? [anchor]
+        : [];
+    }
+  };
+
+  const items = context.__ALAXEE_STEAMHUB_MARKET_ITEMS__.collectMarketListingLinks(
+    root,
+    "https://steamcommunity.com/market/search?appid=3678970&l=schinese"
+  );
+  assert.equal(items.length, 1);
+  assert.equal(items[0].appId, "3678970");
+  assert.equal(items[0].marketHashName, marketHashName);
+  assert.equal(items[0].element, row);
+  assert.ok(items[0].element.childNodes.includes(titleElement));
+  assert.equal(titleText.nodeValue, marketHashName);
+});
+
+test("Steam Market search overview localizes titles outside the clickable listing anchor", async () => {
+  const scripts = [
+    "runtime-status.js",
+    "market-locale.js",
+    "core/item-identity.js",
+    "core/translation-engine.js",
+    "core/rate-limiter.js",
+    "core/game-registry.js",
+    "market-items.js",
+    "storage-adapter.js",
+    "market-text-localizer.js",
+    "content.js"
+  ];
+  const storageKey = "alaxee-steamhub:game-pack:v1:3678970";
+  const storedPack = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: {
+      appId: "3678970",
+      name: "Task Bar Hero",
+      adapter: "steam-community-market",
+      itemKey: "market_hash_name",
+      defaultLocale: "zh-CN",
+      enabled: true
+    },
+    translations: [{
+      marketHashName: "Abyss Amulet (Arcana) C",
+      locale: "zh-CN",
+      translation: "深渊护符",
+      source: "test"
+    }],
+    textTranslations: []
+  };
+
+  function makeText(value) {
+    return { nodeType: 3, nodeValue: value, parentElement: null, isConnected: true };
+  }
+  function makeElement(tagName, children = []) {
+    const element = {
+      nodeType: 1,
+      tagName: tagName.toUpperCase(),
+      childNodes: children,
+      parentElement: null,
+      isConnected: true,
+      attributes: Object.create(null),
+      hidden: false,
+      get textContent() {
+        return this.childNodes.map((child) =>
+          child.nodeType === 3 ? child.nodeValue : child.textContent
+        ).join("");
+      },
+      getAttribute(name) {
+        return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
+      },
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      removeAttribute(name) { delete this.attributes[name]; },
+      getClientRects() { return [{}]; },
+      getBoundingClientRect() { return { top: 100, bottom: 180 }; },
+      closest(selector) {
+        return selector === ".market_listing_row" && this.className?.includes("market_listing_row")
+          ? this
+          : null;
+      },
+      querySelectorAll() { return []; }
+    };
+    for (const child of children) child.parentElement = element;
+    return element;
+  }
+
+  const href = "https://steamcommunity.com/market/listings/3678970/Abyss%20Amulet%20%28Arcana%29%20C";
+  const anchor = makeElement("a");
+  anchor.href = href;
+  anchor.className = "market_listing_row_link";
+  anchor.getAttribute = (name) => name === "href" ? href : null;
+  let listingRow;
+  anchor.closest = (selector) => selector === ".market_listing_row" ? listingRow : null;
+  const titleText = makeText("Abyss Amulet (Arcana) C");
+  const titleElement = makeElement("span", [titleText]);
+  listingRow = makeElement("div", [anchor, titleElement]);
+  listingRow.className = "market_listing_row market_listing_searchresult";
+
+  const body = makeElement("body", [listingRow]);
+  const document = {
+    body,
+    documentElement: body,
+    readyState: "complete",
+    addEventListener() {},
+    querySelectorAll(selector) {
+      return selector === 'a[href*="/market/listings/"]' || selector === "a.market_listing_row_link"
+        ? [anchor]
+        : [];
+    },
+    createTreeWalker(rootNode) {
+      const nodes = [];
+      function visit(node) {
+        if (node.nodeType === 3) {
+          nodes.push(node);
+          return;
+        }
+        for (const child of node.childNodes || []) visit(child);
+      }
+      visit(rootNode);
+      let index = 0;
+      return {
+        nextNode() {
+          const next = nodes[index];
+          index += 1;
+          return next || null;
+        }
+      };
+    }
+  };
+  const storageArea = {
+    async get(key) {
+      if (key === null) return { [storageKey]: storedPack };
+      return key === storageKey ? { [storageKey]: storedPack } : {};
+    },
+    async set() {},
+    async remove() {}
+  };
+  const location = {
+    href: "https://steamcommunity.com/market/search?appid=3678970&sort=2&dir=1&l=schinese",
+    replace() { throw new Error("The search URL already uses Simplified Chinese."); }
+  };
+  const context = vm.createContext({
+    URL,
+    NodeFilter: { SHOW_TEXT: 4 },
+    window: {
+      location,
+      innerHeight: 800,
+      setTimeout() { return 1; },
+      addEventListener() {}
+    },
+    document,
+    chrome: {
+      storage: {
+        local: storageArea,
+        onChanged: { addListener() {} }
+      }
+    }
+  });
+
+  for (const relativePath of scripts) {
+    const source = await readFile(path.join(extensionRoot, relativePath), "utf8");
+    vm.runInContext(source, context, { filename: relativePath });
+  }
+  await context.__ALAXEE_STEAMHUB__.refresh();
+
+  assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
+  const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
+  assert.equal(diagnostics.version, "0.8.8");
+  assert.equal(diagnostics.detectedItems, 1);
+  assert.equal(diagnostics.matchedItems, 1);
+  assert.equal(diagnostics.translatedNames, 1);
+  assert.deepEqual(Array.from(diagnostics.errors), []);
+});
+
 test("runtime status hides success UI and only shows actionable warnings or errors", () => {
   const mountedHosts = [];
   function makeElement(tagName) {
@@ -143,7 +356,7 @@ test("runtime status hides success UI and only shows actionable warnings or erro
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.8.7");
+  assert.equal(manifest.version, "0.8.8");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1362,7 +1575,7 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.8.7");
+  assert.equal(diagnostics.version, "0.8.8");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);

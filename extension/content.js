@@ -5,7 +5,7 @@
   function publishRuntimeStatus(tone, title, details) {
     runtimeStatus?.update({ tone, title, details });
   }
-  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.8.7", "正在初始化 Steam 市场适配器…"]);
+  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.8.8", "正在初始化 Steam 市场适配器…"]);
 
   const marketLocale = globalThis.__ALAXEE_STEAMHUB_MARKET_LOCALE__;
   if (!marketLocale || !window.location) {
@@ -62,7 +62,7 @@
   const localizedTextNodes = new Map();
   let scanScheduled = false;
   const diagnostics = {
-    version: "0.8.7",
+    version: "0.8.8",
     initializedAt: new Date().toISOString(),
     scanCount: 0,
     lastScanAt: null,
@@ -78,6 +78,19 @@
 
   function normalizedText(value) {
     return textLocalizer.normalizeText(value);
+  }
+
+  function isWithinScanViewport(item) {
+    const element = item?.element;
+    if (!element || typeof element.getBoundingClientRect !== "function") return true;
+
+    const rect = element.getBoundingClientRect();
+    const viewportHeight = Number(window.innerHeight) ||
+      Number(document.documentElement?.clientHeight) || 0;
+    if (!viewportHeight || !Number.isFinite(rect.top) || !Number.isFinite(rect.bottom)) return true;
+
+    const margin = Math.max(160, Math.min(420, viewportHeight * 0.3));
+    return rect.bottom >= -margin && rect.top <= viewportHeight + margin;
   }
 
   function getPrimaryAppId() {
@@ -162,7 +175,7 @@
     }
 
     const details = [
-      "版本：0.8.7",
+      "版本：0.8.8",
       "当前页面 AppID：" + (primaryAppId || "未识别"),
       "页面识别商品：" + diagnostics.detectedItems,
       "已命中词条：" + diagnostics.matchedItems,
@@ -385,7 +398,7 @@
     diagnostics.errors = [];
 
     const items = marketItems.collectMarketListingLinks(document, window.location.href)
-      .filter((item) => item.appId && item.marketHashName)
+      .filter((item) => item.appId && item.marketHashName && isWithinScanViewport(item))
       .slice(0, MAX_VISIBLE_ITEMS_PER_PASS);
     diagnostics.detectedItems = items.length;
 
@@ -422,7 +435,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.8.7",
+    version: "0.8.8",
     getDiagnostics() {
       return Object.freeze({
         ...diagnostics,
@@ -461,6 +474,11 @@
     document.addEventListener("DOMContentLoaded", scheduleScan, { once: true });
   } else {
     scheduleScan();
+  }
+
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("scroll", scheduleScan, { passive: true });
+    window.addEventListener("resize", scheduleScan, { passive: true });
   }
 
   if (typeof MutationObserver === "function" && document.documentElement) {
