@@ -286,6 +286,7 @@ test("public pack loader requests one origin before fetching and validates the p
   assert.equal(calls[2][2].credentials, "omit");
   assert.equal(calls[2][2].redirect, "error");
   assert.equal(calls[2][2].referrerPolicy, "no-referrer");
+  assert.match(calls[2][2].headers.Accept, /text\\/html/);
   assert.equal(calls[3][0], "normalize");
   assert.equal(result.pack.normalized, true);
   assert.equal(result.pack.translations.length, 1);
