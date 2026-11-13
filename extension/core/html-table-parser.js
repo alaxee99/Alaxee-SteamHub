@@ -475,7 +475,7 @@
     // Normalize only source IDs; never alter Steam market keys or localized text.
     const normalizedSourceIds = Array.from(new Set(
       sourceIdResultRaw.values
-        .map((value) => String(value).trim().replace(/^#\\s*/, ""))
+        .map((value) => String(value).trim().replace(/^#\s*/, ""))
         .filter(Boolean)
     ));
     const sourceIdResult = {
