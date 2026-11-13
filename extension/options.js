@@ -26,6 +26,9 @@
   let editingIdentity = null;
   let extractedHtmlTables = [];
   let extractedHtmlPage = null;
+  let extractedHtmlSource = "";
+  let htmlCardCandidates = [];
+  let extractedHtmlCardResult = null;
   let discoveredSite = null;
 
   if (!storageApi || !registryApi || !publicPackLoaderApi || !sourceMapperApi || !siteDiscoveryApi || !htmlTableParserApi || typeof chrome === "undefined" || !chrome.storage?.local) {
@@ -627,6 +630,16 @@
     button.disabled = true;
     extractedHtmlTables = [];
     extractedHtmlPage = null;
+    extractedHtmlSource = "";
+    htmlCardCandidates = [];
+    extractedHtmlCardResult = null;
+    document.getElementById("html-card-candidates").replaceChildren();
+    document.getElementById("html-card-candidates").disabled = true;
+    document.getElementById("extract-html-cards").disabled = true;
+    document.getElementById("convert-html-cards").disabled = true;
+    document.getElementById("html-card-preview").replaceChildren();
+    document.getElementById("html-card-summary").textContent = "正在读取页面…";
+    document.getElementById("html-card-conversion-summary").textContent = "";
     document.getElementById("html-table-select").replaceChildren();
     document.getElementById("html-table-select").disabled = true;
     document.getElementById("html-table-preview").replaceChildren();
@@ -651,6 +664,31 @@
         maxBytes: 1024 * 1024,
         timeoutMs: 10000
       });
+      extractedHtmlSource = loaded.text;
+      htmlCardCandidates = htmlTableParserApi.discoverHtmlCardSelectors(loaded.text);
+      const cardCandidateSelect = document.getElementById("html-card-candidates");
+      cardCandidateSelect.replaceChildren();
+      if (htmlCardCandidates.length) {
+        for (const candidate of htmlCardCandidates) {
+          const option = document.createElement("option");
+          option.value = candidate.selector;
+          option.textContent = candidate.selector + " · " + candidate.count + " 个卡片 · " +
+            candidate.sampleText.slice(0, 55);
+          cardCandidateSelect.append(option);
+        }
+        document.getElementById("html-card-selector").value = htmlCardCandidates[0].selector;
+        cardCandidateSelect.value = htmlCardCandidates[0].selector;
+      } else {
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "未自动识别；可以手动填写 CSS 选择器";
+        cardCandidateSelect.append(option);
+        document.getElementById("html-card-selector").value = "";
+      }
+      cardCandidateSelect.disabled = !htmlCardCandidates.length;
+      document.getElementById("extract-html-cards").disabled = false;
+      document.getElementById("html-card-summary").textContent =
+        htmlCardCandidates.length + " 种重复卡片选择器候选；可选候选或手动填写";
       const result = htmlTableParserApi.parseHtmlTables(loaded.text, {
         pageUrl: loaded.sourceUrl,
         maxTables: 20,
@@ -688,6 +726,133 @@
       report(error.message || "HTML 页面提取失败", true);
     } finally {
       button.disabled = false;
+    }
+  });
+
+
+  document.getElementById("html-card-candidates").addEventListener("change", (event) => {
+    document.getElementById("html-card-selector").value = event.currentTarget.value;
+  });
+
+  document.getElementById("extract-html-cards").addEventListener("click", () => {
+    const summary = document.getElementById("html-card-summary");
+    const preview = document.getElementById("html-card-preview");
+    try {
+      if (!extractedHtmlSource || !extractedHtmlPage) {
+        throw new Error("请先读取一个允许访问的 HTML 页面");
+      }
+      extractedHtmlCardResult = htmlTableParserApi.parseHtmlCards(extractedHtmlSource, {
+        cardSelector: document.getElementById("html-card-selector").value,
+        sourceIdSelector: document.getElementById("html-card-id-selector").value,
+        sourceIdAttribute: document.getElementById("html-card-id-attribute").value || "auto",
+        translationSelector: document.getElementById("html-card-translation-selector").value,
+        maxCards: 500
+      });
+      preview.replaceChildren();
+      if (extractedHtmlCardResult.records.length) {
+        const table = document.createElement("table");
+        table.className = "html-preview-grid";
+        const head = document.createElement("thead");
+        const header = document.createElement("tr");
+        for (const label of ["Wiki ID / Steam 键", "译文", "卡片标题"]) {
+          const cell = document.createElement("th");
+          cell.textContent = label;
+          header.append(cell);
+        }
+        head.append(header);
+        table.append(head);
+        const body = document.createElement("tbody");
+        for (const record of extractedHtmlCardResult.records.slice(0, 8)) {
+          const row = document.createElement("tr");
+          for (const value of [record.sourceId, record.translation, record.title]) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.append(cell);
+          }
+          body.append(row);
+        }
+        table.append(body);
+        preview.append(table);
+      } else {
+        const empty = document.createElement("p");
+        empty.className = "empty";
+        empty.textContent = "未提取到同时包含 ID 和译文的商品卡片，请调整 CSS 选择器。";
+        preview.append(empty);
+      }
+      summary.textContent = "卡片 " + extractedHtmlCardResult.totalCards +
+        " · 扫描 " + extractedHtmlCardResult.scanned +
+        " · 有效记录 " + extractedHtmlCardResult.records.length +
+        " · 缺 ID " + extractedHtmlCardResult.missingSourceId +
+        " · 缺译文 " + extractedHtmlCardResult.missingTranslation +
+        (extractedHtmlCardResult.truncated ? " · 已达到 500 卡片上限" : "");
+      document.getElementById("convert-html-cards").disabled =
+        extractedHtmlCardResult.records.length === 0;
+      report(extractedHtmlCardResult.records.length
+        ? "商品卡片已提取；请检查预览后生成数据包"
+        : "未识别到可映射的商品卡片", extractedHtmlCardResult.records.length === 0);
+    } catch (error) {
+      extractedHtmlCardResult = null;
+      summary.textContent = "";
+      preview.replaceChildren();
+      report(error.message || "商品卡片提取失败", true);
+    }
+  });
+
+  document.getElementById("convert-html-cards").addEventListener("click", () => {
+    const summary = document.getElementById("html-card-conversion-summary");
+    try {
+      if (!extractedHtmlCardResult?.records.length) {
+        throw new Error("请先提取有效的商品卡片记录");
+      }
+      const sourceIdMode = document.getElementById("html-mapping-mode").value === "source-id";
+      const locale = document.getElementById("html-locale").value;
+      const source = document.getElementById("html-source-label").value.trim() || "wiki-html-cards";
+      let mapped;
+      if (sourceIdMode) {
+        const referencePack = cachedPacks.find((candidate) =>
+          candidate.game.appId === document.getElementById("html-reference-game").value
+        );
+        if (!referencePack) throw new Error("请先导入并选择带来源 ID 的 Steam 参考词库");
+        mapped = sourceMapperApi.buildGamePackFromSourceIds(extractedHtmlCardResult.records, {
+          referencePack,
+          locale,
+          fields: { sourceItemId: "sourceId", translation: "translation" },
+          source
+        });
+      } else {
+        mapped = sourceMapperApi.buildGamePackFromRecords(
+          extractedHtmlCardResult.records.map((record) => ({
+            marketHashName: record.sourceId,
+            translation: record.translation
+          })),
+          {
+            game: {
+              appId: document.getElementById("html-app-id").value.trim(),
+              name: document.getElementById("html-game-name").value.trim(),
+              adapter: "steam-community-market",
+              itemKey: "market_hash_name"
+            },
+            locale,
+            fields: { marketHashName: "marketHashName", translation: "translation" },
+            source
+          }
+        );
+      }
+
+      const validated = registryApi.normalizePack(mapped.pack);
+      document.getElementById("pack-json").value = JSON.stringify(validated, null, 2);
+      const stats = mapped.stats;
+      const cards = extractedHtmlCardResult;
+      summary.textContent = "扫描 " + cards.scanned + " 张卡片 · 可映射 " + stats.imported +
+        " 条 · 缺 ID " + cards.missingSourceId +
+        " · 缺译文 " + cards.missingTranslation +
+        " · 未匹配 ID " + (stats.unmatchedSourceId || 0) +
+        " · 歧义 ID " + (stats.ambiguousSourceId || 0) +
+        " · 冲突 " + stats.conflictingKeys;
+      report("商品卡片已转换；请检查生成 JSON 并选择合并或覆盖");
+    } catch (error) {
+      summary.textContent = "";
+      report(error.message || "商品卡片转换失败", true);
     }
   });
 
