@@ -94,7 +94,7 @@
   function preserveMarketNameSuffix(marketHashName, translation) {
     const source = String(marketHashName || "");
     const translated = String(translation || "").trimEnd();
-    const suffixMatch = source.match(/((?:\\s+\\([^()]+\\))*)(?:\\s+([A-Z]))?$/);
+    const suffixMatch = source.match(/((?:\s+\([^()]+\))*)(?:\s+([A-Z]))?$/);
     if (!suffixMatch) return translated;
 
     const parentheticalSuffix = suffixMatch[1] || "";
@@ -436,6 +436,9 @@
     },
     translateItem(itemKey, options) {
       return engine.resolve(itemKey, options);
+    },
+    translateMarketName(marketHashName, translation) {
+      return preserveMarketNameSuffix(marketHashName, translation);
     },
     refresh() {
       return scanVisibleItems();

@@ -1319,6 +1319,9 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(diagnostics.matchedItems, 1);
   assert.equal(diagnostics.translatedNames, 2);
   assert.ok(diagnostics.translatedDetailNodes >= 11);
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Amber Ring (Immortal) A", "琥珀戒指"), "琥珀戒指 (Immortal) A");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Arcana)", "被污染的圣物"), "被污染的圣物 (Arcana)");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Plain Item", "普通物品"), "普通物品");
   assert.deepEqual(Array.from(diagnostics.missingPacks), ["440"]);
   assert.deepEqual(Array.from(diagnostics.errors), []);
   const runtime = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__.snapshot();

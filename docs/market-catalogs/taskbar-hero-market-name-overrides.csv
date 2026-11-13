@@ -1,5 +1,0 @@
-item_id,english_name,grade,level,market_hash_name,translation,steam_listing_url,reason
-516173,"Dimensional Armor","BEYOND",80,"Dimensional Armor (Beyond) C","次元铠甲",https://steamcommunity.com/market/listings/3678970/Dimensional%20Armor%20%28Beyond%29%20C,"Steam listing title and exact market URL confirm C despite the generic level-based rule deriving A"
-517173,"Dimensional Armor","CELESTIAL",80,"Dimensional Armor (Celestial) C","次元铠甲",https://steamcommunity.com/market/listings/3678970/Dimensional%20Armor%20%28Celestial%29%20C,"Steam listing title and exact market URL confirm C despite the generic level-based rule deriving A"
-625173,"Ethereal Ring","ARCANA",80,"Ethereal Ring (Arcana) C","以太戒指",https://steamcommunity.com/market/listings/3678970/Ethereal%20Ring%20%28Arcana%29%20C,"Steam listing title and exact market URL confirm C despite the generic level-based rule deriving A"
-150104,"Plague Fruit","LEGENDARY",,"Plague Fruit","瘟疫之果",https://steamcommunity.com/market/listings/3678970/Plague%20Fruit,"Steam market_hash_name omits the grade suffix; the page display title identifies the Legendary item"
