@@ -15,11 +15,17 @@
       const titleSelectors = [
         "#largeiteminfo .market_listing_nav .market_listing_item_name",
         ".market_listing_nav .market_listing_item_name",
-        "#largeiteminfo_item_name"
+        "#largeiteminfo_item_name",
+        "h1",
+        "h2"
       ];
-      const titleElement = typeof root?.querySelector === "function"
-        ? titleSelectors.map((selector) => root.querySelector(selector)).find(Boolean) || null
-        : null;
+      const titleCandidates = typeof root?.querySelectorAll === "function"
+        ? titleSelectors.flatMap((selector) => Array.from(root.querySelectorAll(selector)))
+        : [];
+      const normalizeText = (value) => String(value || "").replace(/\\s+/g, " ").trim();
+      const titleElement = titleCandidates.find((element) =>
+        normalizeText(element.textContent) === currentPageItem.marketHashName
+      ) || null;
 
       results.set(currentPageItem.cacheIdentity, {
         ...currentPageItem,

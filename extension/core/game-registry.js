@@ -79,6 +79,31 @@
     });
   }
 
+  function normalizeTextTranslations(input) {
+    if (input === undefined || input === null) return Object.freeze([]);
+    if (!Array.isArray(input) || input.length > 4000) {
+      throw new TypeError("Game pack textTranslations must be an array with at most 4000 entries.");
+    }
+
+    const seen = new Set();
+    const mappings = input.map((entry) => {
+      const sourceText = typeof entry?.sourceText === "string" ? entry.sourceText.trim() : "";
+      const translation = typeof entry?.translation === "string" ? entry.translation.trim() : "";
+      if (!sourceText || sourceText.length > 1000 ||
+          /[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]/.test(sourceText) ||
+          !translation || translation.length > 1000 ||
+          /[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]/.test(translation)) {
+        throw new TypeError("Game pack contains an invalid exact text translation.");
+      }
+      if (seen.has(sourceText)) {
+        throw new TypeError("Game pack contains duplicate exact text translation keys.");
+      }
+      seen.add(sourceText);
+      return Object.freeze({ sourceText, translation });
+    });
+    return Object.freeze(mappings);
+  }
+
   function normalizePack(input) {
     if (!input || typeof input !== "object" ||
         input.format !== PACK_FORMAT || input.schemaVersion !== PACK_VERSION) {
@@ -120,6 +145,8 @@
       return normalized;
     });
 
+    const textTranslations = normalizeTextTranslations(input.textTranslations);
+
     return Object.freeze({
       format: PACK_FORMAT,
       schemaVersion: PACK_VERSION,
@@ -131,7 +158,8 @@
         defaultLocale,
         enabled: input.game.enabled !== false
       }),
-      translations: Object.freeze(translations)
+      translations: Object.freeze(translations),
+      ...(textTranslations.length ? { textTranslations } : {})
     });
   }
 
@@ -192,6 +220,7 @@
 
       const existing = await get(incoming.game.appId);
       let translations = incoming.translations.slice();
+      let textTranslations = incoming.textTranslations || [];
 
       if (existing && mode === "merge") {
         const byIdentity = new Map(existing.translations.map((entry) => [
@@ -217,6 +246,18 @@
           });
         }
         translations = Array.from(byIdentity.values());
+
+        const textBySource = new Map((existing.textTranslations || []).map((entry) => [
+          entry.sourceText, entry
+        ]));
+        for (const entry of incoming.textTranslations || []) {
+          const previous = textBySource.get(entry.sourceText);
+          if (previous && previous.translation !== entry.translation) {
+            throw new Error(`Conflicting exact text translation for AppID ${incoming.game.appId}: ${entry.sourceText}. Choose replace to overwrite the game pack.`);
+          }
+          textBySource.set(entry.sourceText, entry);
+        }
+        textTranslations = Array.from(textBySource.values());
       }
 
       if (translations.length > MAX_TRANSLATIONS_PER_GAME) {
@@ -229,7 +270,8 @@
           ...incoming.game,
           enabled: existing ? existing.game.enabled : incoming.game.enabled
         },
-        translations
+        translations,
+        textTranslations
       });
       await storage.set(storageKey(pack.game.appId), pack);
       return pack;

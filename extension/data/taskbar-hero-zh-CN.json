@@ -7716,5 +7716,47 @@
       "translation": "飞龙之爪",
       "source": "task-bar-trade-center"
     }
+  ],
+  "textTranslations": [
+    {
+      "sourceText": "Amulet - Lv. 90",
+      "translation": "护符 · 等级 90"
+    },
+    {
+      "sourceText": "Arcana Grade",
+      "translation": "奥术品阶"
+    },
+    {
+      "sourceText": "Inherent Stats",
+      "translation": "固有属性"
+    },
+    {
+      "sourceText": "22% Increased Attack Speed",
+      "translation": "攻击速度提高 22%"
+    },
+    {
+      "sourceText": "All Skill Level +2",
+      "translation": "所有技能等级 +2"
+    },
+    {
+      "sourceText": "43% Increased Critical Chance Multiplier",
+      "translation": "暴击几率倍率提高 43%"
+    },
+    {
+      "sourceText": "Decoration Slot ×2",
+      "translation": "装饰槽 ×2"
+    },
+    {
+      "sourceText": "Engraving Slot ×1",
+      "translation": "雕刻槽 ×1"
+    },
+    {
+      "sourceText": "Inscription Slot ×1",
+      "translation": "铭刻槽 ×1"
+    },
+    {
+      "sourceText": "Requires Lv.90",
+      "translation": "需求等级：90"
+    }
   ]
 }

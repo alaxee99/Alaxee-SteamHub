@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ALAXEE SteamHub",
-  "version": "0.7.0",
-  "description": "Simple Steam AppID lookup and guided game dictionary import for Steam Community Market.",
+  "version": "0.8.0",
+  "description": "Steam Community Market item name and detail localization with per-game dictionaries.",
   "permissions": [
     "storage"
   ],
@@ -23,6 +23,7 @@
         "core/game-registry.js",
         "market-items.js",
         "storage-adapter.js",
+        "market-text-localizer.js",
         "content.js"
       ],
       "run_at": "document_start",
