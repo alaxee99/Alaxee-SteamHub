@@ -1104,3 +1104,171 @@ test("TaskBarHeroWiki Minor Ruby detail page uses the current localized DOM and 
     [["Minor Ruby", "110001", "zh-CN", "小红宝石"]]
   );
 });
+
+
+test("Steam Market content script replaces exact item names and localizes detail text in the DOM", async () => {
+  const scripts = [
+    "market-locale.js",
+    "core/item-identity.js",
+    "core/translation-engine.js",
+    "core/rate-limiter.js",
+    "core/game-registry.js",
+    "market-items.js",
+    "storage-adapter.js",
+    "market-text-localizer.js",
+    "content.js"
+  ];
+  const storageKey = "alaxee-steamhub:game-pack:v1:3678970";
+  const storedPack = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: {
+      appId: "3678970",
+      name: "Task Bar Hero",
+      adapter: "steam-community-market",
+      itemKey: "market_hash_name",
+      defaultLocale: "zh-CN",
+      enabled: true
+    },
+    translations: [{
+      marketHashName: "Abyss Amulet (Arcana) C",
+      locale: "zh-CN",
+      translation: "深渊护符",
+      source: "test"
+    }],
+    textTranslations: [{
+      sourceText: "A mysterious abyssal relic.",
+      translation: "神秘的深渊遗物。"
+    }]
+  };
+
+  function makeText(value) {
+    return { nodeType: 3, nodeValue: value, parentElement: null, isConnected: true };
+  }
+
+  function makeElement(tagName, children = []) {
+    const element = {
+      nodeType: 1,
+      tagName: tagName.toUpperCase(),
+      childNodes: children,
+      parentElement: null,
+      isConnected: true,
+      attributes: Object.create(null),
+      get title() { return this.attributes.title || ""; },
+      set title(value) { this.attributes.title = String(value); },
+      get textContent() {
+        return this.childNodes.map((child) =>
+          child.nodeType === 3 ? child.nodeValue : child.textContent
+        ).join("");
+      },
+      closest() { return null; },
+      getAttribute(name) {
+        return Object.prototype.hasOwnProperty.call(this.attributes, name)
+          ? this.attributes[name]
+          : null;
+      },
+      setAttribute(name, value) {
+        this.attributes[name] = String(value);
+      },
+      removeAttribute(name) {
+        delete this.attributes[name];
+      },
+      querySelectorAll() { return []; }
+    };
+    for (const child of children) child.parentElement = element;
+    return element;
+  }
+
+  const titleText = makeText("Abyss Amulet (Arcana) C");
+  const titleElement = makeElement("h2", [titleText]);
+  const inherentText = makeText("Inherent Stats");
+  const speedText = makeText("22% Increased Attack Speed");
+  const skillText = makeText("All Skill Level +2");
+  const descriptionText = makeText("A mysterious abyssal relic.");
+  const unknownText = makeText("Uncatalogued property 123");
+  const detailRoot = makeElement("section", [
+    makeElement("div", [inherentText]),
+    makeElement("div", [speedText]),
+    makeElement("div", [skillText]),
+    makeElement("p", [descriptionText]),
+    makeElement("p", [unknownText])
+  ]);
+  const body = makeElement("body", [titleElement, detailRoot]);
+  const pageUrl = "https://steamcommunity.com/market/listings/3678970/Abyss%20Amulet%20%28Arcana%29%20C?l=schinese";
+
+  const document = {
+    body,
+    documentElement: body,
+    readyState: "complete",
+    addEventListener() {},
+    querySelectorAll(selector) {
+      return selector === "h2" ? [titleElement] : [];
+    },
+    createTreeWalker(rootNode) {
+      const nodes = [];
+      function visit(node) {
+        if (node.nodeType === 3) {
+          nodes.push(node);
+          return;
+        }
+        for (const child of node.childNodes || []) visit(child);
+      }
+      visit(rootNode);
+      let index = 0;
+      return {
+        nextNode() {
+          const next = nodes[index];
+          index += 1;
+          return next || null;
+        }
+      };
+    }
+  };
+
+  const storedValues = new Map([[storageKey, storedPack]]);
+  const storageArea = {
+    async get(key) {
+      if (key === null) return Object.fromEntries(storedValues);
+      return storedValues.has(key) ? { [key]: storedValues.get(key) } : {};
+    },
+    async set(values) {
+      for (const [key, value] of Object.entries(values)) storedValues.set(key, value);
+    },
+    async remove(key) { storedValues.delete(key); }
+  };
+  const location = {
+    href: pageUrl,
+    replace() { throw new Error("The test URL is already using the simplified Chinese locale."); }
+  };
+  const context = vm.createContext({
+    URL,
+    NodeFilter: { SHOW_TEXT: 4 },
+    window: {
+      location,
+      setTimeout() { return 1; }
+    },
+    document,
+    chrome: {
+      storage: {
+        local: storageArea,
+        onChanged: { addListener() {} }
+      }
+    }
+  });
+
+  for (const relativePath of scripts) {
+    const source = await readFile(path.join(extensionRoot, relativePath), "utf8");
+    vm.runInContext(source, context, { filename: relativePath });
+  }
+
+  await context.__ALAXEE_STEAMHUB__.refresh();
+
+  assert.equal(titleText.nodeValue, "深渊护符");
+  assert.equal(titleElement.getAttribute("title"), "原文：Abyss Amulet (Arcana) C");
+  assert.equal(titleElement.getAttribute("data-alaxee-steamhub-app-id"), "3678970");
+  assert.equal(inherentText.nodeValue, "固有属性");
+  assert.equal(speedText.nodeValue, "攻击速度提高 22%");
+  assert.equal(skillText.nodeValue, "所有技能等级 +2");
+  assert.equal(descriptionText.nodeValue, "神秘的深渊遗物。");
+  assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
+});
