@@ -404,7 +404,7 @@
         (sourceUrl.port && sourceUrl.port !== "443") ||
         hostname === "localhost" || hostname.endsWith(".localhost") ||
         hostname.endsWith(".local") || privateIPv4.test(hostname) ||
-        hostname.startsWith("[") || /^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(hostname)) {
+        hostname.startsWith("[") || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) {
       report("仅允许公开 HTTPS 地址；不支持本机、局域网或带凭据的 URL", true);
       return;
     }
