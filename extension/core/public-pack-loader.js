@@ -78,7 +78,7 @@
         cache: "no-store",
         redirect: "error",
         referrerPolicy: "no-referrer",
-        headers: { Accept: "application/json, text/csv, text/plain;q=0.9" },
+        headers: { Accept: "text/html,application/json,text/csv,text/plain;q=0.9" },
         signal: controller.signal
       });
 
@@ -91,7 +91,7 @@
       const declaredLength = Number(response.headers?.get?.("content-length") || 0);
       if (declaredLength > maxBytes) {
         controller.abort();
-        throw new Error("数据源超过 5 MiB 上限");
+        throw new Error("数据源超过 " + (maxBytes % (1024 * 1024) === 0 ? (maxBytes / (1024 * 1024)) + " MiB" : maxBytes.toLocaleString() + " 字节") + " 上限");
       }
       if (!response.body || typeof response.body.getReader !== "function") {
         throw new Error("数据源没有返回可读取的内容");
@@ -107,7 +107,7 @@
         if (totalBytes > maxBytes) {
           controller.abort();
           await reader.cancel().catch(() => {});
-          throw new Error("数据源超过 5 MiB 上限");
+          throw new Error("数据源超过 " + (maxBytes % (1024 * 1024) === 0 ? (maxBytes / (1024 * 1024)) + " MiB" : maxBytes.toLocaleString() + " 字节") + " 上限");
         }
         chunks.push(chunk.value);
       }
