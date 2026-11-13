@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ALAXEE SteamHub · 游戏汉化</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div class="brand-mark" aria-hidden="true">A</div>
+      <div>
+        <p class="eyebrow">ALAXEE STEAMHUB · GAME LOCALIZATION</p>
+        <h1>Steam 游戏汉化</h1>
+        <p class="subtitle">输入 AppID，查找词库，让 Steam 市场物品自动显示中文。</p>
+      </div>
+      <span class="version">v0.8.4</span>
+    </header>
+
+    <section class="panel quick-setup">
+      <div class="section-heading">
+        <div><span class="step">01</span><h2>添加游戏</h2></div>
+        <p>只需 Steam AppID，其余信息自动查询。</p>
+      </div>
+      <form id="quick-lookup-form" class="quick-lookup-form">
+        <label>Steam AppID
+          <input id="quick-app-id" inputmode="numeric" autocomplete="off" placeholder="粘贴 Steam 游戏链接中的数字 ID，例如 3678970" required>
+        </label>
+        <button id="quick-lookup-button" type="submit" class="primary">查询游戏</button>
+      </form>
+      <div id="quick-game-card" class="quick-game-card" hidden aria-live="polite"></div>
+      <section id="quick-source-section" class="quick-source-section" hidden>
+        <div class="quick-source-heading">
+          <div><span class="step">02</span><h2>查找游戏数据源</h2></div>
+          <p>优先使用已适配词库；也可以搜索 Wiki 或数据接口。</p>
+        </div>
+        <div id="quick-known-sources" class="quick-known-sources"></div>
+        <div class="quick-search-panel">
+          <strong>搜索其他 Wiki</strong>
+          <p>打开搜索结果，选择包含游戏物品 / 市场数据的 Wiki，再把它公开的数据接口地址填到下方。</p>
+          <div id="quick-search-links" class="quick-search-links"></div>
+        </div>
+        <div class="quick-source-url">
+          <label>Wiki / JSON / CSV 数据地址
+            <input id="quick-source-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/api/items.json">
+          </label>
+          <button id="quick-import-source" type="button" class="primary">识别并导入</button>
+        </div>
+        <p class="quick-source-help">支持公开 JSON / CSV 数据接口，自动识别常见 Steam 市场键与简体中文字段。普通 Wiki 页面如没有结构化接口，需要为该站点制作一次适配器；不会把网页标题误当作译文。</p>
+        <p id="quick-source-status" class="source-summary" aria-live="polite"></p>
+      </section>
+    </section>
+
+    <details class="advanced-shell">
+      <summary>高级管理与调试工具</summary>
+      <div class="advanced-shell-content">
+        <p class="advanced-intro">日常使用无需打开这里。手工词条、词库编辑、数据包维护、站点解析器和 CSS 选择器只在特殊维护场景使用。</p>
+    <section class="panel">
+      <div class="section-heading">
+        <div><span class="step">01</span><h2>添加游戏</h2></div>
+        <p>填写 Steam AppID 和游戏名称，建立独立配置档案。</p>
+      </div>
+      <form id="add-game-form" class="form-grid">
+        <label>Steam AppID
+          <input id="game-app-id" inputmode="numeric" autocomplete="off" placeholder="例如 3678970" required>
+        </label>
+        <label>游戏名称
+          <input id="game-name" autocomplete="off" placeholder="例如 Task Bar Hero" maxlength="100" required>
+        </label>
+        <button type="submit" class="primary">添加游戏</button>
+      </form>
+      <p class="hint">当前适配器：Steam 社区市场。AppID 用于区分游戏，物品名称使用 Steam 原始 market_hash_name，不做模糊归一化。</p>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading">
+        <div><span class="step">02</span><h2>录入翻译词条</h2></div>
+        <p>可逐条输入物品代码，也可以在下方批量导入游戏数据包。</p>
+      </div>
+      <form id="add-entry-form" class="form-grid entry-grid">
+        <label>所属游戏
+          <select id="entry-game" required><option value="">先添加游戏</option></select>
+        </label>
+        <label>语言
+          <select id="entry-locale">
+            <option value="zh-CN">简体中文</option>
+            <option value="zh-TW">繁体中文</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <label class="wide">Steam 物品原始名称 / market_hash_name
+          <input id="entry-market-name" autocomplete="off" placeholder="必须与 Steam 市场物品名称完全一致" maxlength="512" required>
+        </label>
+        <label class="wide">游戏数据库物品 ID / Code（选填）
+          <input id="entry-source-id" autocomplete="off" placeholder="例如游戏数据里的 500111 或 item_key" maxlength="128">
+        </label>
+        <label class="wide">数据源 / 词库名称（选填）
+          <input id="entry-source" autocomplete="off" placeholder="例如 TBH Wiki、官方游戏数据、社区词库" maxlength="128">
+        </label>
+        <label class="wide">翻译名称
+          <input id="entry-translation" autocomplete="off" placeholder="输入准确译名" maxlength="1000" required>
+        </label>
+        <button type="submit" class="primary">保存词条</button>
+        <button id="cancel-entry-edit" type="button" class="quiet" hidden>取消编辑</button>
+      </form>
+      <p class="hint">market_hash_name 用于精确匹配 Steam 页面；游戏数据库物品 ID / Code 用于记录它对应的游戏内数据项；数据源名称用于追溯词条出处。三者用途不同，不要互相替代。</p>
+      <p class="hint">同一游戏、同一物品和同一语言的再次录入会更新原词条。不同游戏即使物品原名相同，也不会互相覆盖。</p>
+    </section>
+
+
+    <section class="panel">
+      <div class="section-heading">
+        <div><span class="step">03</span><h2>管理翻译词库</h2></div>
+        <p>按游戏隔离词条，支持搜索、分页、单条编辑和删除。</p>
+      </div>
+      <div class="dictionary-toolbar">
+        <label>所属游戏
+          <select id="manage-game"><option value="">选择要管理的游戏</option></select>
+        </label>
+        <label>搜索词条
+          <input id="entry-search" type="search" autocomplete="off" placeholder="搜索原名、译文、语言、来源或物品 ID">
+        </label>
+      </div>
+      <div id="entry-list" class="entry-list" aria-live="polite">
+        <p class="empty">正在读取本地翻译词库…</p>
+      </div>
+      <div class="entry-pagination">
+        <button id="entry-prev" type="button" class="quiet" disabled>上一页</button>
+        <span id="entry-page-info">0 条词条</span>
+        <button id="entry-next" type="button" class="quiet" disabled>下一页</button>
+      </div>
+      <p class="hint">每页最多显示 30 条。编辑可修改 Steam 原始名称、语言、译文和来源；清空来源 ID 可解除该词条与原游戏目录的 ID 关联。删除只移除当前游戏中的该条译文。</p>
+    </section>
+    <section class="panel">
+      <div class="section-heading">
+        <div><span class="step">04</span><h2>批量导入数据包</h2></div>
+        <p>适合为不同游戏制作、共享和维护独立翻译词库。</p>
+      </div>
+      <div class="remote-import">
+        <label>公开 JSON 数据包 URL
+          <input id="pack-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://raw.githubusercontent.com/.../game-pack.json">
+        </label>
+        <button id="load-pack-url" type="button" class="quiet">读取链接</button>
+      </div>
+      <p class="hint">仅读取符合 SteamHub Game Pack v1 格式的公开 JSON 文件。粘贴 Wiki 首页不会自动变成词库；普通网页需要专用解析适配器。首次读取会请求该站点的访问权限，不发送 Cookies。</p>
+      <label class="file-label">选择 JSON 数据包文件
+        <input id="pack-file" type="file" accept=".json,application/json">
+      </label>
+      <label>游戏数据包 JSON
+        <textarea id="pack-json" rows="9" spellcheck="false" placeholder='{"format":"alaxee-steamhub-game-pack","schemaVersion":1,"game":{"appId":"3678970","name":"Task Bar Hero","adapter":"steam-community-market","itemKey":"market_hash_name","defaultLocale":"zh-CN"},"translations":[{"marketHashName":"Example Market Item A","locale":"zh-CN","translation":"示例物品甲"}]}'></textarea>
+      </label>
+      <div class="import-actions">
+        <label class="mode-label">导入方式
+          <select id="import-mode">
+            <option value="merge">合并（冲突时拒绝）</option>
+            <option value="replace">覆盖该游戏词库</option>
+          </select>
+        </label>
+        <button id="import-pack" type="button" class="primary">验证并导入</button>
+        <a class="text-link" href="https://github.com/alaxee99/Alaxee-SteamHub/blob/feat/browser-extension-first/docs/game-pack.example.json" target="_blank" rel="noreferrer">查看数据包示例</a>
+      </div>
+      <p class="hint">合并会保留已有词条；如果同一物品和语言的译文冲突，导入将停止并提示，不会静默覆盖。覆盖只替换所选 AppID 的词库。</p>
+      <details class="source-transform">
+        <summary>从公开 JSON / CSV 目录转换词库</summary>
+        <p class="hint">适用于公开结构化商品目录。填写源数据字段名，就能把 JSON 记录数组或 CSV 表格转换成 SteamHub 数据包；不需要上游预先制作 SteamHub 格式。</p>
+        <div class="remote-import">
+          <label>公开 JSON / CSV 数据 URL
+            <input id="source-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/items.json 或 items.csv">
+          </label>
+          <button id="load-source-url" type="button" class="quiet">读取来源</button>
+        </div>
+        <label class="file-label">或选择本地 JSON / CSV 文件
+          <input id="source-file" type="file" accept=".json,.csv,application/json,text/csv">
+        </label>
+        <div class="form-grid source-fields">
+          <label>来源格式
+            <select id="source-format"><option value="json">JSON 记录</option><option value="csv">CSV 表格</option></select>
+          </label>
+          <label>JSON 记录路径
+            <input id="source-record-path" autocomplete="off" placeholder="例如 data.items；顶层数组留空">
+          </label>
+          <label>目标 AppID
+            <input id="source-app-id" inputmode="numeric" value="3678970" required>
+          </label>
+          <label>游戏名称
+            <input id="source-game-name" value="Task Bar Hero" maxlength="100" required>
+          </label>
+          <label>目标语言
+            <select id="source-locale"><option value="zh-CN">简体中文</option><option value="zh-TW">繁体中文</option><option value="en">English</option></select>
+          </label>
+          <label>Steam 市场键字段
+            <input id="source-market-field" value="market_hash_name" placeholder="market_hash_name" required>
+          </label>
+          <label>译文字段
+            <input id="source-translation-field" value="zh-Hans" placeholder="zh-Hans" required>
+          </label>
+          <label>游戏物品 ID 字段（选填）
+            <input id="source-id-field" value="id" placeholder="id">
+          </label>
+          <label class="wide">来源标记（选填）
+            <input id="source-label" value="public-json-catalog" maxlength="128">
+          </label>
+        </div>
+        <label>来源数据预览
+          <textarea id="source-data" rows="8" spellcheck="false" placeholder='粘贴 JSON 记录数组或 CSV 内容，或从上方 URL / 文件读取'></textarea>
+        </label>
+        <div class="import-actions">
+          <button id="convert-source" type="button" class="primary">转换为游戏数据包</button>
+          <span id="source-conversion-summary" class="source-summary" aria-live="polite"></span>
+        </div>
+        <p class="hint">只转换拥有精确 Steam market_hash_name 与译文的记录。相同键同译文会合并；同一键出现不同译文或不同来源 ID 时整组排除并报告冲突，不做模糊匹配。普通 Wiki HTML 页面不是 JSON / CSV，需要单独的页面解析适配器。</p>
+      </details>
+      <details class="source-transform site-discovery">
+        <summary>分析 Wiki / 网站目录（站点发现）</summary>
+        <p class="hint">粘贴 Wiki 首页或 sitemap 地址。此步骤只读取同站 robots.txt 与 sitemap，列出可访问页面候选，不抓取页面正文、不自动生成译文。</p>
+        <div class="remote-import">
+          <label>网站 / Wiki 入口 URL
+            <input id="site-index-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/wiki">
+          </label>
+          <button id="analyze-site" type="button" class="quiet">发现页面目录</button>
+        </div>
+        <p id="site-discovery-summary" class="source-summary" aria-live="polite">尚未分析站点。</p>
+        <ul id="site-discovery-pages" class="site-discovery-pages"></ul>
+        <div class="html-source-extractor">
+          <p class="extractor-title">单页 HTML 表格提取</p>
+          <div class="remote-import">
+            <label>页面 URL
+              <input id="html-page-url" type="url" autocomplete="off" spellcheck="false" placeholder="从上方目录选择，或粘贴同站页面 URL">
+            </label>
+            <button id="extract-html-page" type="button" class="quiet">读取并分析表格</button>
+          </div>
+          <p id="html-page-summary" class="source-summary" aria-live="polite">尚未读取 HTML 页面。</p>
+          <label class="file-label">导入浏览器保存的 HTML 页面（用于语言切换后的动态译文）
+            <input id="html-local-file" type="file" accept=".html,.htm,text/html">
+          </label>
+          <p class="hint">如果网站切换中文后 URL 抓取仍返回英文，请在物品页切换到中文、刷新确认，再用浏览器“另存为网页，仅 HTML”，然后在这里选择保存的文件。仅解析这一个本地 HTML 文件；不执行其中脚本、不联网、不读取 Cookie / 站点存储。文件上限 1 MiB。</p>
+          <label>识别到的表格
+            <select id="html-table-select" disabled><option value="">先读取一个 HTML 页面</option></select>
+          </label>
+          <div id="html-table-preview" class="html-table-preview">
+            <p class="empty">页面表格预览会显示在这里。</p>
+          </div>
+          <div class="form-grid html-mapping-fields">
+            <label class="wide">Steam 物品匹配方式
+              <select id="html-mapping-mode">
+                <option value="exact-market-name">直接使用精确 market_hash_name</option>
+                <option value="source-id">用 Wiki ItemKey / ID 反查已导入的 Steam 目录（推荐）</option>
+              </select>
+            </label>
+            <label id="html-reference-game-wrap" class="wide" hidden>Steam 参考词库
+              <select id="html-reference-game" disabled><option value="">请先导入带来源 ID 的 Steam 目录</option></select>
+            </label>
+            <label id="html-app-id-wrap">目标 AppID
+              <input id="html-app-id" inputmode="numeric" value="3678970" required>
+            </label>
+            <label id="html-game-name-wrap">游戏名称
+              <input id="html-game-name" value="Task Bar Hero" maxlength="100" required>
+            </label>
+            <label>目标语言
+              <select id="html-locale"><option value="zh-CN">简体中文</option><option value="zh-TW">繁体中文</option><option value="en">English</option></select>
+            </label>
+            <label id="html-key-field-label">Steam market_hash_name 列
+              <select id="html-market-field" disabled><option value="">选择列</option></select>
+            </label>
+            <label>译文列
+              <select id="html-translation-field" disabled><option value="">选择列</option></select>
+            </label>
+            <label id="html-source-id-field-wrap">额外来源 ID 列（选填）
+              <select id="html-source-id-field" disabled><option value="">不记录来源 ID</option></select>
+            </label>
+            <label class="wide">来源标记
+              <input id="html-source-label" value="wiki-html" maxlength="128">
+            </label>
+          </div>
+          <div class="import-actions">
+            <button id="convert-html-table" type="button" class="primary" disabled>按列映射生成数据包</button>
+            <span id="html-conversion-summary" class="source-summary" aria-live="polite"></span>
+          </div>
+          <p class="hint">每次只读取你明确选择的一张页面，不递归抓取链接。若 Wiki 提供游戏内部 ItemKey / ID，可使用已导入的 Steam 参考词库按 ID 精确反查 market_hash_name；否则必须手动选择原始 market_hash_name 列。“物品名称”不会被自动猜作 Steam 市场键。生成后仍需在上方检查 JSON，并明确选择合并或覆盖后导入。</p>
+          <p class="hint"><a class="text-link" href="https://github.com/alaxee99/Alaxee-SteamHub/blob/feat/browser-extension-first/docs/game-pack.taskbar-hero-zh-CN.json" target="_blank" rel="noreferrer">获取 Task Bar Hero Steam 参考目录（1,106 条）</a>。先下载并在上方导入一次，之后才能用 Wiki ItemKey 做 ID 反查。</p>
+        </div>
+        <div class="html-source-extractor card-source-extractor">
+          <p class="extractor-title">重复商品卡片提取</p>
+          <p class="hint">适用于 Wiki 商品列表里的卡片 / 条目网格。复用上方已读取的同一页面，不会再次联网；先从自动识别的 CSS 选择器中挑选重复卡片，再指定卡片内的 ID 和译文节点。</p>
+          <div class="form-grid html-mapping-fields">
+            <label class="wide">检测到的卡片结构
+              <select id="html-card-candidates" disabled><option value="">先读取 HTML 页面</option></select>
+            </label>
+            <label class="wide">商品卡片 CSS 选择器
+              <input id="html-card-selector" autocomplete="off" spellcheck="false" placeholder=".item-card 或 article.item">
+            </label>
+            <label class="wide">卡片内 ID 节点 CSS 选择器
+              <input id="html-card-id-selector" autocomplete="off" spellcheck="false" value="[data-item-key], [data-item-id], [data-id]" placeholder="[data-item-key]；留空时检查卡片自身属性">
+            </label>
+            <label>ID 属性
+              <input id="html-card-id-attribute" autocomplete="off" spellcheck="false" value="auto" placeholder="auto / data-item-key / textContent">
+            </label>
+            <label class="wide">卡片内译文节点 CSS 选择器
+              <input id="html-card-translation-selector" autocomplete="off" spellcheck="false" value="[data-translation], .item-name, [itemprop='name'], h2, h3, h4" placeholder=".item-name 或 [itemprop='name']">
+            </label>
+          </div>
+          <div class="import-actions">
+            <button id="extract-html-cards" type="button" class="quiet" disabled>提取商品卡片</button>
+            <span id="html-card-summary" class="source-summary" aria-live="polite">尚未分析商品卡片。</span>
+          </div>
+          <div id="html-card-preview" class="html-table-preview">
+            <p class="empty">商品卡片 ID、译文和标题预览会显示在这里。</p>
+          </div>
+          <div class="import-actions">
+            <button id="convert-html-cards" type="button" class="primary" disabled>从商品卡片生成数据包</button>
+            <span id="html-card-conversion-summary" class="source-summary" aria-live="polite"></span>
+          </div>
+          <p class="hint">若 ID 是 Wiki 内部 ItemKey，请使用上方“用 Wiki ItemKey / ID 反查”模式；若卡片直接提供精确 Steam market_hash_name，则切换到直接模式。无法找到 ID 或译文的卡片会跳过并计数。</p>
+        </div>
+        <div class="html-source-extractor card-source-extractor detail-source-extractor">
+          <p class="extractor-title">单物品详情页提取</p>
+          <p class="hint">适用于每个物品独立页面。默认只读取明确标注的 ItemKey / ID 与中文名称字段；若页面用标题或自定义节点展示译文，可指定 CSS 选择器。此操作复用当前已读取的单页 HTML，不会打开或抓取其他链接。</p>
+          <div class="form-grid html-mapping-fields">
+            <label class="wide">详情页结构模板
+              <select id="html-detail-template"><option value="generic">通用字段标签 / 自定义 CSS</option><option value="taskbarherowiki">TaskBarHeroWiki 详情页（中文标题）</option></select>
+            </label>
+            <label class="wide">来源 ID 字段标签（精确匹配，以 | 分隔）
+              <input id="html-detail-id-labels" autocomplete="off" spellcheck="false" value="ItemKey|Item Key|Item ID|ItemId|ID|物品ID|物品 ID">
+            </label>
+            <label class="wide">译文字段标签（精确匹配，以 | 分隔）
+              <input id="html-detail-translation-labels" autocomplete="off" spellcheck="false" value="简体中文|简体中文名|中文名称|中文名|Chinese Name|zh-CN|zh-Hans">
+            </label>
+            <label class="wide">来源 ID CSS 选择器（选填，填写后优先于字段标签）
+              <input id="html-detail-id-selector" autocomplete="off" spellcheck="false" placeholder="#item-key 或 [data-item-key]">
+            </label>
+            <label>来源 ID 属性
+              <input id="html-detail-id-attribute" autocomplete="off" spellcheck="false" value="auto" placeholder="auto / data-item-key / textContent">
+            </label>
+            <label class="wide">译文 CSS 选择器（选填，填写后优先于字段标签）
+              <input id="html-detail-translation-selector" autocomplete="off" spellcheck="false" placeholder="例如 #firstHeading 或 .localized-name">
+            </label>
+          </div>
+          <div class="import-actions">
+            <button id="extract-html-detail" type="button" class="quiet" disabled>提取详情页字段</button>
+            <span id="html-detail-summary" class="source-summary" aria-live="polite">尚未分析单物品详情页。</span>
+          </div>
+          <div id="html-detail-preview" class="html-table-preview">
+            <p class="empty">来源 ID、译文、标题与字段匹配情况会显示在这里。</p>
+          </div>
+          <div class="import-actions">
+            <button id="convert-html-detail" type="button" class="primary" disabled>从详情页生成数据包</button>
+            <span id="html-detail-conversion-summary" class="source-summary" aria-live="polite"></span>
+          </div>
+          <p class="hint">必须得到唯一 ID 和唯一译文才会生成记录。若多个字段同名但内容不同，解析器会标记歧义并停止映射。直接模式要求 ID 本身就是精确 market_hash_name；Wiki ItemKey 模式仍使用已导入 Steam 参考词库按 ID 精确反查。</p>
+        </div>
+        <p class="hint">发现 sitemap 不代表网站允许批量抓取。读取单页前应检查站点条款；本工具不批量抓取、不绕过 robots 规则，也不会据此认定数据可再分发。</p>
+      </details>
+    </section>
+
+    <section class="panel">
+      <div class="section-heading list-heading">
+        <div><span class="step">05</span><h2>已配置游戏</h2></div>
+        <button id="refresh-games" type="button" class="quiet">刷新列表</button>
+      </div>
+      <div id="game-list" class="game-list" aria-live="polite">
+        <p class="empty">正在读取本地游戏配置…</p>
+      </div>
+    </section>
+
+
+      </div>
+    </details>
+    <footer class="footer">
+      <span>本地存储 · 不读取 Steam 账号凭据</span>
+      <span id="status" role="status" aria-live="polite">就绪</span>
+    </footer>
+  </main>
+
+  <script src="core/steam-app-lookup.js"></script>
+  <script src="core/game-source-catalog.js"></script>
+  <script src="storage-adapter.js"></script>
+  <script src="core/game-registry.js"></script>
+  <script src="core/public-pack-loader.js"></script>
+  <script src="core/source-record-mapper.js"></script>
+  <script src="core/site-source-discovery.js"></script>
+  <script src="core/html-table-parser.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

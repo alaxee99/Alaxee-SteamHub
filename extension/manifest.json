@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "ALAXEE SteamHub",
+  "version": "0.8.4",
+  "description": "Steam Community Market item name and detail localization with per-game dictionaries.",
+  "permissions": [
+    "storage"
+  ],
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://steamcommunity.com/market",
+        "https://steamcommunity.com/market/*",
+        "https://www.steamcommunity.com/market",
+        "https://www.steamcommunity.com/market/*"
+      ],
+      "js": [
+        "runtime-status.js",
+        "market-locale.js",
+        "core/item-identity.js",
+        "core/translation-engine.js",
+        "core/rate-limiter.js",
+        "core/game-registry.js",
+        "market-items.js",
+        "storage-adapter.js",
+        "market-text-localizer.js",
+        "content.js"
+      ],
+      "run_at": "document_start",
+      "all_frames": false,
+      "world": "ISOLATED"
+    }
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
+  ]
+}
