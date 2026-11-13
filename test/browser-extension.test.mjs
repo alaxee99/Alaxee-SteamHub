@@ -342,6 +342,9 @@ test("CSV source parser supports quoted commas, escaped quotes and multiline cel
   assert.equal(records[1]["zh-Hans"], "多行\n译文");
   assert.throws(() => mapper.parseCsv('name,name\nA,B\n'), /不能重复/);
   assert.throws(() => mapper.parseCsv('name,translation\n"unterminated,译文\n'), /未闭合的引号/);
+  assert.equal(mapper.parseCsv("\\uFEFFmarket_hash_name,zh-Hans\\nSilver Ingot,银锭\\n")[0].market_hash_name, "Silver Ingot");
+  assert.throws(() => mapper.parseCsv('name,translation\\n"quoted"tail,译文\\n'), /多余字符/);
+  assert.throws(() => mapper.parseCsv("name,translation\\nA,译文,extra\\n"), /列数/);
 });
 
 test("JSON source parser resolves nested record arrays without unsafe property paths", () => {
