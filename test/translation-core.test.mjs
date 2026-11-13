@@ -688,14 +688,12 @@ test("game pack export and re-import preserve exact detail text translations", a
 });
 
 
-test("market item detail pages recognize Steam's item-name class selector", async () => {
+test("market listing identity remains available when Steam uses a generated title wrapper", async () => {
   const context = await loadModules(coreFiles);
   const scanner = context.__ALAXEE_STEAMHUB_MARKET_ITEMS__;
-  const titleElement = { textContent: "Abyss Amulet (Arcana) C" };
   const root = {
-    querySelectorAll(selector) {
-      return selector === ".item-name" ? [titleElement] : [];
-    }
+    querySelectorAll() { return []; },
+    querySelector() { return null; }
   };
   const result = scanner.collectMarketListingLinks(
     root,
@@ -703,5 +701,5 @@ test("market item detail pages recognize Steam's item-name class selector", asyn
   );
   assert.equal(result.length, 1);
   assert.equal(result[0].marketHashName, "Abyss Amulet (Arcana) C");
-  assert.equal(result[0].element, titleElement);
+  assert.equal(result[0].element, null);
 });
