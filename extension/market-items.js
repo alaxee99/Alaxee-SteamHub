@@ -5,14 +5,12 @@
   const IDENTITY_KEY = "__ALAXEE_STEAMHUB_ITEM_IDENTITY__";
   if (globalThis[API_KEY]) return;
 
-  function findListingContainer(anchor, root, marketHashName) {
-    const anchorText = String(anchor.textContent || "").replace(/\s+/g, " ").trim();
-    const anchorClasses = String(anchor.className || "").split(/\s+/);
-    if (anchorClasses.includes("market_listing_row_link") && anchorText.includes(marketHashName)) {
-      return anchor;
-    }
-
+  function findListingContainer(anchor, root) {
+    // Steam's search overview uses a table row around each listing link.
+    // Prefer the row because the anchor itself may have no layout box even
+    // while its child text is visible (for example, display: contents).
     const rowSelectors = [
+      "tr.market_listing_row",
       ".market_listing_row",
       ".market_listing_searchresult",
       "[id^='result_']"
@@ -22,7 +20,8 @@
       if (row) return row;
     }
 
-    if (anchorText === marketHashName || anchorText.includes(marketHashName)) return anchor;
+    const nameCell = anchor.closest?.(".market_listing_item_name_cell");
+    if (nameCell) return nameCell;
 
     const parent = anchor.parentElement;
     if (!parent || parent === root || parent.tagName === "BODY" || parent.tagName === "HTML") {
@@ -83,9 +82,8 @@
       if (!itemKey || (searchPageAppId && itemKey.appId !== searchPageAppId) ||
           results.has(itemKey.cacheIdentity)) continue;
 
-      const container = findListingContainer(anchor, root, itemKey.marketHashName);
+      const container = findListingContainer(anchor, root);
       if (container.hidden || container.getAttribute?.("aria-hidden") === "true") continue;
-      if (typeof container.getClientRects === "function" && container.getClientRects().length === 0) continue;
 
       results.set(itemKey.cacheIdentity, {
         ...itemKey,

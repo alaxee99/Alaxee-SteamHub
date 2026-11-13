@@ -110,7 +110,8 @@ test("Steam search URL AppID scopes current Steam listing anchors", () => {
       href,
       hidden: false,
       getAttribute(name) { return name === "href" ? href : null; },
-      getClientRects() { return [{}]; },
+      // An anchor can have no own layout box while its product row is visible.
+      getClientRects() { return []; },
       closest() { return null; }
     };
   };
@@ -153,7 +154,9 @@ test("Steam Market search collection resolves the full listing row around overla
     hidden: false,
     getClientRects() { return [{}]; },
     getBoundingClientRect() { return { top: 100, bottom: 180 }; },
-    closest(selector) { return selector === ".market_listing_row" ? this : null; },
+    closest(selector) {
+      return selector === "tr.market_listing_row" || selector === ".market_listing_row" ? this : null;
+    },
     querySelectorAll() { return []; },
     getAttribute() { return null; }
   };
@@ -165,9 +168,13 @@ test("Steam Market search collection resolves the full listing row around overla
     href,
     hidden: false,
     parentElement: row,
-    getClientRects() { return [{}]; },
+    // The linked product name is visible through the row, but the anchor itself
+    // can report no client rects in Steam's current table-based layout.
+    getClientRects() { return []; },
     getAttribute(name) { return name === "href" ? href : null; },
-    closest(selector) { return selector === ".market_listing_row" ? row : null; }
+    closest(selector) {
+      return selector === "tr.market_listing_row" || selector === ".market_listing_row" ? row : null;
+    }
   };
   row.childNodes = [anchor, titleElement];
   titleElement.parentElement = row;
@@ -339,7 +346,7 @@ test("Steam Market search overview localizes titles inside the current clickable
 
   assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.8.9");
+  assert.equal(diagnostics.version, "0.9.0");
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.detectedItems, 1);
   assert.equal(diagnostics.matchedItems, 1);
@@ -397,7 +404,7 @@ test("runtime status hides success UI and only shows actionable warnings or erro
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.8.9");
+  assert.equal(manifest.version, "0.9.0");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1616,7 +1623,7 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.8.9");
+  assert.equal(diagnostics.version, "0.9.0");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);
