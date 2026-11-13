@@ -641,3 +641,48 @@ test("Chrome storage adapter isolates keys under the SteamHub namespace", async 
   assert.equal(Object.keys(await store.getAll()).length, 1);
   await assert.rejects(store.get("other-extension:data"), /namespace/);
 });
+
+
+test("game pack export and re-import preserve exact detail text translations", async () => {
+  const context = await loadModules(coreFiles);
+  const api = context.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
+
+  function createStorage() {
+    const values = new Map();
+    return {
+      async get(key) { return values.get(key) ?? null; },
+      async set(key, value) { values.set(key, value); },
+      async delete(key) { values.delete(key); },
+      async getAll() { return Object.fromEntries(values); }
+    };
+  }
+
+  const sourceRegistry = api.createGameRegistry(createStorage());
+  const textTranslations = [
+    { sourceText: "A mysterious abyssal relic.", translation: "神秘的深渊遗物。" },
+    { sourceText: "Inherent Stats", translation: "固有属性" }
+  ];
+  await sourceRegistry.importPack({
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero" },
+    translations: [
+      { marketHashName: "Abyss Amulet (Arcana) C", locale: "zh-CN", translation: "深渊护符" }
+    ],
+    textTranslations
+  });
+
+  const exported = await sourceRegistry.exportPack("3678970");
+  assert.deepEqual(
+    Array.from(exported.textTranslations || [], (entry) => [entry.sourceText, entry.translation]),
+    textTranslations.map((entry) => [entry.sourceText, entry.translation])
+  );
+
+  const destinationRegistry = api.createGameRegistry(createStorage());
+  await destinationRegistry.importPack(exported);
+  const restored = await destinationRegistry.get("3678970");
+  assert.deepEqual(
+    Array.from(restored.textTranslations || [], (entry) => [entry.sourceText, entry.translation]),
+    textTranslations.map((entry) => [entry.sourceText, entry.translation])
+  );
+});
