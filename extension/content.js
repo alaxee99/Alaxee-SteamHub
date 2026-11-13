@@ -70,34 +70,29 @@
     return null;
   }
 
-  function findNameTextNode(item) {
+  function findNameTextNodes(item) {
+    const matches = new Set();
+    const roots = item.element ? [item.element] : [document.body || document.documentElement];
+
+    for (const root of roots) {
+      if (!root || typeof document.createTreeWalker !== "function") continue;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let node = walker.nextNode();
+      while (node) {
+        const existing = localizedTextNodes.get(node);
+        const original = existing?.original ?? node.nodeValue;
+        if (normalizedText(original) === item.marketHashName) matches.add(node);
+        node = walker.nextNode();
+      }
+    }
+
     for (const [node, record] of localizedTextNodes) {
       if (record.kind === "name" && record.appId === item.appId &&
           record.original === item.marketHashName && node.isConnected) {
-        return node;
+        matches.add(node);
       }
     }
-
-    if (item.element) {
-      const found = findTextNode(item.element, item.marketHashName);
-      if (found) return found;
-    }
-
-    const selectors = [
-      "#largeiteminfo_item_name",
-      "#largeiteminfo .market_listing_nav .market_listing_item_name",
-      ".market_listing_nav .market_listing_item_name",
-      "h1",
-      "h2"
-    ];
-    for (const selector of selectors) {
-      for (const root of document.querySelectorAll(selector)) {
-        const found = findTextNode(root, item.marketHashName);
-        if (found) return found;
-      }
-    }
-    const bodyMatch = findTextNode(document.body || document.documentElement, item.marketHashName);
-    return bodyMatch;
+    return Array.from(matches);
   }
 
   function restoreTextNode(node) {
@@ -121,30 +116,35 @@
   }
 
   function applyNameTranslation(item, translation) {
-    const node = findNameTextNode(item);
-    if (!node) return false;
-
-    const existing = localizedTextNodes.get(node);
+    const nodes = findNameTextNodes(item);
     if (!translation) {
-      if (existing?.kind === "name") restoreTextNode(node);
-      return false;
+      for (const node of nodes) {
+        const existing = localizedTextNodes.get(node);
+        if (existing?.kind === "name") restoreTextNode(node);
+      }
+      return 0;
     }
 
-    if (!existing) {
-      localizedTextNodes.set(node, {
-        appId: item.appId,
-        kind: "name",
-        original: node.nodeValue,
-        originalTitle: node.parentElement?.getAttribute("title") ?? null
-      });
+    let applied = 0;
+    for (const node of nodes) {
+      const existing = localizedTextNodes.get(node);
+      if (!existing) {
+        localizedTextNodes.set(node, {
+          appId: item.appId,
+          kind: "name",
+          original: node.nodeValue,
+          originalTitle: node.parentElement?.getAttribute("title") ?? null
+        });
+      }
+      if (node.nodeValue !== translation) node.nodeValue = translation;
+      if (node.parentElement) {
+        const original = existing?.original ?? localizedTextNodes.get(node).original;
+        node.parentElement.title = "原文：" + original;
+        node.parentElement.setAttribute(APP_ATTRIBUTE, item.appId);
+      }
+      applied += 1;
     }
-    if (node.nodeValue !== translation) node.nodeValue = translation;
-    if (node.parentElement) {
-      const original = existing?.original ?? localizedTextNodes.get(node).original;
-      node.parentElement.title = "原文：" + original;
-      node.parentElement.setAttribute(APP_ATTRIBUTE, item.appId);
-    }
-    return true;
+    return applied;
   }
 
   function applyGameTextTranslations(appId, mappings) {
@@ -219,16 +219,17 @@
       locale: game.game.defaultLocale || "zh-CN"
     });
     if (result.status === "translated") {
-      if (applyNameTranslation(item, result.record.translation)) diagnostics.translatedNames += 1;
+      diagnostics.translatedNames += applyNameTranslation(item, result.record.translation);
     } else {
+      const restored = applyNameTranslation(item, "");
       if (diagnostics.unmatchedNames.length < 20) {
         diagnostics.unmatchedNames.push({
           appId: item.appId,
           marketHashName: item.marketHashName,
-          status: result.status
+          status: result.status,
+          nameNodesFound: restored
         });
       }
-      applyNameTranslation(item, "");
     }
   }
 
