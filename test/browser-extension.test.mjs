@@ -342,9 +342,9 @@ test("CSV source parser supports quoted commas, escaped quotes and multiline cel
   assert.equal(records[1]["zh-Hans"], "多行\n译文");
   assert.throws(() => mapper.parseCsv('name,name\nA,B\n'), /不能重复/);
   assert.throws(() => mapper.parseCsv('name,translation\n"unterminated,译文\n'), /未闭合的引号/);
-  assert.equal(mapper.parseCsv("\\uFEFFmarket_hash_name,zh-Hans\\nSilver Ingot,银锭\\n")[0].market_hash_name, "Silver Ingot");
-  assert.throws(() => mapper.parseCsv('name,translation\\n"quoted"tail,译文\\n'), /多余字符/);
-  assert.throws(() => mapper.parseCsv("name,translation\\nA,译文,extra\\n"), /列数/);
+  assert.equal(mapper.parseCsv("\uFEFFmarket_hash_name,zh-Hans\nSilver Ingot,银锭\n")[0].market_hash_name, "Silver Ingot");
+  assert.throws(() => mapper.parseCsv('name,translation\n"quoted"tail,译文\n'), /多余字符/);
+  assert.throws(() => mapper.parseCsv("name,translation\nA,译文,extra\n"), /列数/);
 });
 
 test("JSON source parser resolves nested record arrays without unsafe property paths", () => {
@@ -380,7 +380,7 @@ test("source record mapper builds exact game-pack keys and excludes conflicts", 
   assert.equal(result.stats.conflictingKeys, 1);
   assert.equal(result.stats.missingMarketKey, 2);
   assert.equal(result.stats.missingTranslation, 1);
-  assert.deepEqual(result.pack.translations.map((entry) => entry.marketHashName), ["Silver Ingot", "Arcane Crystal"]);
+  assert.deepEqual(Array.from(result.pack.translations, (entry) => entry.marketHashName), ["Silver Ingot", "Arcane Crystal"]);
   assert.equal(result.pack.translations[0].translation, "银锭");
   assert.equal(result.pack.translations[0].sourceItemId, "142001");
   assert.equal(result.pack.translations[1].source, "test-source");
