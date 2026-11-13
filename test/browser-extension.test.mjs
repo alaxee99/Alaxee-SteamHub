@@ -1001,7 +1001,7 @@ test("Options page wires detail extraction to the existing exact mapping workflo
   assert.match(optionsJs, /parseHtmlDetailRecord\(extractedHtmlSource/);
   assert.match(optionsJs, /html-detail-template/);
   assert.match(optionsJs, /span\.font-mono\.text-xs\.text-text-faint/);
-  assert.match(optionsJs, /h1\.text-white\.text-4xl\.font-bold/);
+  assert.match(optionsJs, /heading\.pixel/);
   assert.match(optionsJs, /file\.size > 1024 \* 1024/);
   assert.match(optionsJs, /await file\.text\(\)/);
   assert.match(optionsJs, /parseHtmlTables\(localHtml/);
