@@ -348,6 +348,75 @@ test("game registry keeps profiles and translations isolated by Steam AppID", as
   assert.equal((await registry.get("3678970")).game.enabled, true);
 });
 
+test("game registry updates and removes one exact translation without affecting sibling entries", async () => {
+  const context = await loadModules(coreFiles);
+  const api = context.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
+  const values = new Map();
+  const storage = {
+    async get(key) { return values.get(key) ?? null; },
+    async set(key, value) { values.set(key, value); },
+    async delete(key) { values.delete(key); },
+    async getAll() { return Object.fromEntries(values); }
+  };
+  const registry = api.createGameRegistry(storage);
+  await registry.addGame({ appId: "3678970", name: "Task Bar Hero" });
+  await registry.upsertTranslation("3678970", {
+    marketHashName: "Old Market Name",
+    sourceItemId: "catalog-100",
+    source: "community-catalog",
+    locale: "zh-CN",
+    translation: "旧名称"
+  });
+  await registry.upsertTranslation("3678970", {
+    marketHashName: "Sibling Item",
+    locale: "zh-CN",
+    translation: "保留词条"
+  });
+
+  const edited = await registry.updateTranslation("3678970", {
+    marketHashName: "Old Market Name",
+    locale: "zh-CN"
+  }, {
+    marketHashName: "New Market Name",
+    sourceItemId: "",
+    source: "",
+    locale: "zh-CN",
+    translation: "新名称"
+  });
+  assert.equal(edited.translations.length, 2);
+  const renamed = edited.translations.find((entry) => entry.marketHashName === "New Market Name");
+  assert.equal(renamed.translation, "新名称");
+  assert.equal(renamed.source, "manual");
+  assert.equal(renamed.sourceItemId, undefined);
+  assert.equal(edited.translations.some((entry) => entry.marketHashName === "Old Market Name"), false);
+
+  await assert.rejects(
+    registry.updateTranslation("3678970", {
+      marketHashName: "New Market Name",
+      locale: "zh-CN"
+    }, {
+      marketHashName: "Sibling Item",
+      locale: "zh-CN",
+      translation: "冲突译文"
+    }),
+    /already uses this market item and locale/
+  );
+
+  const removed = await registry.removeTranslation("3678970", {
+    marketHashName: "New Market Name",
+    locale: "zh-CN"
+  });
+  assert.equal(removed.translations.length, 1);
+  assert.equal(removed.translations[0].marketHashName, "Sibling Item");
+  await assert.rejects(
+    registry.removeTranslation("3678970", {
+      marketHashName: "New Market Name",
+      locale: "zh-CN"
+    }),
+    /was not found/
+  );
+});
+
 test("game pack import validates schema, merges safely, rejects conflicts, and exports per game", async () => {
   const context = await loadModules(coreFiles);
   const api = context.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
