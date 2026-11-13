@@ -1,120 +1,105 @@
-# TBH Index primary reference assessment
+# TBH Index: primary Task Bar Hero market reference
 
 Assessment date: 2026-11-13
 
 ## Decision
 
-**Primary community reference for Task Bar Hero market-item mapping; not yet an automated SteamHub provider.**
+**Use TBH Index's Chinese Market Info detail pages as the primary human-readable source for Task Bar Hero market translations. Use Steam Community Market as the canonical list of exact item keys.**
 
-The source is substantially more useful for this product than a generic item dump because its item pages can connect three different identities:
+No API or maintainer contact is needed for the current workflow: SteamHub is collecting a small, manually verified set of publicly readable pages for a private local dictionary. Do not turn this into a high-volume crawler. TBH Index's Terms of Service prohibit excessive scraping, interfering with or overloading its servers/APIs, and unauthorized access.
 
-1. The game's own catalog key (`ItemKey` / `GearKey`).
-2. The localized item display name.
-3. The exact Steam Community Market item name.
+The useful division of responsibility is:
 
-That cross-reference is what SteamHub needs. The source remains a fan site, not the game developer or an official Steam data contract.
+1. Steam Community Market search establishes which market items currently exist and provides the exact `market_hash_name`.
+2. TBH Index's Simplified Chinese `/zh/market/item/{slug}` page gives the localized market-facing Chinese name and links directly to the corresponding Steam listing.
+3. The linked Wiki item page provides additional game-catalog metadata such as `ItemKey`, `GearKey`, grade, type, level, stats and drop sources where exposed.
 
-## Verified public coverage
+**Do not take the Wiki article heading as the preferred market translation when a separate localized Market Info page exists.** The article title may include an internal variant suffix that the market-facing localized label omits.
 
-The site's current public pages identify their game-data snapshot as Task Bar Hero Ver 1.3.2 and say the data is re-extracted after game patches. Publicly advertised coverage includes:
+## Whole-site map
 
-- 1,576 obtainable gear items.
-- 189 crafting materials.
-- 253 runes.
-- 77 monsters.
-- 192 stages.
-- 120 chest boxes.
-- A separate Market Info catalogue showing 1,751 tracked items.
-- 19 interface/localization languages.
+The Chinese homepage is https://tbhindex.com/zh and the localized Wiki directory is https://tbhindex.com/zh/wiki. The site advertises 19 interface languages and its own game-data snapshot Ver 1.3.2. The Wiki directory groups 18 reference areas across items, stages/monsters, heroes/combat and planning tools.
 
-These are the site's published counts, not an independent proof that every row has been checked against the current game build. The Terms of Service explicitly disclaim any guarantee of accuracy, completeness, or availability. Counts from different sections and other sites are not necessarily comparable: a page may count unique item definitions, grade/level variants, market-tradable entries, or expanded data rows.
+For SteamHub's market dictionary, prioritise these sections:
 
-Primary pages:
-- https://tbhindex.com/
-- https://tbhindex.com/wiki
-- https://tbhindex.com/wiki/gear
-- https://tbhindex.com/wiki/materials
-- https://tbhindex.com/wiki/runes
-- https://tbhindex.com/market
+| Section | Published / observed coverage | What it contributes | Use in the market dictionary |
+|---|---:|---|---|
+| Gear | 1,576 in the page copy; one live rendering showed 1,590 rows | Equipment names, grade, slot, level, stats, Steam price | High; only when an exact Steam listing exists |
+| Materials | Page copy says 189; page title says 143; link directory showed 159 | Materials, grade, effects, uses, prices | High; only when an exact Steam listing exists |
+| Market Info | 1,757 tracked items in a recent page snapshot | Chinese-facing market names, grade/type, price, volume and individual market-detail pages | **Primary translation bridge** |
+| Monsters | Heading says 74; body says 77; the list includes repeated boss/difficulty variants | Monster names and combat stats | Not a Steam item dictionary |
+| Chests | 120 boxes | Chest names, grade odds, loot tables | Not a Steam item dictionary unless a chest is itself listed on Steam |
+| Runes | 253 nodes, 29 distinct rune names | Account-wide progression and per-level effects | Not a Steam item dictionary |
+| Stages | The page headline/FAQ says 192, while the summary table breaks down 30 + 53 + 53 + 53 = 189 | Stage names, waves, boss multipliers, drops | Separate terminology dictionary if needed |
+| Heroes / skills / buffs / effects / guides | Separate reference pages | Game terminology and mechanics | Future in-game UI glossary, not market item names |
 
-## Verified Steam-market cross-reference; localized label pending QA
+These counts are **not a clean, internally consistent export contract**. For example, the Materials page itself shows three different counts (143 in the page title, 189 in its text, and 159 in its browse list). The Gear listing copy says 1,576, while a live page rendering showed 1,590. Monster and Stage pages also disagree between headline and body counts. Treat advertised totals as navigation clues, not proof that every row is present.
 
-A Simplified Chinese item page was inspected:
+## Canonical market coverage: Steam first
 
-https://tbhindex.com/zh/wiki/gear/mystic-armor-beyond-516111
+The Steam Community Market search page for AppID `3678970` currently reports **1,098 results**:
 
-It identifies the localized item as **神秘盔甲A**, Beyond grade, Armor, level 50. Its metadata identifies `ItemKey 516111` and `GearKey 516111`. The page explicitly states that the corresponding Steam Community Market name is `Mystic Armor (Beyond) A`.
+https://steamcommunity.com/market/search?appid=3678970&l=english
 
-This is a verified example of the catalog-to-market cross-reference SteamHub needs. It does **not** yet establish which Chinese display label should be shipped:
+The TBH Index Market Info page showed **1,757 tracked items** in its latest inspected snapshot:
 
-| Field | Value |
-|---|---|
-| Steam AppID | `3678970` |
-| Steam `market_hash_name` | `Mystic Armor (Beyond) A` |
-| TBH Index `ItemKey` | `516111` |
-| TBH Index `GearKey` | `516111` |
-| Locale | `zh-CN` |
-| TBH Index Chinese page title | `神秘盔甲A` |
-| Secondary Wiki Chinese title for the same catalog ID | `神秘盔甲` |
-| Translation status | Pending in-game / game-locale verification |
-| Provenance | `tbhindex.com` |
+https://tbhindex.com/zh/market
 
-For a future game-pack record, the mapping fields are:
+Those numbers describe different sets and must not be treated as equivalent. The Steam result count is the baseline for currently discoverable market listings; TBH Index's larger tracked set may include historic, inactive, differently classified or otherwise non-current records. A dictionary claiming current full Steam Market coverage must be measured against Steam's current result set, not the larger TBH headline number.
 
-- `marketHashName`: `Mystic Armor (Beyond) A`
-- `sourceItemId`: `516111`
-- `locale`: `zh-CN`
-- `source`: `tbhindex.com`
-- Candidate TBH Index page title: `神秘盔甲A`
+Counts change over time. Record the collection date and re-check the Steam total before describing coverage as complete.
 
-The Steam market hash name remains the matching key. The TBH Index ID is only a cross-reference and must never replace it. The distinct site taskbarhero.wiki maps the same catalog ID and Steam market item but its localized item page title is `神秘盔甲`. These may represent a market-facing suffix versus a base game item name rather than a true translation conflict. Preserve both observations and verify the intended Steam Market overlay wording against the actual Steam Simplified Chinese page before adding the record to a distributable game pack. **No translation record for this sample is bundled by this assessment.**
+## Verified localized market mappings
 
-## Important coverage qualification: Farming page
+The following are individually checked across TBH Index and the official Steam Community Market:
 
-The supplied page, https://tbhindex.com/zh/wiki/farming, is a farming-efficiency calculator, not the master item catalogue.
+| Steam `market_hash_name` | TBH Index Chinese market label | Source catalog ID | Evidence |
+|---|---|---:|---|
+| `Mystic Armor (Beyond) A` | 神秘盔甲 | `516111` | TBH Market Info page links to the exact Steam listing and to Wiki item `516111` |
+| `Silver Ingot` | 银锭 | `142001` | TBH Chinese Wiki item page exposes ItemKey 142001; Steam listing title is exact |
+| `Kingdom 50th Anniversary Coin` | 王国50周年纪念币 | Not copied yet | TBH localized Market Info page shows the Chinese and English names; Steam listing title matches |
 
-Its own explanation says:
-- There are 168 farmable stages out of 189 stages in that calculation.
-- Reference clear-time rankings currently cover 108 of those 168 farmable stages.
-- The remaining 60 Plaguelands hard-mode stages are still awaiting measured clear times.
+Evidence pages:
 
-The Farming page reports 189 stages while the main Wiki overview reports 192; the public pages therefore use different stage-count scopes or have a count inconsistency that still needs clarification. Therefore this specific calculator is incomplete for measured farming rankings. It should not be treated as evidence that the whole TBH Index database is incomplete, nor should it be used as a source for the Steam translation dictionary. Use the Gear, Materials, Market, and individual item pages for item mapping.
+- Mystic Armor Market Info: https://tbhindex.com/zh/market/item/mystic-armor-beyond
+- Mystic Armor Wiki: https://tbhindex.com/zh/wiki/gear/mystic-armor-beyond-516111
+- Steam Mystic Armor: https://steamcommunity.com/market/listings/3678970/Mystic%20Armor%20(Beyond)%20A
+- Silver Ingot Wiki: https://tbhindex.com/zh/wiki/materials/silver-ingot-rare-142001
+- Steam Silver Ingot: https://steamcommunity.com/market/listings/3678970/Silver%20Ingot
+- Kingdom Coin Market Info: https://tbhindex.com/zh/market/item/kingdom-50th-anniversary-coin-immortal
+- Steam Kingdom Coin: https://steamcommunity.com/market/listings/3678970/Kingdom%2050th%20Anniversary%20Coin
 
-## Comparison with other public resources
+### Important label distinction
 
-The counts below describe what each site publicly advertises or what was visible in its inspected data. They are not interchangeable row counts.
+The Mystic Armor Wiki article title is `神秘盔甲A`, but the corresponding TBH localized **Market Info** page displays `神秘盔甲` and links directly to Steam's `Mystic Armor (Beyond) A` listing. For the Steam Market overlay, use the Market Info label `神秘盔甲`. This is a market-facing label choice, not an unresolved conflict between two translations.
 
-| Source | Publicly visible coverage | Localization / Steam mapping | Recommended role |
-|---|---|---|---|
-| **tbhindex.com** | Ver 1.3.2; 1,576 gear, 189 materials, 253 runes, 77 monsters, 192 stages, 120 chests; market page says 1,751 tracked items | 19 languages; inspected Chinese item page exposes localized title, internal ItemKey and exact Steam market name | **Primary reference** for manual validation and a future maintainer-approved adapter |
-| taskbarhero.wiki | Public database page previously showed 45 datasets / 25,757 rows; market page showed 935 tradable listings | Chinese market routes and localized item pages exist; a sample mapping was inspected | Secondary cross-check for missing items; not the only catalogue |
-| taskbarherowiki.com | Public pages advertise 5,934 item records and 10 languages | The inspected `/data/items.json` exposed numeric keys, English names and item metadata, but no Chinese field or exact Steam `market_hash_name` crosswalk in that payload | Auxiliary internal-ID catalogue only until its localized export and market mapping are confirmed |
-| tbherohelper.com | Public database page showed 6,596 records across 14 collections and game-version label `1.00.21` | UI advertises 16 locales; no exact Steam crosswalk was established in this assessment | Secondary reference only; establish version equivalence and field mapping before use |
+## Starter pack
 
-Do not infer that a site with a larger headline record count is more complete. For this product, exact Steam item coverage and a proven localized-name-to-market-name link matter more than the total number of rows.
+A small, importable, personally maintained starter pack is available at:
 
-## Access, terms, and reuse limits
+`docs/game-pack.tbhindex-seed.json`
 
-The public TBH Index Terms of Service describe the site as an unofficial fan tool and state that game data and market prices are sourced from public game files and Steam Community Market. The terms prohibit interfering with or overloading its servers/APIs, unauthorized access, and excessive scraping. They also distinguish the game's IP from the site's own code, design, and original prose.
+It contains the three checked mappings above. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
 
-No public developer API contract, extension CORS guarantee, rate limit, cache policy, or explicit bulk-data redistribution license was found in the pages inspected. Public readability and a localized page do not grant SteamHub permission to mirror the full catalogue.
+## Collection rules
 
-Until the maintainer confirms an approved access method and reuse terms:
+For each new record:
 
-- Do not bulk-crawl the catalogue or Market pages.
-- Do not reverse-engineer undocumented endpoints.
-- Do not bundle or redistribute a copy of the site's dataset.
-- Keep manual research to individually inspected, exact item cross-references.
-- Do not add any network permission or provider request to the browser extension.
+1. Start from a real Steam Community Market listing for AppID `3678970`; copy its exact market hash name without altering punctuation, spacing, case or suffixes.
+2. Open the matching TBH Index localized Market Info page and record its Chinese market-facing name.
+3. Follow its full Wiki page link only when the internal `ItemKey` is useful; store the ID only when it is visibly verified.
+4. If the market detail page, Wiki item, and Steam listing do not agree on identity, leave the entry out until resolved.
+5. Store source label `tbhindex.com`. Keep source page URLs and verification notes in the research ledger, not in the matching key.
+6. Keep unverified, stale, non-tradable and ambiguous rows separate from the verified game pack.
 
-The Terms of Service are published at https://tbhindex.com/ja/terms. The Terms of Service lists the maintainer contact email `gabriel@tbhindex.com`; the About page also points to Discord. SteamHub has not contacted the maintainer or requested access yet.
+Use normal public page navigation and small, deliberate batches. Do not reverse-engineer private endpoints, bypass site controls, overload the site, or automatically crawl the whole catalogue. This local collection is not a public mirror of TBH Index.
 
-## Integration plan
+## Other community references
 
-1. Use TBH Index as the first human verification source for Task Bar Hero market items.
-2. For each candidate, record the exact Steam market title, AppID, localized name, internal ItemKey, locale, source URL and verification date.
-3. Independently verify the Steam listing's exact `market_hash_name`; reject ambiguous matches.
-4. Add verified records to a versioned local game pack only after the reuse basis is clear. Keep `sourceItemId` and `source` as provenance metadata.
-5. Prefer a documented or maintainer-approved on-demand provider over a scraper. Query only visible market items and preserve exact matching.
+Other community sites remain useful for cross-checking missing names and game-version differences, but their counts are not interchangeable:
 
-**Current status: primary reference selected; automated provider and full-catalog import remain blocked on access/reuse approval.**
+- `taskbarhero.wiki`: secondary item/drop/market cross-check.
+- `taskbarherowiki.com`: auxiliary catalog; the inspected `/data/items.json` exposed English names and item metadata but not the required Chinese-to-Steam crosswalk.
+- `tbherohelper.com`: auxiliary data reference; its reported game version and collection counts differ from TBH Index.
+
+**Current status: TBH Index selected as the primary Chinese market-name reference; a three-entry verified local seed exists; full current-market coverage has not yet been established.**
