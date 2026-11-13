@@ -134,6 +134,7 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   const optionsSource = await readFile(path.join(extensionRoot, "options.js"), "utf8");
   assert.match(optionsSource, /localeSelect\.options/);
   assert.match(optionsSource, /localeSelect\.append\(localeOption\)/);
+  assert.match(optionsSource, /添加游戏档案/);
   assert.match(optionsHtml, /id="game-app-id"/);
   assert.match(optionsHtml, /id="game-name"/);
   assert.match(optionsHtml, /id="entry-market-name"/);
