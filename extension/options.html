@@ -99,6 +99,13 @@
         <div><span class="step">04</span><h2>批量导入数据包</h2></div>
         <p>适合为不同游戏制作、共享和维护独立翻译词库。</p>
       </div>
+      <div class="remote-import">
+        <label>公开 JSON 数据包 URL
+          <input id="pack-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://raw.githubusercontent.com/.../game-pack.json">
+        </label>
+        <button id="load-pack-url" type="button" class="quiet">读取链接</button>
+      </div>
+      <p class="hint">仅读取符合 SteamHub Game Pack v1 格式的公开 JSON 文件。粘贴 Wiki 首页不会自动变成词库；普通网页需要专用解析适配器。首次读取会请求该站点的访问权限，不发送 Cookies。</p>
       <label class="file-label">选择 JSON 数据包文件
         <input id="pack-file" type="file" accept=".json,application/json">
       </label>
