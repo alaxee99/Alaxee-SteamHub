@@ -1113,6 +1113,7 @@ test("TaskBarHeroWiki Minor Ruby detail page uses the current localized DOM and 
 
 test("Steam Market content script replaces exact item names and localizes detail text in the DOM", async () => {
   const scripts = [
+    "runtime-status.js",
     "market-locale.js",
     "core/item-identity.js",
     "core/translation-engine.js",
@@ -1303,12 +1304,16 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.8.2");
+  assert.equal(diagnostics.version, "0.8.3");
   assert.equal(diagnostics.detectedItems, 1);
+  assert.equal(diagnostics.matchedItems, 1);
   assert.equal(diagnostics.translatedNames, 2);
   assert.ok(diagnostics.translatedDetailNodes >= 11);
   assert.deepEqual(Array.from(diagnostics.missingPacks), []);
   assert.deepEqual(Array.from(diagnostics.errors), []);
+  const runtime = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__.snapshot();
+  assert.equal(runtime.title, "汉化已生效");
+  assert.equal(runtime.tone, "success");
 });
 
 

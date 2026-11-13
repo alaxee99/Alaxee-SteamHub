@@ -1,11 +1,21 @@
 (() => {
   "use strict";
 
+  const runtimeStatus = globalThis.__ALAXEE_STEAMHUB_RUNTIME_STATUS__;
+  function publishRuntimeStatus(tone, title, details) {
+    runtimeStatus?.update({ tone, title, details });
+  }
+  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.8.3", "正在初始化 Steam 市场适配器…"]);
+
   const marketLocale = globalThis.__ALAXEE_STEAMHUB_MARKET_LOCALE__;
-  if (!marketLocale || !window.location) return;
+  if (!marketLocale || !window.location) {
+    publishRuntimeStatus("error", "扩展脚本初始化失败", ["缺少页面 URL 或市场语言模块。", "请检查扩展是否正确加载。"]);
+    return;
+  }
 
   const localizedUrl = marketLocale.getSimplifiedChineseMarketUrl(window.location.href);
   if (localizedUrl) {
+    publishRuntimeStatus("info", "正在切换 Steam 语言", ["将页面切换到简体中文参数后重新检查。"]);
     window.location.replace(localizedUrl);
     return;
   }
@@ -16,29 +26,48 @@
   const storageApi = globalThis.__ALAXEE_STEAMHUB_STORAGE_ADAPTER__;
   const textLocalizer = globalThis.__ALAXEE_STEAMHUB_GAME_TEXT_LOCALIZER__;
 
-  if (!marketItems || !translationApi || !registryApi || !storageApi || !textLocalizer ||
-      typeof chrome === "undefined" || !chrome.storage?.local) {
+  const missingDependencies = [];
+  if (!marketItems) missingDependencies.push("市场商品识别模块");
+  if (!translationApi) missingDependencies.push("翻译引擎");
+  if (!registryApi) missingDependencies.push("游戏词库注册表");
+  if (!storageApi) missingDependencies.push("本地存储适配器");
+  if (!textLocalizer) missingDependencies.push("详情文本翻译模块");
+  if (typeof chrome === "undefined" || !chrome.storage?.local) {
+    missingDependencies.push("扩展本地存储权限");
+  }
+  if (missingDependencies.length) {
+    publishRuntimeStatus("error", "扩展初始化不完整", ["缺少：" + missingDependencies.join("、"), "请确认加载的是完整的 SteamHub 扩展目录。"]);
     return;
   }
 
-  const storage = storageApi.createChromeStorageAdapter(chrome.storage.local);
-  const registry = registryApi.createGameRegistry(storage);
-  const provider = registryApi.createGamePackProvider(registry);
-  const engine = translationApi.createTranslationEngine({
-    providers: [provider],
-    locale: "zh-CN"
-  });
+  let storage;
+  let registry;
+  let provider;
+  let engine;
+  try {
+    storage = storageApi.createChromeStorageAdapter(chrome.storage.local);
+    registry = registryApi.createGameRegistry(storage);
+    provider = registryApi.createGamePackProvider(registry);
+    engine = translationApi.createTranslationEngine({
+      providers: [provider],
+      locale: "zh-CN"
+    });
+  } catch (error) {
+    publishRuntimeStatus("error", "扩展初始化失败", [error?.message || String(error)]);
+    return;
+  }
 
   const APP_ATTRIBUTE = "data-alaxee-steamhub-app-id";
   const MAX_VISIBLE_ITEMS_PER_PASS = 80;
   const localizedTextNodes = new Map();
   let scanScheduled = false;
   const diagnostics = {
-    version: "0.8.2",
+    version: "0.8.3",
     initializedAt: new Date().toISOString(),
     scanCount: 0,
     lastScanAt: null,
     detectedItems: 0,
+    matchedItems: 0,
     translatedNames: 0,
     translatedDetailNodes: 0,
     missingPacks: [],
@@ -49,6 +78,54 @@
 
   function normalizedText(value) {
     return textLocalizer.normalizeText(value);
+  }
+
+  function publishDiagnostics() {
+    const currentNodes = Array.from(localizedTextNodes.entries())
+      .filter(([node]) => node.isConnected);
+    diagnostics.translatedNames = currentNodes.filter(([, record]) => record.kind === "name").length;
+    diagnostics.translatedDetailNodes = currentNodes.filter(([, record]) => record.kind === "detail").length;
+
+    let tone = "info";
+    let title = "页面已检查，暂无可翻译内容";
+    if (diagnostics.errors.length) {
+      tone = "error";
+      title = "SteamHub 运行异常";
+    } else if (diagnostics.missingPacks.length) {
+      tone = "warning";
+      title = "未找到该游戏的本地词库";
+    } else if (diagnostics.disabledGames.length) {
+      tone = "warning";
+      title = "该游戏的汉化已关闭";
+    } else if (diagnostics.detectedItems === 0) {
+      tone = "warning";
+      title = "未识别到 Steam 市场商品";
+    } else if (diagnostics.translatedNames > 0 || diagnostics.translatedDetailNodes > 0) {
+      tone = "success";
+      title = "汉化已生效";
+    } else if (diagnostics.unmatchedNames.length) {
+      tone = "warning";
+      title = "商品已识别，但词库没有命中";
+    }
+
+    const details = [
+      "版本：0.8.3",
+      "页面 AppID：" + (diagnostics.detectedItems ? (diagnostics.unmatchedNames[0]?.appId || diagnostics.missingPacks[0] || diagnostics.disabledGames[0] || "已识别") : "未识别"),
+      "识别商品：" + diagnostics.detectedItems,
+      "命中商品：" + diagnostics.matchedItems,
+      "已替换名称节点：" + diagnostics.translatedNames,
+      "已替换详情节点：" + diagnostics.translatedDetailNodes
+    ];
+    if (diagnostics.missingPacks.length) details.push("缺少词库 AppID：" + diagnostics.missingPacks.join("、"));
+    if (diagnostics.disabledGames.length) details.push("已关闭汉化 AppID：" + diagnostics.disabledGames.join("、"));
+    if (diagnostics.unmatchedNames.length) {
+      details.push("未命中示例：" + diagnostics.unmatchedNames.slice(0, 3).map((item) => item.marketHashName).join("；"));
+    }
+    if (diagnostics.errors.length) {
+      details.push("错误：" + diagnostics.errors.slice(0, 3).map((item) => item.message).join("；"));
+    }
+    details.push("诊断时间：" + (diagnostics.lastScanAt || "等待首次扫描"));
+    runtimeStatus?.update({ tone, title, details });
   }
 
   function isTranslatableTextNode(node) {
@@ -219,6 +296,7 @@
       locale: game.game.defaultLocale || "zh-CN"
     });
     if (result.status === "translated") {
+      diagnostics.matchedItems += 1;
       diagnostics.translatedNames += applyNameTranslation(item, result.record.translation);
     } else {
       const restored = applyNameTranslation(item, "");
@@ -239,6 +317,7 @@
     diagnostics.lastScanAt = new Date().toISOString();
     diagnostics.translatedNames = 0;
     diagnostics.translatedDetailNodes = 0;
+    diagnostics.matchedItems = 0;
     diagnostics.missingPacks = [];
     diagnostics.disabledGames = [];
     diagnostics.unmatchedNames = [];
@@ -266,6 +345,7 @@
         }
       }));
     }
+    publishDiagnostics();
   }
 
   function scheduleScan() {
@@ -273,7 +353,10 @@
     scanScheduled = true;
     window.setTimeout(() => {
       scanScheduled = false;
-      scanVisibleItems().catch(() => undefined);
+      scanVisibleItems().catch((error) => {
+        diagnostics.errors = [{ message: error?.message || String(error) }];
+        publishDiagnostics();
+      });
     }, 180);
   }
 
