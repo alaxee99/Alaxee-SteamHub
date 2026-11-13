@@ -2,7 +2,7 @@
 
 ALAXEE SteamHub is a multi-game browser extension for improving Steam Community Market pages with exact-match Chinese translations.
 
-## Current status — v0.6.0
+## Current status — v0.6.1
 
 - Manifest V3 extension restricted to Steam Community Market pages.
 - Per-game profiles keyed by Steam AppID; each game has its own enable state and translation dictionary.
