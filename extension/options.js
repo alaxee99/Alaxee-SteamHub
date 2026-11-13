@@ -390,96 +390,18 @@
       return;
     }
 
-    let sourceUrl;
-    try {
-      sourceUrl = new URL(rawUrl);
-    } catch {
-      report("URL 格式无效", true);
-      return;
-    }
-
-    const hostname = sourceUrl.hostname.toLowerCase();
-    const privateIPv4 = /^(?:10\.|127\.|169\.254\.|192\.168\.|172\.(?:1[6-9]|2[0-9]|3[01])\.|0\.)/;
-    if (sourceUrl.protocol !== "https:" || sourceUrl.username || sourceUrl.password ||
-        (sourceUrl.port && sourceUrl.port !== "443") ||
-        hostname === "localhost" || hostname.endsWith(".localhost") ||
-        hostname.endsWith(".local") || privateIPv4.test(hostname) ||
-        hostname.startsWith("[") || /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) {
-      report("仅允许公开 HTTPS 地址；不支持本机、局域网或带凭据的 URL", true);
-      return;
-    }
-
-    sourceUrl.hash = "";
-    const permissionPattern = sourceUrl.origin + "/*";
-    const maximumBytes = 5 * 1024 * 1024;
     button.disabled = true;
-    let timeoutId = null;
     try {
-      const granted = await chrome.permissions.request({ origins: [permissionPattern] });
-      if (!granted) {
-        throw new Error("未获准访问该站点，未读取数据");
-      }
-
-      const controller = new AbortController();
-      timeoutId = window.setTimeout(() => controller.abort(), 20000);
-      const response = await fetch(sourceUrl.href, {
-        method: "GET",
-        credentials: "omit",
-        cache: "no-store",
-        redirect: "error",
-        referrerPolicy: "no-referrer",
-        headers: { Accept: "application/json, text/plain;q=0.9" },
-        signal: controller.signal
+      const loaded = await globalThis.__ALAXEE_STEAMHUB_PUBLIC_PACK_LOADER__.fetchGamePackFromUrl(rawUrl, {
+        requestPermission: (originPattern) => chrome.permissions.request({ origins: [originPattern] }),
+        normalizePack: (parsed) => registryApi.normalizePack(parsed)
       });
-
-      if (!response.ok) {
-        throw new Error("数据源返回 HTTP " + response.status);
-      }
-      if (response.url && new URL(response.url).origin !== sourceUrl.origin) {
-        throw new Error("数据源发生跨站跳转，已停止读取");
-      }
-      const declaredLength = Number(response.headers.get("content-length") || 0);
-      if (declaredLength > maximumBytes) {
-        throw new Error("数据包超过 5 MiB 上限");
-      }
-
-      if (!response.body) {
-        throw new Error("数据源没有返回可读取的内容");
-      }
-      const reader = response.body.getReader();
-      const chunks = [];
-      let totalBytes = 0;
-      while (true) {
-        const chunk = await reader.read();
-        if (chunk.done) break;
-        totalBytes += chunk.value.byteLength;
-        if (totalBytes > maximumBytes) {
-          controller.abort();
-          await reader.cancel().catch(() => {});
-          throw new Error("数据包超过 5 MiB 上限");
-        }
-        chunks.push(chunk.value);
-      }
-      const bytes = new Uint8Array(totalBytes);
-      let offset = 0;
-      for (const chunk of chunks) {
-        bytes.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
-      const raw = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-      const parsed = JSON.parse(raw);
-      if (!parsed || parsed.format !== "alaxee-steamhub-game-pack" || parsed.schemaVersion !== 1) {
-        throw new Error("该 URL 返回的不是 SteamHub Game Pack v1。普通 Wiki 页面需要独立的站点解析适配器。");
-      }
-
-      const validated = registryApi.normalizePack(parsed);
-      document.getElementById("pack-json").value = JSON.stringify(validated, null, 2);
-      report("已读取公开数据包：" + validated.game.name + " · " + validated.translations.length + " 条；请选择合并或覆盖后再导入");
+      document.getElementById("pack-json").value = JSON.stringify(loaded.pack, null, 2);
+      report("已读取公开数据包：" + loaded.pack.game.name + " · " +
+        loaded.pack.translations.length + " 条；请选择合并或覆盖后再导入");
     } catch (error) {
-      const message = error.name === "AbortError" ? "读取超时（20 秒）" : error.message;
-      report(message || "读取远程数据包失败", true);
+      report(error.message || "读取远程数据包失败", true);
     } finally {
-      if (timeoutId !== null) window.clearTimeout(timeoutId);
       button.disabled = false;
     }
   });
