@@ -148,7 +148,7 @@
     catch (error) { bundledSyncPromises.delete(appId); throw error; }
   }
 
-  function preserveMarketNameSuffix(marketHashName, translation)
+  function preserveMarketNameSuffix(marketHashName, translation) {
     const source = String(marketHashName || "");
     const translated = String(translation || "").trimEnd();
     const suffixMatch = source.match(/((?:\s+\([^()]+\))*)(?:\s+([A-Z]))?$/);
