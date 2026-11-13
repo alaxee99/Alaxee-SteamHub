@@ -24,7 +24,7 @@ v0.6.0 在多游戏独立配置基础上，增加词库搜索、单条编辑和�
 6. 编辑或删除单条词条，不必重新导入整个数据包。
 7. 单独启用、停用或删除游戏配置。
 
-Task Bar Hero 的主中文市场参考源为 TBH Index（tbhindex.com）。本地导入示例见 `docs/game-pack.tbhindex-seed.json`，包含 12 条逐项核对的真实市场映射；格式占位示例仍见 `docs/game-pack.example.json`。当前采用的匹配流程是：先以 Steam 官方市场搜索结果确定 AppID 3678970 的真实 `market_hash_name`，再从 TBH Index 的 `/zh/market/item/` 页面取中文市场名称，最后从关联 Wiki 页面补充可验证的 ItemKey。注意 TBH Index 的市场目录显示 1,757 条跟踪记录，而 Steam 当前搜索显示 1,098 条；两者不是同一个集合。Gear、Materials、Monsters、Stages 等 Wiki 分类页本身也存在标题数、正文数和实际列表数不一致的情况，因此不能用网站宣传总数直接宣称完整。逐条采集采用正常页面访问和小批量核对，不做高频整站爬取。详细规则、已验证映射和覆盖差异见 `docs/providers/tbhindex.md`；逐条来源索引见 `docs/tbh-market-coverage.csv`。
+Task Bar Hero 的主中文市场参考源为 TBH Index（tbhindex.com）。本地导入示例见 `docs/game-pack.tbhindex-seed.json`，包含 16 条逐项核对的真实市场映射；格式占位示例仍见 `docs/game-pack.example.json`。当前采用的匹配流程是：先以 Steam 官方市场搜索结果确定 AppID 3678970 的真实 `market_hash_name`，再从 TBH Index 的 `/zh/market/item/` 页面取中文市场名称，最后从关联 Wiki 页面补充可验证的 ItemKey。注意 TBH Index 的市场目录显示 1,757 条跟踪记录，而 Steam 当前搜索显示 1,098 条；两者不是同一个集合。Gear、Materials、Monsters、Stages 等 Wiki 分类页本身也存在标题数、正文数和实际列表数不一致的情况，因此不能用网站宣传总数直接宣称完整。逐条采集采用正常页面访问和小批量核对，不做高频整站爬取。详细规则、已验证映射和覆盖差异见 `docs/providers/tbhindex.md`；逐条来源索引见 `docs/tbh-market-coverage.csv`。
 
 ## 数据包格式
 
