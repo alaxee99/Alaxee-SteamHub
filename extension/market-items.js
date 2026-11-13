@@ -25,7 +25,9 @@
       const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
       const titleElement = titleCandidates.find((element) =>
         normalizeText(element.textContent) === currentPageItem.marketHashName
-      ) || null;
+      ) || (typeof root?.querySelector === "function"
+        ? root.querySelector("#largeiteminfo_item_name")
+        : null);
 
       results.set(currentPageItem.cacheIdentity, {
         ...currentPageItem,
