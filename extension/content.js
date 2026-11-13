@@ -5,7 +5,7 @@
   function publishRuntimeStatus(tone, title, details) {
     runtimeStatus?.update({ tone, title, details });
   }
-  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.9.1", "正在初始化 Steam 市场适配器…"]);
+  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.9.2", "正在初始化 Steam 市场适配器…"]);
 
   const marketLocale = globalThis.__ALAXEE_STEAMHUB_MARKET_LOCALE__;
   if (!marketLocale || !window.location) {
@@ -62,7 +62,7 @@
   const localizedTextNodes = new Map();
   let scanScheduled = false;
   const diagnostics = {
-    version: "0.9.1",
+    version: "0.9.2",
     initializedAt: new Date().toISOString(),
     scanCount: 0,
     lastScanAt: null,
@@ -177,7 +177,7 @@
     }
 
     const details = [
-      "版本：0.9.1",
+      "版本：0.9.2",
       "当前页面 AppID：" + (primaryAppId || "未识别"),
       "页面发现商品链接：" + diagnostics.detectedItems,
       "当前可见商品：" + diagnostics.visibleItems,
@@ -225,7 +225,11 @@
 
   function findNameTextNodes(item) {
     const matches = new Set();
-    const roots = item.element ? [item.element] : [document.body || document.documentElement];
+    const roots = Array.from(new Set([
+      item.nameElement,
+      item.element,
+      ...(!item.nameElement && !item.element ? [document.body || document.documentElement] : [])
+    ].filter(Boolean)));
 
     for (const root of roots) {
       if (!root || typeof document.createTreeWalker !== "function") continue;
@@ -374,7 +378,15 @@
     if (result.status === "translated") {
       diagnostics.matchedItems += 1;
       const safeTranslation = preserveMarketNameSuffix(item.marketHashName, result.record.translation);
-      diagnostics.translatedNames += applyNameTranslation(item, safeTranslation);
+      const replacedNodes = applyNameTranslation(item, safeTranslation);
+      diagnostics.translatedNames += replacedNodes;
+      if (replacedNodes === 0 && diagnostics.errors.length < 20) {
+        diagnostics.errors.push({
+          appId: item.appId,
+          marketHashName: item.marketHashName,
+          message: "词库已命中，但商品链接内没有找到可替换的名称文本节点。"
+        });
+      }
     } else {
       const restored = applyNameTranslation(item, "");
       if (diagnostics.unmatchedNames.length < 20) {
@@ -442,7 +454,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.9.1",
+    version: "0.9.2",
     getDiagnostics() {
       return Object.freeze({
         ...diagnostics,

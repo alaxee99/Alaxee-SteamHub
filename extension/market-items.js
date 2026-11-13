@@ -84,7 +84,8 @@
       results.set(itemKey.cacheIdentity, {
         ...itemKey,
         href: new URL(href, pageUrl).toString(),
-        element: container
+        element: container,
+        nameElement: anchor
       });
     }
 
