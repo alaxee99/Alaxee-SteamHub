@@ -94,7 +94,7 @@ function runContentScript(href) {
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.8.0");
+  assert.equal(manifest.version, "0.8.1");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -135,7 +135,12 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   const optionsSource = await readFile(path.join(extensionRoot, "options.js"), "utf8");
   assert.match(optionsSource, /localeSelect\.options/);
   assert.match(optionsSource, /localeSelect\.append\(localeOption\)/);
-  assert.match(optionsSource, /添加游戏档案/);
+  assert.match(optionsSource, /添加并启用汉化/);
+  assert.match(optionsSource, /loadBundledPack\(quickGame, source\)/);
+  assert.match(optionsSource, /autoImportEmptyBundledProfiles/);
+  assert.match(optionsSource, /initializeOptionsPage\(\)/);
+  assert.match(optionsSource, /正在添加游戏并自动安装中文词库/);
+  assert.match(optionsSource, /添加游戏时会自动安装这份词库/);
   assert.match(optionsHtml, /id="game-app-id"/);
   assert.match(optionsHtml, /id="game-name"/);
   assert.match(optionsHtml, /id="entry-market-name"/);
@@ -1271,4 +1276,22 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(skillText.nodeValue, "所有技能等级 +2");
   assert.equal(descriptionText.nodeValue, "神秘的深渊遗物。");
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
+});
+
+
+test("Game onboarding automatically imports a bundled pack and repairs previously empty profiles", async () => {
+  const optionsSource = await readFile(path.join(extensionRoot, "options.js"), "utf8");
+  const addFlow = optionsSource.slice(
+    optionsSource.indexOf("async function addQuickProfile"),
+    optionsSource.indexOf("async function importBundledSource")
+  );
+  const migrationFlow = optionsSource.slice(
+    optionsSource.indexOf("async function autoImportEmptyBundledProfiles"),
+    optionsSource.indexOf("function renderQuickGame")
+  );
+  assert.match(addFlow, /listSources\(quickGame\.appId\)\[0\]/);
+  assert.match(addFlow, /await loadBundledPack\(quickGame, source\)/);
+  assert.match(migrationFlow, /pack\.translations\.length === 0/);
+  assert.match(migrationFlow, /await loadBundledPack\(profile\.game, source\)/);
+  assert.match(optionsSource, /initializeOptionsPage\(\)\.catch/);
 });
