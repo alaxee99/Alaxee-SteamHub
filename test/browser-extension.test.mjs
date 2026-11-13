@@ -96,12 +96,12 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.equal(manifest.manifest_version, 3);
   assert.equal(manifest.version, "0.7.0");
   assert.equal(manifest.content_scripts.length, 1);
-  const optionsHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
+  const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
-    assert.ok(optionsHtml.includes('id="' + id + '"'));
+    assert.ok(quickSetupHtml.includes('id="' + id + '"'));
   }
-  assert.ok(optionsHtml.includes("advanced-shell"));
-  assert.ok(optionsHtml.includes("高级管理与调试工具"));
+  assert.ok(quickSetupHtml.includes("advanced-shell"));
+  assert.ok(quickSetupHtml.includes("高级管理与调试工具"));
 
   const script = manifest.content_scripts[0];
   assert.deepEqual(script.matches, [
