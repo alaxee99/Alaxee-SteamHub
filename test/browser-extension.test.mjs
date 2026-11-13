@@ -155,6 +155,7 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.match(optionsHtml, /id="html-table-select"/);
   assert.match(optionsHtml, /id="html-market-field"/);
   assert.match(optionsHtml, /id="html-translation-field"/);
+  assert.match(optionsSource, /siteDiscoveryApi\\.isRobotsAllowed/);
   assert.match(optionsHtml, /html-table-parser.js/);
   assert.match(optionsHtml, /id="analyze-site"/);
   assert.match(optionsHtml, /id="site-discovery-pages"/);
@@ -508,6 +509,8 @@ test("site discovery reads same-origin robots and sitemap indexes without fetchi
   assert.equal(result.blockedByRobots, 1);
   assert.equal(result.truncated, true);
   assert.equal(result.sitemaps.length, 3);
+  assert.equal(api.isRobotsAllowed(new URL("https://wiki.example/private/profile"), result.robots), false);
+  assert.equal(api.isRobotsAllowed(new URL("https://wiki.example/zh/wiki/gear"), result.robots), true);
   assert.equal(result.errors.length, 0);
 });
 
