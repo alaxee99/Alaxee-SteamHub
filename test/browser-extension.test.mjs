@@ -1185,7 +1185,8 @@ test("Steam Market content script replaces exact item names and localizes detail
   }
 
   const titleText = makeText("Abyss Amulet (Arcana) C");
-  const titleElement = makeElement("h2", [titleText]);
+  // Current Steam markup uses generated wrapper classes, not a stable h1/h2 ID.
+  const titleElement = makeElement("div", [titleText]);
   const inherentText = makeText("Inherent Stats");
   const speedText = makeText("22% Increased Attack Speed");
   const skillText = makeText("All Skill Level +2");
@@ -1206,8 +1207,8 @@ test("Steam Market content script replaces exact item names and localizes detail
     documentElement: body,
     readyState: "complete",
     addEventListener() {},
-    querySelectorAll(selector) {
-      return selector === "h2" ? [titleElement] : [];
+    querySelectorAll() {
+      return [];
     },
     createTreeWalker(rootNode) {
       const nodes = [];
