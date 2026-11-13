@@ -14,6 +14,25 @@ function loadLocalizer() {
   return context.__ALAXEE_STEAMHUB_GAME_TEXT_LOCALIZER__;
 }
 
+
+test("Task Bar Hero grade names translate using the existing Simplified Chinese glossary", () => {
+  const localizer = loadLocalizer();
+  const cases = [
+    ["Common", "普通"],
+    ["Uncommon", "优秀"],
+    ["Rare", "稀有"],
+    ["Legendary", "传奇"],
+    ["Immortal", "不朽"],
+    ["Arcana", "奥术"],
+    ["Beyond", "超越"],
+    ["Celestial", "天界"],
+    ["Divine", "神圣"],
+    ["Cosmic", "宇宙"]
+  ];
+  for (const [source, expected] of cases) assert.equal(localizer.translateGrade(source), expected);
+  assert.equal(localizer.translateGrade("Unknown"), null);
+});
+
 test("Task Bar Hero item descriptions and attributes translate while retaining numbers", () => {
   const localizer = loadLocalizer();
   assert.equal(localizer.translateText("3678970", "22% Increased Attack Speed"), "攻击速度提高 22%");

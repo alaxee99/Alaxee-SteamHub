@@ -49,6 +49,19 @@
     "Inherent Stat": "固有属性"
   });
 
+  const GRADE_NAMES = Object.freeze({
+    Common: "普通",
+    Uncommon: "优秀",
+    Rare: "稀有",
+    Legendary: "传奇",
+    Immortal: "不朽",
+    Arcana: "奥术",
+    Beyond: "超越",
+    Celestial: "天界",
+    Divine: "神圣",
+    Cosmic: "宇宙"
+  });
+
   const STAT_NAMES = Object.freeze({
     "Attack Speed": "攻击速度",
     "Attack Damage": "攻击伤害",
@@ -166,6 +179,13 @@
     return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
   }
 
+  function translateGrade(value) {
+    const grade = normalizeText(value);
+    return Object.prototype.hasOwnProperty.call(GRADE_NAMES, grade)
+      ? GRADE_NAMES[grade]
+      : null;
+  }
+
   function validateMappings(mappings) {
     if (mappings instanceof Map) return mappings;
     if (mappings === undefined || mappings === null) return new Map();
@@ -275,6 +295,7 @@
     writable: false,
     value: Object.freeze({
       normalizeText,
+      translateGrade,
       validateMappings,
       translateTaskBarHeroText,
       translateText

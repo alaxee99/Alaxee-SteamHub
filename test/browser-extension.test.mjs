@@ -94,7 +94,7 @@ function runContentScript(href) {
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.8.4");
+  assert.equal(manifest.version, "0.8.5");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1313,14 +1313,17 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.8.4");
+  assert.equal(diagnostics.version, "0.8.5");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);
   assert.equal(diagnostics.translatedNames, 2);
   assert.ok(diagnostics.translatedDetailNodes >= 11);
-  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Amber Ring (Immortal) A", "琥珀戒指"), "琥珀戒指 (Immortal) A");
-  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Arcana)", "被污染的圣物"), "被污染的圣物 (Arcana)");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Amber Ring (Immortal) A", "琥珀戒指"), "琥珀戒指 (不朽) A");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Abyss Amulet (Arcana) C", "深渊护符"), "深渊护符 (奥术) C");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Mystic Armor (Beyond) A", "神秘盔甲"), "神秘盔甲 (超越) A");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Arcana)", "被污染的圣物"), "被污染的圣物 (奥术)");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Unlisted Grade)", "被污染的圣物"), "被污染的圣物 (Unlisted Grade)");
   assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Plain Item", "普通物品"), "普通物品");
   assert.deepEqual(Array.from(diagnostics.missingPacks), ["440"]);
   assert.deepEqual(Array.from(diagnostics.errors), []);
