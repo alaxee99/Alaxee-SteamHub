@@ -16,6 +16,7 @@
         "#largeiteminfo .market_listing_nav .market_listing_item_name",
         ".market_listing_nav .market_listing_item_name",
         "#largeiteminfo_item_name",
+        ".item-name",
         "h1",
         "h2"
       ];
