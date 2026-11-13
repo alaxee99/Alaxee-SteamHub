@@ -402,7 +402,10 @@
         format: pack.format,
         schemaVersion: pack.schemaVersion,
         game: { ...pack.game },
-        translations: pack.translations.map((entry) => ({ ...entry }))
+        translations: pack.translations.map((entry) => ({ ...entry })),
+        ...(pack.textTranslations?.length
+          ? { textTranslations: pack.textTranslations.map((entry) => ({ ...entry })) }
+          : {})
       };
     }
 
