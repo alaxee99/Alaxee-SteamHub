@@ -119,9 +119,9 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.match(optionsHtml, /id="pack-url"/);
   assert.match(optionsHtml, /id="load-pack-url"/);
   assert.match(optionsHtml, /普通网页需要专用解析适配器/);
-  assert.match(optionsSource, /credentials: "omit"/);
-  assert.match(optionsSource, /redirect: "error"/);
-  assert.match(optionsSource, /5 \* 1024 \* 1024/);
+  assert.match(publicPackLoaderSource, /credentials: "omit"/);
+  assert.match(publicPackLoaderSource, /redirect: "error"/);
+  assert.match(publicPackLoaderSource, /5 \* 1024 \* 1024/);
   assert.match(optionsSource, /registryApi\.normalizePack\(parsed\)/);
   assert.match(optionsSource, /chrome\.permissions\.request/);
   assert.ok(optionsSource.includes("response.body.getReader()"));
