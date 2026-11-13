@@ -1184,22 +1184,38 @@ test("Steam Market content script replaces exact item names and localizes detail
     return element;
   }
 
+  const breadcrumbTitleText = makeText("Abyss Amulet (Arcana) C");
   const titleText = makeText("Abyss Amulet (Arcana) C");
   // Current Steam markup uses generated wrapper classes, not a stable h1/h2 ID.
+  const breadcrumbElement = makeElement("div", [breadcrumbTitleText]);
   const titleElement = makeElement("div", [titleText]);
+  const itemLevelText = makeText("Amulet - Lv. 90");
+  const gradeText = makeText("Arcana Grade");
   const inherentText = makeText("Inherent Stats");
   const speedText = makeText("22% Increased Attack Speed");
   const skillText = makeText("All Skill Level +2");
+  const criticalText = makeText("43% Increased Critical Chance Multiplier");
+  const decorationText = makeText("Decoration Slot ×2");
+  const engravingText = makeText("Engraving Slot ×1");
+  const inscriptionText = makeText("Inscription Slot ×1");
+  const requiredText = makeText("Requires Lv.90");
   const descriptionText = makeText("A mysterious abyssal relic.");
   const unknownText = makeText("Uncatalogued property 123");
   const detailRoot = makeElement("section", [
+    makeElement("div", [itemLevelText]),
+    makeElement("div", [gradeText]),
     makeElement("div", [inherentText]),
-    makeElement("div", [speedText]),
-    makeElement("div", [skillText]),
+    makeElement("li", [speedText]),
+    makeElement("li", [skillText]),
+    makeElement("li", [criticalText]),
+    makeElement("li", [decorationText]),
+    makeElement("li", [engravingText]),
+    makeElement("li", [inscriptionText]),
+    makeElement("p", [requiredText]),
     makeElement("p", [descriptionText]),
     makeElement("p", [unknownText])
   ]);
-  const body = makeElement("body", [titleElement, detailRoot]);
+  const body = makeElement("body", [breadcrumbElement, titleElement, detailRoot]);
   const pageUrl = "https://steamcommunity.com/market/listings/3678970/Abyss%20Amulet%20%28Arcana%29%20C?l=schinese";
 
   const document = {
@@ -1269,20 +1285,28 @@ test("Steam Market content script replaces exact item names and localizes detail
 
   await context.__ALAXEE_STEAMHUB__.refresh();
 
+  assert.equal(breadcrumbTitleText.nodeValue, "深渊护符");
   assert.equal(titleText.nodeValue, "深渊护符");
   assert.equal(titleElement.getAttribute("title"), "原文：Abyss Amulet (Arcana) C");
   assert.equal(titleElement.getAttribute("data-alaxee-steamhub-app-id"), "3678970");
+  assert.equal(itemLevelText.nodeValue, "护符 · 等级 90");
+  assert.equal(gradeText.nodeValue, "奥术品阶");
   assert.equal(inherentText.nodeValue, "固有属性");
   assert.equal(speedText.nodeValue, "攻击速度提高 22%");
   assert.equal(skillText.nodeValue, "所有技能等级 +2");
+  assert.equal(criticalText.nodeValue, "暴击几率倍率提高 43%");
+  assert.equal(decorationText.nodeValue, "装饰槽 ×2");
+  assert.equal(engravingText.nodeValue, "雕刻槽 ×1");
+  assert.equal(inscriptionText.nodeValue, "铭刻槽 ×1");
+  assert.equal(requiredText.nodeValue, "需求等级：90");
   assert.equal(descriptionText.nodeValue, "神秘的深渊遗物。");
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
   assert.equal(diagnostics.version, "0.8.2");
   assert.equal(diagnostics.detectedItems, 1);
-  assert.equal(diagnostics.translatedNames, 1);
-  assert.ok(diagnostics.translatedDetailNodes >= 4);
+  assert.equal(diagnostics.translatedNames, 2);
+  assert.ok(diagnostics.translatedDetailNodes >= 11);
   assert.deepEqual(Array.from(diagnostics.missingPacks), []);
   assert.deepEqual(Array.from(diagnostics.errors), []);
 });
