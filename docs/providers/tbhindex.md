@@ -77,6 +77,11 @@ The following are individually checked across TBH Index and the official Steam C
 | `Iron Bolt (Beyond) A` | 铁制弩箭 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
 | `Orichalcum Ore` | 山铜矿石 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
 | `Lapis Lazuli` | 青金石 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
+| `War Helmet (Arcana) A` | 战争头盔 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Crimson Bracer (Arcana) A` | 绯红腕甲 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Knight Sword (Immortal) A` | 骑士之剑 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Steel Hatchet (Legendary) A` | 钢铁手斧 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
+| `Fate Bolt (Arcana) A` | 命运弩箭 | Not recorded | TBH Chinese Market Info label, exact A-variant Steam listing link and Steam listing title match |
 
 Evidence pages:
 
@@ -121,7 +126,7 @@ A small, importable, personally maintained starter pack is available at:
 
 `docs/game-pack.tbhindex-seed.json`
 
-It contains twenty-two checked mappings: the initial three plus four Arcana materials/inscription entries, five further market items, four A-variant equipment entries, and six additional verified records. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
+It contains twenty-seven checked mappings: the initial three plus four Arcana materials/inscription entries, five further market items, four equipment entries from the second and third batches, six verified records from the fourth batch, and five additional equipment entries. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
 
 ## Collection rules
 
@@ -144,7 +149,7 @@ Other community sites remain useful for cross-checking missing names and game-ve
 - `taskbarherowiki.com`: auxiliary catalog; the inspected `/data/items.json` exposed English names and item metadata but not the required Chinese-to-Steam crosswalk.
 - `tbherohelper.com`: auxiliary data reference; its reported game version and collection counts differ from TBH Index.
 
-**Current status: TBH Index selected as the primary Chinese market-name reference; a twenty-two-entry verified local seed exists; full current-market coverage has not yet been established.**
+**Current status: TBH Index selected as the primary Chinese market-name reference; a twenty-seven-entry verified local seed exists; full current-market coverage has not yet been established.**
 
 ## Latest collection batch (2026-11-13)
 
@@ -244,3 +249,31 @@ Evidence:
 - Steam Lapis Lazuli: https://steamcommunity.com/market/listings/3678970/Lapis%20Lazuli
 
 The six entries do not set `sourceItemId`: ItemKey was not explicitly exposed in the readable Wiki page content. `Dusk Bow (Rare)` and `Scroll of Beyond Inscription (Beyond)` were not added because their localized Market Info fetches returned no readable Chinese label or Steam link.
+## Fifth collection batch (2026-11-13)
+
+Five equipment mappings passed the TBH label → direct Steam listing → official Steam title check:
+
+- `War Helmet (Arcana) A` → `战争头盔`
+- `Crimson Bracer (Arcana) A` → `绯红腕甲`
+- `Knight Sword (Immortal) A` → `骑士之剑`
+- `Steel Hatchet (Legendary) A` → `钢铁手斧`
+- `Fate Bolt (Arcana) A` → `命运弩箭`
+
+Evidence:
+- War Helmet Market Info: https://tbhindex.com/zh/market/item/war-helmet-arcana
+- War Helmet Wiki: https://tbhindex.com/wiki/gear/war-helmet-arcana-505071
+- Steam War Helmet A: https://steamcommunity.com/market/listings/3678970/War%20Helmet%20(Arcana)%20A
+- Crimson Bracer Market Info: https://tbhindex.com/zh/market/item/crimson-bracer-arcana
+- Crimson Bracer Wiki: https://tbhindex.com/wiki/gear/crimson-bracer-arcana-635091
+- Steam Crimson Bracer A: https://steamcommunity.com/market/listings/3678970/Crimson%20Bracer%20(Arcana)%20A
+- Knight Sword Market Info: https://tbhindex.com/zh/market/item/knight-sword-immortal
+- Knight Sword Wiki: https://tbhindex.com/wiki/gear/knight-sword-immortal-304071
+- Steam Knight Sword A: https://steamcommunity.com/market/listings/3678970/Knight%20Sword%20(Immortal)%20A
+- Steel Hatchet Market Info: https://tbhindex.com/zh/market/item/steel-hatchet-legendary
+- Steel Hatchet Wiki: https://tbhindex.com/wiki/gear/steel-hatchet-legendary-453041
+- Steam Steel Hatchet A: https://steamcommunity.com/market/listings/3678970/Steel%20Hatchet%20(Legendary)%20A
+- Fate Bolt Market Info: https://tbhindex.com/zh/market/item/fate-bolt-arcana
+- Fate Bolt Wiki: https://tbhindex.com/wiki/gear/fate-bolt-arcana-445111
+- Steam Fate Bolt A: https://steamcommunity.com/market/listings/3678970/Fate%20Bolt%20(Arcana)%20A
+
+`Elite Hatchet (Rare) A` was excluded: its Wiki record labels it Untradable, and its Steam listing resolves to a deleted listing. `Obsidian Bracer (Immortal)` was also excluded because the fetched Market Info page did not expose a readable Chinese label or Steam link. The five new records do not set `sourceItemId` because ItemKey was not explicitly visible in the fetched Wiki content.
