@@ -94,7 +94,7 @@ function runContentScript(href) {
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.8.2");
+  assert.equal(manifest.version, "0.8.3");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -111,6 +111,7 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
     "https://www.steamcommunity.com/market/*"
   ]);
   assert.deepEqual(script.js, [
+    "runtime-status.js",
     "market-locale.js",
     "core/item-identity.js",
     "core/translation-engine.js",
