@@ -94,7 +94,7 @@ function runContentScript(href) {
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.8.3");
+  assert.equal(manifest.version, "0.8.4");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1219,14 +1219,22 @@ test("Steam Market content script replaces exact item names and localizes detail
   ]);
   const body = makeElement("body", [breadcrumbElement, titleElement, detailRoot]);
   const pageUrl = "https://steamcommunity.com/market/listings/3678970/Abyss%20Amulet%20%28Arcana%29%20C?l=schinese";
+  const unrelatedAnchor = {
+    href: "https://steamcommunity.com/market/listings/440/Unusual%20Hat",
+    hidden: false,
+    isConnected: true,
+    getAttribute(name) { return name === "href" ? this.href : null; },
+    getClientRects() { return [{}]; },
+    childNodes: []
+  };
 
   const document = {
     body,
     documentElement: body,
     readyState: "complete",
     addEventListener() {},
-    querySelectorAll() {
-      return [];
+    querySelectorAll(selector) {
+      return selector === 'a[href*="/market/listings/"]' ? [unrelatedAnchor] : [];
     },
     createTreeWalker(rootNode) {
       const nodes = [];
@@ -1287,8 +1295,8 @@ test("Steam Market content script replaces exact item names and localizes detail
 
   await context.__ALAXEE_STEAMHUB__.refresh();
 
-  assert.equal(breadcrumbTitleText.nodeValue, "深渊护符");
-  assert.equal(titleText.nodeValue, "深渊护符");
+  assert.equal(breadcrumbTitleText.nodeValue, "深渊护符 (Arcana) C");
+  assert.equal(titleText.nodeValue, "深渊护符 (Arcana) C");
   assert.equal(titleElement.getAttribute("title"), "原文：Abyss Amulet (Arcana) C");
   assert.equal(titleElement.getAttribute("data-alaxee-steamhub-app-id"), "3678970");
   assert.equal(itemLevelText.nodeValue, "护符 · 等级 90");
@@ -1305,15 +1313,17 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.8.3");
-  assert.equal(diagnostics.detectedItems, 1);
+  assert.equal(diagnostics.version, "0.8.4");
+  assert.equal(diagnostics.detectedItems, 2);
+  assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);
   assert.equal(diagnostics.translatedNames, 2);
   assert.ok(diagnostics.translatedDetailNodes >= 11);
-  assert.deepEqual(Array.from(diagnostics.missingPacks), []);
+  assert.deepEqual(Array.from(diagnostics.missingPacks), ["440"]);
   assert.deepEqual(Array.from(diagnostics.errors), []);
   const runtime = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__.snapshot();
   assert.equal(runtime.title, "汉化已生效");
+  assert.ok(runtime.details.some((line) => line.includes("不影响当前商品")));
   assert.equal(runtime.tone, "success");
 });
 

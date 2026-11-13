@@ -5,7 +5,7 @@
   function publishRuntimeStatus(tone, title, details) {
     runtimeStatus?.update({ tone, title, details });
   }
-  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.8.3", "正在初始化 Steam 市场适配器…"]);
+  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.8.4", "正在初始化 Steam 市场适配器…"]);
 
   const marketLocale = globalThis.__ALAXEE_STEAMHUB_MARKET_LOCALE__;
   if (!marketLocale || !window.location) {
@@ -62,7 +62,7 @@
   const localizedTextNodes = new Map();
   let scanScheduled = false;
   const diagnostics = {
-    version: "0.8.3",
+    version: "0.8.4",
     initializedAt: new Date().toISOString(),
     scanCount: 0,
     lastScanAt: null,
@@ -80,49 +80,103 @@
     return textLocalizer.normalizeText(value);
   }
 
+  function getPrimaryAppId() {
+    const identity = globalThis.__ALAXEE_STEAMHUB_ITEM_IDENTITY__;
+    const listing = identity?.parseMarketListingUrl(window.location.href);
+    if (listing?.appId) return listing.appId;
+    try {
+      return identity?.normalizeAppId(new URL(window.location.href).searchParams.get("appid")) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function preserveMarketNameSuffix(marketHashName, translation) {
+    const source = String(marketHashName || "");
+    const translated = String(translation || "").trimEnd();
+    const suffixMatch = source.match(/((?:\\s+\\([^()]+\\))*)(?:\\s+([A-Z]))?$/);
+    if (!suffixMatch) return translated;
+
+    const parentheticalSuffix = suffixMatch[1] || "";
+    const variantLetter = suffixMatch[2] || "";
+    if (!parentheticalSuffix && !variantLetter) return translated;
+
+    let result = translated;
+    if (parentheticalSuffix && !result.includes(parentheticalSuffix.trim())) {
+      result += parentheticalSuffix;
+    }
+    if (variantLetter && !new RegExp("(?:^|\\\\s)" + variantLetter + "$").test(result)) {
+      result += " " + variantLetter;
+    }
+    return result;
+  }
+
   function publishDiagnostics() {
-    const currentNodes = Array.from(localizedTextNodes.entries())
+    const connectedNodes = Array.from(localizedTextNodes.entries())
       .filter(([node]) => node.isConnected);
+    const primaryAppId = diagnostics.primaryAppId;
+    const currentNodes = primaryAppId
+      ? connectedNodes.filter(([, record]) => record.appId === primaryAppId)
+      : connectedNodes;
     diagnostics.translatedNames = currentNodes.filter(([, record]) => record.kind === "name").length;
     diagnostics.translatedDetailNodes = currentNodes.filter(([, record]) => record.kind === "detail").length;
 
+    const primaryMissing = primaryAppId
+      ? diagnostics.missingPacks.includes(primaryAppId)
+      : diagnostics.missingPacks.length > 0;
+    const primaryDisabled = primaryAppId
+      ? diagnostics.disabledGames.includes(primaryAppId)
+      : diagnostics.disabledGames.length > 0;
+    const primaryErrors = diagnostics.errors.filter((entry) => !entry.appId || !primaryAppId || entry.appId === primaryAppId);
+    const primaryUnmatched = diagnostics.unmatchedNames.filter((entry) => !primaryAppId || entry.appId === primaryAppId);
+    const hasPrimaryTranslation = diagnostics.translatedNames > 0 || diagnostics.translatedDetailNodes > 0;
+
     let tone = "info";
     let title = "页面已检查，暂无可翻译内容";
-    if (diagnostics.errors.length) {
+    if (hasPrimaryTranslation) {
+      tone = "success";
+      title = "汉化已生效";
+    } else if (primaryErrors.length) {
       tone = "error";
       title = "SteamHub 运行异常";
-    } else if (diagnostics.missingPacks.length) {
+    } else if (primaryMissing) {
       tone = "warning";
-      title = "未找到该游戏的本地词库";
-    } else if (diagnostics.disabledGames.length) {
+      title = "未找到该商品所属游戏的本地词库";
+    } else if (primaryDisabled) {
       tone = "warning";
       title = "该游戏的汉化已关闭";
     } else if (diagnostics.detectedItems === 0) {
       tone = "warning";
       title = "未识别到 Steam 市场商品";
-    } else if (diagnostics.translatedNames > 0 || diagnostics.translatedDetailNodes > 0) {
-      tone = "success";
-      title = "汉化已生效";
-    } else if (diagnostics.unmatchedNames.length) {
+    } else if (primaryUnmatched.length) {
       tone = "warning";
       title = "商品已识别，但词库没有命中";
+    } else if (diagnostics.errors.length) {
+      tone = "error";
+      title = "部分关联商品处理异常";
     }
 
     const details = [
-      "版本：0.8.3",
-      "页面 AppID：" + (diagnostics.detectedItems ? (diagnostics.unmatchedNames[0]?.appId || diagnostics.missingPacks[0] || diagnostics.disabledGames[0] || "已识别") : "未识别"),
-      "识别商品：" + diagnostics.detectedItems,
-      "命中商品：" + diagnostics.matchedItems,
-      "已替换名称节点：" + diagnostics.translatedNames,
-      "已替换详情节点：" + diagnostics.translatedDetailNodes
+      "版本：0.8.4",
+      "当前页面 AppID：" + (primaryAppId || "未识别"),
+      "页面识别商品：" + diagnostics.detectedItems,
+      "已命中词条：" + diagnostics.matchedItems,
+      "当前游戏已替换名称节点：" + diagnostics.translatedNames,
+      "当前游戏已替换详情节点：" + diagnostics.translatedDetailNodes
     ];
-    if (diagnostics.missingPacks.length) details.push("缺少词库 AppID：" + diagnostics.missingPacks.join("、"));
-    if (diagnostics.disabledGames.length) details.push("已关闭汉化 AppID：" + diagnostics.disabledGames.join("、"));
-    if (diagnostics.unmatchedNames.length) {
-      details.push("未命中示例：" + diagnostics.unmatchedNames.slice(0, 3).map((item) => item.marketHashName).join("；"));
+    const unrelatedMissing = diagnostics.missingPacks.filter((appId) => appId !== primaryAppId);
+    const unrelatedDisabled = diagnostics.disabledGames.filter((appId) => appId !== primaryAppId);
+    if (primaryMissing) details.push("当前游戏缺少本地词库：" + primaryAppId);
+    if (unrelatedMissing.length) details.push("其他关联商品缺少词库（不影响当前商品）： " + unrelatedMissing.join("、"));
+    if (primaryDisabled) details.push("当前游戏已关闭汉化：" + primaryAppId);
+    if (unrelatedDisabled.length) details.push("其他关联商品已关闭汉化：" + unrelatedDisabled.join("、"));
+    if (primaryUnmatched.length) {
+      details.push("当前游戏未命中示例：" + primaryUnmatched.slice(0, 3).map((item) => item.marketHashName).join("；"));
     }
-    if (diagnostics.errors.length) {
-      details.push("错误：" + diagnostics.errors.slice(0, 3).map((item) => item.message).join("；"));
+    if (primaryErrors.length) {
+      details.push("当前商品处理错误：" + primaryErrors.slice(0, 3).map((item) => item.message).join("；"));
+    } else if (diagnostics.errors.length) {
+      details.push("其他关联商品错误：" + diagnostics.errors.slice(0, 3).map((item) => item.message).join("；"));
     }
     details.push("诊断时间：" + (diagnostics.lastScanAt || "等待首次扫描"));
     runtimeStatus?.update({ tone, title, details });
@@ -297,7 +351,8 @@
     });
     if (result.status === "translated") {
       diagnostics.matchedItems += 1;
-      diagnostics.translatedNames += applyNameTranslation(item, result.record.translation);
+      const safeTranslation = preserveMarketNameSuffix(item.marketHashName, result.record.translation);
+      diagnostics.translatedNames += applyNameTranslation(item, safeTranslation);
     } else {
       const restored = applyNameTranslation(item, "");
       if (diagnostics.unmatchedNames.length < 20) {
@@ -318,6 +373,7 @@
     diagnostics.translatedNames = 0;
     diagnostics.translatedDetailNodes = 0;
     diagnostics.matchedItems = 0;
+    diagnostics.primaryAppId = getPrimaryAppId();
     diagnostics.missingPacks = [];
     diagnostics.disabledGames = [];
     diagnostics.unmatchedNames = [];
@@ -361,7 +417,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.8.2",
+    version: "0.8.4",
     getDiagnostics() {
       return Object.freeze({
         ...diagnostics,

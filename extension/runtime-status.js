@@ -26,7 +26,7 @@
     if (!document?.createElement || !document.documentElement) return false;
 
     host = document.createElement("div");
-    host.setAttribute("data-alaxee-steamhub-runtime-status", "0.8.3");
+    host.setAttribute("data-alaxee-steamhub-runtime-status", "0.8.4");
     host.style.cssText = "all:initial!important;position:fixed!important;right:12px!important;bottom:12px!important;z-index:2147483647!important;";
 
     const shadow = typeof host.attachShadow === "function"
