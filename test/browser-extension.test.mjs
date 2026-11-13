@@ -286,7 +286,7 @@ test("public pack loader requests one origin before fetching and validates the p
   assert.equal(calls[2][2].credentials, "omit");
   assert.equal(calls[2][2].redirect, "error");
   assert.equal(calls[2][2].referrerPolicy, "no-referrer");
-  assert.match(calls[2][2].headers.Accept, /text\\/html/);
+  assert.match(calls[2][2].headers.Accept, /text\/html/);
   assert.equal(calls[3][0], "normalize");
   assert.equal(result.pack.normalized, true);
   assert.equal(result.pack.translations.length, 1);
@@ -554,7 +554,7 @@ test("HTML table parser extracts header-mapped rows from an inert DOM without re
   };
   const goodTable = makeTable([
     { cells: [makeCell("TH", "Market name"), makeCell("TH", "zh-Hans"), makeCell("TH", "ID")] },
-    { cells: [makeCell("TD", "Silver Ingot"), makeCell("TD", "银锭"), makeCell("TD", "142001")] },
+    { cells: [makeCell("TD", "Silver  Ingot"), makeCell("TD", "银锭"), makeCell("TD", "142001")] },
     { cells: [makeCell("TD", "Arcane Crystal"), makeCell("TD", "奥术水晶"), makeCell("TD", "115001")] }
   ], { caption: "Item catalog", ariaLabel: "Public item catalog" });
   const noHeaderTable = makeTable([
@@ -593,7 +593,7 @@ test("HTML table parser extracts header-mapped rows from an inert DOM without re
     [["column_1", "Market name"], ["column_2", "zh-Hans"], ["column_3", "ID"]]
   );
   assert.equal(result.tables[0].records.length, 1);
-  assert.equal(result.tables[0].records[0].column_1, "Silver Ingot");
+  assert.equal(result.tables[0].records[0].column_1, "Silver  Ingot");
   assert.equal(result.tables[0].records[0].column_2, "银锭");
   assert.equal(result.tables[0].rowCount, 2);
   assert.equal(result.tables[0].truncatedRows, true);
