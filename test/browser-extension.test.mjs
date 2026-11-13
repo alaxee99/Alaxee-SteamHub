@@ -1295,8 +1295,8 @@ test("Steam Market content script replaces exact item names and localizes detail
 
   await context.__ALAXEE_STEAMHUB__.refresh();
 
-  assert.equal(breadcrumbTitleText.nodeValue, "深渊护符 (Arcana) C");
-  assert.equal(titleText.nodeValue, "深渊护符 (Arcana) C");
+  assert.equal(breadcrumbTitleText.nodeValue, "深渊护符 (奥术) C");
+  assert.equal(titleText.nodeValue, "深渊护符 (奥术) C");
   assert.equal(titleElement.getAttribute("title"), "原文：Abyss Amulet (Arcana) C");
   assert.equal(titleElement.getAttribute("data-alaxee-steamhub-app-id"), "3678970");
   assert.equal(itemLevelText.nodeValue, "护符 · 等级 90");
