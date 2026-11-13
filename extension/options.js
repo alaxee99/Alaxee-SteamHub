@@ -76,7 +76,14 @@
     document.getElementById("entry-market-name").value = entry.marketHashName;
     document.getElementById("entry-source-id").value = entry.sourceItemId || "";
     document.getElementById("entry-source").value = entry.source || "";
-    document.getElementById("entry-locale").value = entry.locale;
+    const localeSelect = document.getElementById("entry-locale");
+    if (!Array.from(localeSelect.options).some((option) => option.value === entry.locale)) {
+      const localeOption = document.createElement("option");
+      localeOption.value = entry.locale;
+      localeOption.textContent = entry.locale;
+      localeSelect.append(localeOption);
+    }
+    localeSelect.value = entry.locale;
     document.getElementById("entry-translation").value = entry.translation;
     submitEntryButton.textContent = "保存修改";
     cancelEditButton.hidden = false;
