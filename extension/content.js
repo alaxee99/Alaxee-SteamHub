@@ -116,7 +116,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.5.0",
+    version: "0.6.0",
     scanMarketItems() {
       return marketItems.collectMarketListingLinks(document, window.location.href)
         .map(({ element, ...item }) => item);
