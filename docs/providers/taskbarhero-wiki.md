@@ -1,6 +1,8 @@
-# TaskBarHero.wiki community data source assessment
+# TaskBarHero.wiki secondary community data source assessment
 
 Assessment date: 2026-11-13
+
+Priority: secondary cross-check only. TBH Index at [tbhindex.com](https://tbhindex.com/) is now the primary human reference for Task Bar Hero market-item mapping. See [the source comparison and coverage assessment](tbhindex.md).
 
 ## What is verifiable
 
@@ -47,4 +49,4 @@ Therefore:
 
 ## Current SteamHub status
 
-**Candidate source only; not connected.** SteamHub 0.5.0 stores optional `sourceItemId` and source/provenance text in each translation entry. The generic provider contract and exact match resolver are ready for a later approved adapter, but no community Wiki requests are made by the extension.
+**Candidate source only; not connected.** SteamHub 0.6.0 stores optional `sourceItemId` and source/provenance text in each translation entry. The generic provider contract and exact match resolver are ready for a later approved adapter, but no community Wiki requests are made by the extension.
