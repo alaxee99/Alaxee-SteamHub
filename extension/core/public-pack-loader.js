@@ -39,11 +39,10 @@
     return url;
   }
 
-  async function fetchGamePackFromUrl(rawUrl, options = {}) {
+  async function fetchPublicTextFromUrl(rawUrl, options = {}) {
     const url = validatePublicHttpsUrl(rawUrl);
     const requestPermission = options.requestPermission;
     const fetchImpl = options.fetchImpl || globalThis.fetch;
-    const normalizePack = options.normalizePack;
     const AbortControllerImpl = options.AbortControllerImpl || globalThis.AbortController;
     const setTimeoutImpl = options.setTimeoutImpl || globalThis.setTimeout;
     const clearTimeoutImpl = options.clearTimeoutImpl || globalThis.clearTimeout;
@@ -56,11 +55,10 @@
 
     if (typeof requestPermission !== "function" ||
         typeof fetchImpl !== "function" ||
-        typeof normalizePack !== "function" ||
         typeof AbortControllerImpl !== "function" ||
         typeof setTimeoutImpl !== "function" ||
         typeof clearTimeoutImpl !== "function") {
-      throw new TypeError("远程数据包读取器缺少必要依赖");
+      throw new TypeError("远程来源读取器缺少必要依赖");
     }
 
     const permissionPattern = url.origin + "/*";
@@ -80,7 +78,7 @@
         cache: "no-store",
         redirect: "error",
         referrerPolicy: "no-referrer",
-        headers: { Accept: "application/json, text/plain;q=0.9" },
+        headers: { Accept: "application/json, text/csv, text/plain;q=0.9" },
         signal: controller.signal
       });
 
@@ -93,7 +91,7 @@
       const declaredLength = Number(response.headers?.get?.("content-length") || 0);
       if (declaredLength > maxBytes) {
         controller.abort();
-        throw new Error("数据包超过 5 MiB 上限");
+        throw new Error("数据源超过 5 MiB 上限");
       }
       if (!response.body || typeof response.body.getReader !== "function") {
         throw new Error("数据源没有返回可读取的内容");
@@ -109,7 +107,7 @@
         if (totalBytes > maxBytes) {
           controller.abort();
           await reader.cancel().catch(() => {});
-          throw new Error("数据包超过 5 MiB 上限");
+          throw new Error("数据源超过 5 MiB 上限");
         }
         chunks.push(chunk.value);
       }
@@ -120,14 +118,8 @@
         bytes.set(chunk, offset);
         offset += chunk.byteLength;
       }
-      const raw = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
-      const parsed = JSON.parse(raw);
-      if (!parsed || parsed.format !== "alaxee-steamhub-game-pack" || parsed.schemaVersion !== 1) {
-        throw new Error("该 URL 返回的不是 SteamHub Game Pack v1。普通 Wiki 页面需要独立解析适配器。");
-      }
-
       return {
-        pack: normalizePack(parsed),
+        text: new TextDecoder("utf-8", { fatal: true }).decode(bytes),
         sourceUrl: url.href,
         byteLength: totalBytes
       };
@@ -141,8 +133,25 @@
     }
   }
 
+  async function fetchGamePackFromUrl(rawUrl, options = {}) {
+    const loaded = await fetchPublicTextFromUrl(rawUrl, options);
+    const parsed = JSON.parse(loaded.text);
+    if (!parsed || parsed.format !== "alaxee-steamhub-game-pack" || parsed.schemaVersion !== 1) {
+      throw new Error("该 URL 返回的不是 SteamHub Game Pack v1。普通 Wiki 页面需要独立解析适配器。");
+    }
+    if (typeof options.normalizePack !== "function") {
+      throw new TypeError("数据包校验器缺失");
+    }
+    return {
+      pack: options.normalizePack(parsed),
+      sourceUrl: loaded.sourceUrl,
+      byteLength: loaded.byteLength
+    };
+  }
+
   globalThis.__ALAXEE_STEAMHUB_PUBLIC_PACK_LOADER__ = Object.freeze({
     validatePublicHttpsUrl,
+    fetchPublicTextFromUrl,
     fetchGamePackFromUrl
   });
 })();
