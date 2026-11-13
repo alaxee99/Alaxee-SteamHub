@@ -65,7 +65,7 @@ button { border: 0; cursor: pointer; }
 }
 .primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .hint { margin: 13px 0 0; color: #858ba5; font-size: 11px; line-height: 1.65; }
-.import-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 13px; margin-top: 13px; }
+.remote-import { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 13px; margin-bottom: 13px; }\n.import-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 13px; margin-top: 13px; }
 .mode-label { width: 220px; }
 .text-link { padding: 11px 0; color: var(--cyan); font-size: 11px; text-decoration: none; }
 .text-link:hover { text-decoration: underline; }
@@ -114,7 +114,7 @@ button:disabled { cursor: not-allowed; opacity: .4; }
   .brand-mark { flex-basis: 46px; width: 46px; height: 46px; border-radius: 14px; }
   .section-heading { display: block; }
   .section-heading p { max-width: none; margin: 9px 0 0 25px; text-align: left; }
-  .form-grid, .entry-grid, .dictionary-toolbar { grid-template-columns: 1fr; }
+  .form-grid, .entry-grid, .dictionary-toolbar, .remote-import { grid-template-columns: 1fr; }
   .wide { grid-column: auto; }
   .primary { width: 100%; }
   .game-card { align-items: flex-start; flex-wrap: wrap; }
