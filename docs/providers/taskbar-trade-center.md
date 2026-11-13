@@ -42,7 +42,7 @@ The override ledger is `docs/market-catalogs/taskbar-hero-market-name-overrides.
 
 ## Generated import pack
 
-The import-ready pack is `docs/game-pack.taskbar-hero-zh-CN.json`. It now contains 1,116 exact `market_hash_name` keys and 14 detail-text mappings. The 1,106-key baseline plus ten subsequently verified C-variant names (one in v0.9.5 and nine in v0.9.6) use the corresponding game's `zh-Hans` base labels.
+The import-ready pack is `docs/game-pack.taskbar-hero-zh-CN.json`. It now contains 1,116 exact `market_hash_name` keys and 18 detail-text mappings. The 1,106-key baseline plus ten subsequently verified C-variant names (one in v0.9.5 and nine in v0.9.6) use the corresponding game's `zh-Hans` base labels.
 
 This is a verified dictionary subset, not a claim that every marketable item has a unique Steam listing key or that every listing currently has sell orders. Steam's commodity file covers commodities only. Unique gear needs exact Steam definition/market-name verification; never fuzzy-map or infer A/C from a level or numeric suffix alone.
 
@@ -55,6 +55,18 @@ This is a verified dictionary subset, not a claim that every marketable item has
 5. Join Chinese `zh-Hans` labels only after the exact Steam key is established. Exclude conflicting or empty mappings for review.
 6. Compare all exact keys against the Steam Bulk Sell commodity JSON; send non-commodity gear variants to a separate verified-key review queue.
 7. Validate schema v1, unique `(marketHashName, locale)` keys, source IDs, detail text mappings, and the 10,000-entry per-game limit.
+
+
+ 
+## Detail-page localization audit (2026-11-14)
+
+A four-page live sample was checked across a scepter, crossbow, armor, and bracer, in addition to the earlier axe detail page. The sample exposed three reusable classes of content:
+
+- **Structured stats:** 77 `STAT_NAMES` labels plus numeric/pct patterns cover split text nodes (for example `Attack Damage` + `746`) and combined nodes (for example `Attack Speed 1.19`). Base-stat numbers remain unchanged; only their labels are localized.
+- **Reusable format rules:** `More` and `Increased` modifiers, signed numeric values, decimal values, grade labels, type/level strings, `Requires Lv.N`, and `Decoration/Engraving/Inscription Slot ×N` all use shared patterns. No per-item DOM selector is required for the split/combined Base Stats variants.
+- **Fixed unique effects:** four exact effects are now in the pack: Axe Spin duration, Heal skill cooldown, Crossbow Turret cooldown, and the Chaos Resistance lock rule. The repeated Steam commodity disclaimer is also translated once as a shared exact phrase.
+
+The browser sample also verified `Elemental Dodge Chance +20.0%` through the generic stat/value rule. The sample is not a complete census of all unique item effects; newly encountered unique sentences should be added in batches after reviewing multiple pages, not by guessing translations from item names.
 
 ## Privacy and redistribution
 

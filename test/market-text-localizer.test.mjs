@@ -149,3 +149,29 @@ test("Task Bar Hero item detail section labels and More modifiers translate", ()
     assert.equal(localizer.translateText("3678970", original), expected, original);
   }
 });
+
+ 
+test("combined Steam detail text nodes translate stat labels and values", () => {
+  const localizer = loadLocalizer();
+  const cases = [
+    ["Attack Damage 746", "攻击伤害 746"],
+    ["Attack Speed 1.19", "攻击速度 1.19"],
+    ["Attack Damage 1651", "攻击伤害 1651"],
+    ["Attack Speed 1.15", "攻击速度 1.15"],
+    ["Armor 10791", "护甲 10791"],
+    ["Cooldown Reduction +8.7%", "冷却缩减 +8.7%"],
+    ["Critical Damage +94%", "暴击伤害 +94%"],
+    ["115% Increased Attack Damage", "攻击伤害提高 115%"],
+    ["26% More Attack Speed", "攻击速度额外提高 26%"],
+    ["50% Increased Max HP", "最大生命值提高 50%"],
+    ["494% Increased Armor", "护甲提高 494%"],
+    ["Max HP +741", "最大生命值 +741"],
+    ["Elemental Dodge Chance +20.0%", "元素闪避几率 +20.0%"],
+    ["Decoration Slot ×2", "装饰槽 ×2"],
+    ["Engraving Slot ×1", "雕刻槽 ×1"],
+    ["Inscription Slot ×1", "铭刻槽 ×1"]
+  ];
+  for (const [original, expected] of cases) {
+    assert.equal(localizer.translateText("3678970", original), expected, original);
+  }
+});

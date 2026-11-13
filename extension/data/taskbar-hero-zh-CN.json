@@ -7784,7 +7784,7 @@
     },
     {
       "sourceText": "Arcana Grade",
-      "translation": "奥术品阶"
+      "translation": "至宝品阶"
     },
     {
       "sourceText": "Inherent Stats",
@@ -7833,6 +7833,22 @@
     {
       "sourceText": "Killing a bleeding enemy with Axe Spin increases Axe Spin's duration by 1 second",
       "translation": "使用旋转斧击杀流血中的敌人后，旋转斧的持续时间延长 1 秒。"
+    },
+    {
+      "sourceText": "Heal skill's cooldown is reduced by 30.",
+      "translation": "治疗技能的冷却时间缩短 30。"
+    },
+    {
+      "sourceText": "Crossbow Turret cooldown is reduced by 50%.",
+      "translation": "弩炮的冷却时间缩短 50%。"
+    },
+    {
+      "sourceText": "Chaos Resistance is fixed to the highest elemental resistance value.",
+      "translation": "混沌抗性固定为最高的元素抗性值。"
+    },
+    {
+      "sourceText": "This item is a commodity, where all the individual items are effectively identical. Individual listings aren't accessible; you can instead issue orders to buy at a specific price, with the cheapest listing getting automatically matched to the highest buy order.",
+      "translation": "此物品属于大宗商品，所有单件商品实际上完全相同。无法单独访问每个挂单；你可以改为按指定价格提交购买订单，最低价的出售订单会自动与最高价的购买订单匹配。"
     }
   ]
 }

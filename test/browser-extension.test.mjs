@@ -388,7 +388,7 @@ test("Steam Market search overview localizes titles inside the current clickable
 
   assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.6");
+  assert.equal(diagnostics.version, "0.9.7");
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.detectedItems, 1);
   assert.equal(diagnostics.visibleItems, 0);
@@ -435,7 +435,7 @@ test("runtime status keeps a compact badge visible for startup, warnings, and su
   const status = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__;
 
   assert.equal(mountedHosts.length, 0);
-  status.update({ tone: "info", title: "SteamHub 已注入", details: ["版本：0.9.6"] });
+  status.update({ tone: "info", title: "SteamHub 已注入", details: ["版本：0.9.7"] });
   assert.equal(mountedHosts.length, 1);
   assert.equal(mountedHosts[0].isConnected, true);
 
@@ -452,7 +452,7 @@ test("runtime status keeps a compact badge visible for startup, warnings, and su
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.9.6");
+  assert.equal(manifest.version, "0.9.7");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1671,7 +1671,7 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.6");
+  assert.equal(diagnostics.version, "0.9.7");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);
@@ -1751,4 +1751,18 @@ test("bundled Task Bar Hero pack includes all Steam-verified level-80 C variants
     false,
     "do not invent a C listing that was not found on Steam"
   );
+});
+
+ 
+test("bundled Task Bar Hero detail pack covers sampled unique effects", async () => {
+  const pack = JSON.parse(await readFile(path.join(extensionRoot, "data", "taskbar-hero-zh-CN.json"), "utf8"));
+  const translations = new Map((pack.textTranslations || []).map((entry) => [
+    entry.sourceText, entry.translation
+  ]));
+  assert.equal(translations.get("Arcana Grade"), "至宝品阶");
+  assert.equal(translations.get("Heal skill's cooldown is reduced by 30."), "治疗技能的冷却时间缩短 30。");
+  assert.equal(translations.get("Crossbow Turret cooldown is reduced by 50%."), "弩炮的冷却时间缩短 50%。");
+  assert.equal(translations.get("Chaos Resistance is fixed to the highest elemental resistance value."), "混沌抗性固定为最高的元素抗性值。");
+  assert.ok(translations.has("This item is a commodity, where all the individual items are effectively identical. Individual listings aren't accessible; you can instead issue orders to buy at a specific price, with the cheapest listing getting automatically matched to the highest buy order."));
+  assert.equal(pack.textTranslations.length, 18);
 });
