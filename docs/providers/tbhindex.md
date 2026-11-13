@@ -107,7 +107,7 @@ Until the maintainer confirms an approved access method and reuse terms:
 - Keep manual research to individually inspected, exact item cross-references.
 - Do not add any network permission or provider request to the browser extension.
 
-The Terms of Service are published at https://tbhindex.com/ja/terms. The About page identifies maintainer contact routes, but SteamHub has not contacted the maintainer.
+The Terms of Service are published at https://tbhindex.com/ja/terms. The Terms of Service lists the maintainer contact email `gabriel@tbhindex.com`; the About page also points to Discord. SteamHub has not contacted the maintainer or requested access yet.
 
 ## Integration plan
 
