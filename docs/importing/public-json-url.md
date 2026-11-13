@@ -1,8 +1,11 @@
-# Public Game Pack URL import
+# Public source URL import
 
-The extension Options page can load an already-built public JSON game pack from a direct HTTPS URL.
+The extension Options page supports two direct HTTPS source workflows:
 
-## Use
+- **SteamHub Game Pack URL:** loads an already-built JSON pack using schema version 1.
+- **Structured JSON / CSV URL:** loads a public data file so the user can map its record fields into a SteamHub Game Pack. See `docs/importing/structured-json-csv.md`.
+
+## Use a public Game Pack URL
 
 1. Open ALAXEE SteamHub → Options → **批量导入数据包**.
 2. Paste a direct URL to a JSON file that follows `alaxee-steamhub-game-pack` schema version 1.
@@ -14,17 +17,17 @@ Current Task Bar Hero pack URL:
 
 `https://raw.githubusercontent.com/alaxee99/Alaxee-SteamHub/feat/browser-extension-first/docs/game-pack.taskbar-hero-zh-CN.json`
 
-## What this does and does not do
+## Shared remote-read controls
 
-- Reads one user-supplied JSON resource; it does not follow links, enumerate a sitemap, or crawl a website.
-- Accepts only the SteamHub Game Pack v1 schema. A Wiki HTML page, homepage URL, sitemap, CSV, or unrelated JSON is not an importable pack.
-- A website-specific adapter is required to turn page content into exact `market_hash_name` translation records. HTML page structure, pagination, lazy loading, locale variants and item identity differ between sites.
-- No cookies, credentials, referrer, or Steam session data are sent. Cross-origin redirects are rejected.
-- Only HTTPS URLs without embedded credentials or custom ports are accepted. The extension asks for access to the single URL origin after an explicit click; it does not retain broader required host permissions.
-- The response is capped at 5 MiB and a 20-second timeout. Malformed JSON, invalid packs, duplicate keys and schema errors are rejected before the existing merge/replace flow.
+- Only HTTPS URLs without embedded credentials or custom ports are accepted.
+- The extension asks for access to the single URL origin after an explicit click; no broad required host permission is added.
+- No cookies, credentials, referrer, or Steam session data are sent.
+- Cross-origin redirects are rejected.
+- The response is streamed with a 5 MiB size cap and a 20-second timeout.
+- A Game Pack URL must pass the existing schema validator before it is placed into the import editor.
 
-## Why URL import is separate from Wiki crawling
+## Scope boundary
 
-A copied Wiki URL is a useful starting point, but one page does not necessarily contain all of a site's content. A complete importer would need to discover permitted pages, follow pagination and lazy-loaded records, understand each page's data structure, and map each record to a verified Steam market key. Generic HTML-to-dictionary guessing would introduce false translations.
+A public source URL does not automatically mean a whole website can be safely or correctly imported. The structured mode reads only the supplied JSON or CSV resource; it does not follow links, enumerate sitemaps or crawl a website. A normal Wiki HTML page or homepage needs a dedicated page adapter to discover permitted content pages, interpret their structure and map items to exact Steam market keys.
 
-For Task Bar Hero, the existing bulk game catalog is already a structured source with `zh-Hans` names and marketability metadata. It is the preferred bulk source; TBH Index remains a selective public-page cross-check. Do not bulk crawl TBH Index or reverse-engineer undocumented endpoints; see `docs/providers/tbhindex.md` and the repository's `AGENTS.md` rules.
+Do not bulk-crawl a source whose terms prohibit it. TBH Index remains a selective manual cross-check source; it is not crawled by this importer. See `docs/providers/tbhindex.md` and `AGENTS.md`.
