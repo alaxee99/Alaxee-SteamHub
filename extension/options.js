@@ -5,6 +5,7 @@
   const registryApi = globalThis.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
   const publicPackLoaderApi = globalThis.__ALAXEE_STEAMHUB_PUBLIC_PACK_LOADER__;
   const sourceMapperApi = globalThis.__ALAXEE_STEAMHUB_SOURCE_RECORD_MAPPER__;
+  const siteDiscoveryApi = globalThis.__ALAXEE_STEAMHUB_SITE_DISCOVERY__;
   const statusNode = document.getElementById("status");
   const gameList = document.getElementById("game-list");
   const gameSelect = document.getElementById("entry-game");
@@ -23,7 +24,7 @@
   let currentPage = 0;
   let editingIdentity = null;
 
-  if (!storageApi || !registryApi || !publicPackLoaderApi || !sourceMapperApi || typeof chrome === "undefined" || !chrome.storage?.local) {
+  if (!storageApi || !registryApi || !publicPackLoaderApi || !sourceMapperApi || !siteDiscoveryApi || typeof chrome === "undefined" || !chrome.storage?.local) {
     statusNode.textContent = "扩展存储不可用";
     return;
   }
@@ -403,6 +404,60 @@
         loaded.pack.translations.length + " 条；请选择合并或覆盖后再导入");
     } catch (error) {
       report(error.message || "读取远程数据包失败", true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById("analyze-site").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const rawUrl = document.getElementById("site-index-url").value.trim();
+    const summary = document.getElementById("site-discovery-summary");
+    const list = document.getElementById("site-discovery-pages");
+    if (!rawUrl) {
+      report("请先粘贴 Wiki 或网站入口 URL", true);
+      return;
+    }
+
+    button.disabled = true;
+    list.replaceChildren();
+    try {
+      const result = await siteDiscoveryApi.discoverSiteMap(rawUrl, {
+        validatePublicHttpsUrl: (value) => publicPackLoaderApi.validatePublicHttpsUrl(value),
+        requestPermission: (originPattern) => chrome.permissions.request({ origins: [originPattern] }),
+        fetchText: (url) => publicPackLoaderApi.fetchPublicTextFromUrl(url, {
+          requestPermission: () => Promise.resolve(true)
+        })
+      });
+
+      summary.textContent = "站点：" + result.origin +
+        " · sitemap：" + result.sitemaps.length +
+        " · 同域页面：" + result.urls.length +
+        " · robots 拦截：" + result.blockedByRobots +
+        (result.truncated ? " · 已达到预览上限" : "") +
+        (result.robotsAvailable ? "" : " · 未读取到 robots.txt");
+      for (const url of result.urls.slice(0, 30)) {
+        const item = document.createElement("li");
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        link.textContent = url;
+        item.append(link);
+        list.append(item);
+      }
+      if (result.urls.length > 30) {
+        const more = document.createElement("li");
+        more.textContent = "另有 " + (result.urls.length - 30) + " 个页面未显示";
+        list.append(more);
+      }
+      if (result.errors.length) {
+        summary.textContent += " · sitemap 错误：" + result.errors.length;
+      }
+      report("站点页面目录已分析；这一步没有抓取页面正文");
+    } catch (error) {
+      summary.textContent = "";
+      report(error.message || "站点发现失败", true);
     } finally {
       button.disabled = false;
     }
