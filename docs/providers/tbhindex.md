@@ -37,7 +37,7 @@ Primary pages:
 - https://tbhindex.com/wiki/runes
 - https://tbhindex.com/market
 
-## Verified Steam-market cross-reference
+## Verified Steam-market cross-reference; localized label pending QA
 
 A Simplified Chinese item page was inspected:
 
@@ -45,7 +45,7 @@ https://tbhindex.com/zh/wiki/gear/mystic-armor-beyond-516111
 
 It identifies the localized item as **神秘盔甲A**, Beyond grade, Armor, level 50. Its metadata identifies `ItemKey 516111` and `GearKey 516111`. The page explicitly states that the corresponding Steam Community Market name is `Mystic Armor (Beyond) A`.
 
-This is a verified example of the mapping SteamHub needs:
+This is a verified example of the catalog-to-market cross-reference SteamHub needs. It does **not** yet establish which Chinese display label should be shipped:
 
 | Field | Value |
 |---|---|
@@ -54,7 +54,9 @@ This is a verified example of the mapping SteamHub needs:
 | TBH Index `ItemKey` | `516111` |
 | TBH Index `GearKey` | `516111` |
 | Locale | `zh-CN` |
-| Localized display name | `神秘盔甲A` |
+| TBH Index Chinese page title | `神秘盔甲A` |
+| Secondary Wiki Chinese title for the same catalog ID | `神秘盔甲` |
+| Translation status | Pending in-game / game-locale verification |
 | Provenance | `tbhindex.com` |
 
 A game-pack record can therefore be represented as:
@@ -69,7 +71,7 @@ A game-pack record can therefore be represented as:
 }
 ```
 
-The Steam market hash name remains the matching key. The TBH Index ID is only a cross-reference and must never replace it.
+The Steam market hash name remains the matching key. The TBH Index ID is only a cross-reference and must never replace it. The distinct site taskbarhero.wiki also maps catalog ID 516111 to the same Steam listing but displays the Chinese item name as `神秘盔甲` rather than `神秘盔甲A`. Preserve both source observations; do not silently choose either translation or bundle this sample as a verified dictionary entry until it has been checked against the game's own Simplified Chinese UI.
 
 ## Important coverage qualification: Farming page
 
