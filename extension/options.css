@@ -84,6 +84,7 @@ button { border: 0; cursor: pointer; }
 }
 .extractor-title { margin: 0 0 12px; color: #d9d8f4; font-size: 12px; font-weight: 750; }
 .html-mapping-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 13px; }
+.html-mapping-fields [hidden] { display: none; }
 .html-table-preview {
   max-width: 100%; margin: 11px 0; overflow: auto; border: 1px solid var(--line);
   border-radius: 10px; background: rgba(4,7,15,.42);
