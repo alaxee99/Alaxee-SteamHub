@@ -68,7 +68,7 @@ At most 10,000 translation records are accepted per game. The same exact item ke
 
 A provider record is usable only when AppID, exact market hash name, and locale match. Missing or ambiguous matches leave the original Steam text unchanged. See the example game pack at docs/game-pack.example.json.
 
-Task Bar Hero is AppID 3678970. TBHIndex and taskbarhero.wiki are candidate providers only; neither is called by the extension until a supported access method and reuse terms are verified. See docs/providers/tbhindex.md and docs/providers/taskbarhero-wiki.md.
+Task Bar Hero is AppID 3678970. TBH Index (tbhindex.com) is the primary human reference selected for current item/Steam-name cross-checking because its localized item pages expose internal ItemKey values and exact Steam Market names. It is not an automated provider: its terms restrict excessive scraping and no supported API/CORS or bulk reuse permission has been confirmed. taskbarhero.wiki remains a secondary market cross-check; taskbarherowiki.com and tbherohelper.com remain auxiliary catalog references with non-comparable version and row-count definitions. See docs/providers/tbhindex.md and docs/providers/taskbarhero-wiki.md.
 
 ## Privacy and permissions
 
