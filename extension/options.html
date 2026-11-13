@@ -238,6 +238,39 @@
           <p class="hint">每次只读取你明确选择的一张页面，不递归抓取链接。若 Wiki 提供游戏内部 ItemKey / ID，可使用已导入的 Steam 参考词库按 ID 精确反查 market_hash_name；否则必须手动选择原始 market_hash_name 列。“物品名称”不会被自动猜作 Steam 市场键。生成后仍需在上方检查 JSON，并明确选择合并或覆盖后导入。</p>
           <p class="hint"><a class="text-link" href="https://github.com/alaxee99/Alaxee-SteamHub/blob/feat/browser-extension-first/docs/game-pack.taskbar-hero-zh-CN.json" target="_blank" rel="noreferrer">获取 Task Bar Hero Steam 参考目录（1,106 条）</a>。先下载并在上方导入一次，之后才能用 Wiki ItemKey 做 ID 反查。</p>
         </div>
+        <div class="html-source-extractor card-source-extractor">
+          <p class="extractor-title">重复商品卡片提取</p>
+          <p class="hint">适用于 Wiki 商品列表里的卡片 / 条目网格。复用上方已读取的同一页面，不会再次联网；先从自动识别的 CSS 选择器中挑选重复卡片，再指定卡片内的 ID 和译文节点。</p>
+          <div class="form-grid html-mapping-fields">
+            <label class="wide">检测到的卡片结构
+              <select id="html-card-candidates" disabled><option value="">先读取 HTML 页面</option></select>
+            </label>
+            <label class="wide">商品卡片 CSS 选择器
+              <input id="html-card-selector" autocomplete="off" spellcheck="false" placeholder=".item-card 或 article.item">
+            </label>
+            <label class="wide">卡片内 ID 节点 CSS 选择器
+              <input id="html-card-id-selector" autocomplete="off" spellcheck="false" value="[data-item-key], [data-item-id], [data-id]" placeholder="[data-item-key]；留空时检查卡片自身属性">
+            </label>
+            <label>ID 属性
+              <input id="html-card-id-attribute" autocomplete="off" spellcheck="false" value="auto" placeholder="auto / data-item-key / textContent">
+            </label>
+            <label class="wide">卡片内译文节点 CSS 选择器
+              <input id="html-card-translation-selector" autocomplete="off" spellcheck="false" value="[data-translation], .item-name, [itemprop='name'], h2, h3, h4" placeholder=".item-name 或 [itemprop='name']">
+            </label>
+          </div>
+          <div class="import-actions">
+            <button id="extract-html-cards" type="button" class="quiet" disabled>提取商品卡片</button>
+            <span id="html-card-summary" class="source-summary" aria-live="polite">尚未分析商品卡片。</span>
+          </div>
+          <div id="html-card-preview" class="html-table-preview">
+            <p class="empty">商品卡片 ID、译文和标题预览会显示在这里。</p>
+          </div>
+          <div class="import-actions">
+            <button id="convert-html-cards" type="button" class="primary" disabled>从商品卡片生成数据包</button>
+            <span id="html-card-conversion-summary" class="source-summary" aria-live="polite"></span>
+          </div>
+          <p class="hint">若 ID 是 Wiki 内部 ItemKey，请使用上方“用 Wiki ItemKey / ID 反查”模式；若卡片直接提供精确 Steam market_hash_name，则切换到直接模式。无法找到 ID 或译文的卡片会跳过并计数。</p>
+        </div>
         <p class="hint">发现 sitemap 不代表网站允许批量抓取。读取单页前应检查站点条款；本工具不批量抓取、不绕过 robots 规则，也不会据此认定数据可再分发。</p>
       </details>
     </section>
