@@ -23,3 +23,13 @@ jobs:
         run: npm test
       - name: Check JavaScript syntax
         run: npm run check
+      - name: Package browser extension
+        run: zip -r "$GITHUB_WORKSPACE/alaxee-steamhub-extension.zip" .
+        working-directory: extension
+      - name: Upload installable extension ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: alaxee-steamhub-extension
+          path: alaxee-steamhub-extension.zip
+          if-no-files-found: error
+          retention-days: 14
