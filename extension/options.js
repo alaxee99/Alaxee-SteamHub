@@ -393,42 +393,58 @@
   function getQuickPack(appId) {
     return cachedPacks.find((pack) => pack.game.appId === appId) || null;
   }
-  async function ensureQuickProfile(game) {
-    if (!getQuickPack(game.appId)) await registry.addGame({ appId: game.appId, name: game.name });
+  async function loadBundledPack(game, source) {
+    if (!game?.appId || !source?.assetPath) throw new Error("没有可用的内置词库");
+    const response = await fetch(chrome.runtime.getURL(source.assetPath), {
+      credentials: "omit",
+      cache: "force-cache"
+    });
+    if (!response.ok) throw new Error("内置词库文件读取失败");
+    const pack = registryApi.normalizePack(await response.json());
+    if (pack.game.appId !== String(game.appId)) {
+      throw new Error("词库 AppID 与当前游戏不一致");
+    }
+    return registry.importPack(pack, { mode: "merge" });
   }
   async function addQuickProfile(button) {
     if (!quickGame) return;
     button.disabled = true;
     const status = document.getElementById("quick-source-status");
     try {
-      if (!getQuickPack(quickGame.appId)) {
-        await registry.addGame({ appId: quickGame.appId, name: quickGame.name });
+      const source = gameSourceCatalogApi.listSources(quickGame.appId)[0];
+      if (source) {
+        status.textContent = "正在添加游戏并自动安装中文词库…";
+        await loadBundledPack(quickGame, source);
         await refresh();
-        status.textContent = "游戏档案已添加。现在可以导入中文词库或查找 Wiki。";
-        report("已添加游戏：" + quickGame.name);
+        const installed = getQuickPack(quickGame.appId);
+        status.textContent = "游戏已添加并启用汉化 · 名称 " +
+          (installed?.translations.length || 0) + " 条 · 详情/属性 " +
+          (installed?.textTranslations?.length || 0) + " 条。";
+        report("已添加游戏并启用中文词库：" + quickGame.name);
       } else {
-        status.textContent = "这款游戏已经添加到 SteamHub。";
+        if (!getQuickPack(quickGame.appId)) {
+          await registry.addGame({ appId: quickGame.appId, name: quickGame.name });
+          await refresh();
+        }
+        status.textContent = "游戏档案已添加，但当前没有内置词库。";
+        report("已添加游戏：" + quickGame.name);
       }
       renderQuickGame();
     } catch (error) {
-      status.textContent = error.message || "添加游戏失败";
+      status.textContent = error.message || "添加游戏或导入内置词库失败";
       report(status.textContent, true);
+    } finally {
       button.disabled = false;
     }
   }
 
   async function importBundledSource(source, button) {
     if (!quickGame || !source?.assetPath) return;
-    button.disabled = true;
+    if (button) button.disabled = true;
     const status = document.getElementById("quick-source-status");
     status.textContent = "正在导入内置词库…";
     try {
-      await ensureQuickProfile(quickGame);
-      const response = await fetch(chrome.runtime.getURL(source.assetPath), { credentials: "omit", cache: "force-cache" });
-      if (!response.ok) throw new Error("内置词库文件读取失败");
-      const pack = registryApi.normalizePack(await response.json());
-      if (pack.game.appId !== quickGame.appId) throw new Error("词库 AppID 与当前游戏不一致");
-      await registry.importPack(pack, { mode: "merge" });
+      const pack = await loadBundledPack(quickGame, source);
       await refresh();
       const importedPack = getQuickPack(quickGame.appId);
       status.textContent = "导入完成 · 名称 " + (importedPack?.translations.length || 0) +
@@ -439,7 +455,39 @@
       status.textContent = error.message || "内置词库导入失败";
       report(status.textContent, true);
     } finally {
-      button.disabled = false;
+      if (button) button.disabled = false;
+    }
+  }
+
+  async function autoImportEmptyBundledProfiles() {
+    const emptyProfiles = cachedPacks.filter((pack) =>
+      pack.translations.length === 0 && !(pack.textTranslations?.length)
+    );
+    const importedNames = [];
+    const failures = [];
+    for (const profile of emptyProfiles) {
+      const source = gameSourceCatalogApi.listSources(profile.game.appId)[0];
+      if (!source) continue;
+      try {
+        await loadBundledPack(profile.game, source);
+        importedNames.push(profile.game.name);
+      } catch (error) {
+        failures.push(profile.game.name + "：" + (error.message || "导入失败"));
+      }
+    }
+    if (importedNames.length) await refresh();
+    return { importedNames, failures };
+  }
+
+  async function initializeOptionsPage() {
+    await refresh();
+    const result = await autoImportEmptyBundledProfiles();
+    if (result.importedNames.length) {
+      report("已自动为现有游戏档案安装中文词库：" + result.importedNames.join("、"));
+    } else if (result.failures.length) {
+      report(result.failures.join("；"), true);
+    } else {
+      report("本地游戏配置已加载");
     }
   }
   function renderQuickGame() {
@@ -472,9 +520,12 @@
     card.append(quickLink("Steam 商店页面", "https://store.steampowered.com/app/" + quickGame.appId + "/"));
     if (quickGame.website) card.append(quickLink("游戏官网", quickGame.website));
     if (localPack) {
-      quickText(card, "p", "quick-profile-added", "游戏档案已添加");
+      quickText(card, "p", "quick-profile-added",
+        localPack.translations.length || localPack.textTranslations?.length
+          ? "游戏档案已添加 · 汉化词库已安装"
+          : "游戏档案已添加 · 正在等待词库安装");
     } else {
-      const addButton = createButton("添加游戏档案", "quiet quick-add-profile", () => addQuickProfile(addButton));
+      const addButton = createButton("添加并启用汉化", "quiet quick-add-profile", () => addQuickProfile(addButton));
       card.append(addButton);
     }
     const sources = gameSourceCatalogApi.listSources(quickGame.appId);
@@ -494,8 +545,12 @@
       quickText(detail, "p", "quick-source-description", source.description);
       quickText(detail, "p", "quick-source-note", source.accessLabel + "；" + source.personalUseNote);
       item.append(detail);
-      const action = createButton("一键导入", "primary", () => importBundledSource(source, action));
-      item.append(action);
+      if (localPack) {
+        const action = createButton("重新合并内置词库", "primary", () => importBundledSource(source, action));
+        item.append(action);
+      } else {
+        quickText(item, "p", "quick-source-note", "添加游戏时会自动安装这份词库，无需再次导入。");
+      }
       known.append(item);
     }
     for (const result of gameSourceCatalogApi.buildSearchLinks(quickGame.name)) {
@@ -667,11 +722,21 @@
     const appId = document.getElementById("game-app-id").value;
     const name = document.getElementById("game-name").value;
     try {
-      await registry.addGame({ appId, name });
+      const game = { appId: appId.trim(), name: name.trim() };
+      const source = gameSourceCatalogApi.listSources(game.appId)[0];
+      if (source) {
+        await loadBundledPack(game, source);
+      } else {
+        await registry.addGame(game);
+      }
       document.getElementById("add-game-form").reset();
       await refresh();
-      gameSelect.value = appId.trim();
-      report("已添加游戏：" + name.trim());
+      gameSelect.value = game.appId;
+      const installed = getQuickPack(game.appId);
+      report(source
+        ? "已添加游戏并自动安装中文词库：" + installed.translations.length +
+          " 条名称词条、" + (installed.textTranslations?.length || 0) + " 条详情/属性词条"
+        : "已添加游戏：" + game.name);
     } catch (error) { report(error.message, true); }
   });
 
@@ -1589,6 +1654,5 @@
     refresh().then(() => report("游戏列表已刷新")).catch((error) => report(error.message, true));
   });
 
-  refresh().then(() => report("本地游戏配置已加载"))
-    .catch((error) => report(error.message, true));
+  initializeOptionsPage().catch((error) => report(error.message, true));
 })();
