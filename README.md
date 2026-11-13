@@ -34,6 +34,11 @@ A schema-only pack example is available at docs/game-pack.example.json. A separa
 The Options page can also turn public JSON record arrays or CSV tables into a SteamHub Game Pack. Supply the target AppID and map the exact Steam market_hash_name, localized text and optional source ID fields. JSON supports nested record paths such as data.items; CSV supports quoted commas and multiline cells. Duplicate identical rows are collapsed; conflicting translations or source IDs are excluded and reported. See docs/importing/structured-json-csv.md.
 
 This handles structured source data, not arbitrary Wiki HTML. A website-specific page adapter is still needed to discover permitted pages and extract exact Steam listing identities.
+## Discover a Wiki site map
+
+The Options page can analyze a public HTTPS Wiki homepage or sitemap URL. It reads the same-origin robots.txt and sitemap documents, follows bounded sitemap indexes, applies robots rules and previews discovered same-origin page URLs. It is capped at 8 sitemap files and 500 page URLs.
+
+This first stage only discovers URLs; it does not fetch page bodies or create translations. A source-specific adapter is still required to parse each page and map its entries to exact Steam market_hash_name values. See docs/importing/site-discovery.md. TBH Index is not bulk-crawled.
 ## Import a public Game Pack URL
 
 The Options page accepts a direct HTTPS URL to a JSON file using the `alaxee-steamhub-game-pack` v1 schema. After an explicit click, the extension requests optional access to that one HTTPS origin, fetches without cookies or referrer, rejects redirects, and enforces a 5 MiB streaming limit and 20-second timeout. The fetched pack is validated and placed in the JSON editor; the user must still choose merge or replace.
