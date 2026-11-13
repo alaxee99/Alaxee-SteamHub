@@ -173,6 +173,19 @@
         </div>
         <p class="hint">只转换拥有精确 Steam market_hash_name 与译文的记录。相同键同译文会合并；同一键出现不同译文或不同来源 ID 时整组排除并报告冲突，不做模糊匹配。普通 Wiki HTML 页面不是 JSON / CSV，需要单独的页面解析适配器。</p>
       </details>
+      <details class="source-transform site-discovery">
+        <summary>分析 Wiki / 网站目录（站点发现）</summary>
+        <p class="hint">粘贴 Wiki 首页或 sitemap 地址。此步骤只读取同站 robots.txt 与 sitemap，列出可访问页面候选，不抓取页面正文、不自动生成译文。</p>
+        <div class="remote-import">
+          <label>网站 / Wiki 入口 URL
+            <input id="site-index-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/wiki">
+          </label>
+          <button id="analyze-site" type="button" class="quiet">发现页面目录</button>
+        </div>
+        <p id="site-discovery-summary" class="source-summary" aria-live="polite">尚未分析站点。</p>
+        <ul id="site-discovery-pages" class="site-discovery-pages"></ul>
+        <p class="hint">发现 sitemap 不代表网站允许批量抓取。后续仍需检查站点条款，并为页面结构配置解析适配器；不会自动递归下载全部页面。</p>
+      </details>
     </section>
 
     <section class="panel">
@@ -195,6 +208,7 @@
   <script src="core/game-registry.js"></script>
   <script src="core/public-pack-loader.js"></script>
   <script src="core/source-record-mapper.js"></script>
+  <script src="core/site-source-discovery.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
