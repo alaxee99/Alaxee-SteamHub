@@ -138,6 +138,45 @@ test("Steam search URL AppID scopes current Steam listing anchors", () => {
   assert.equal(items[0].element, target);
 });
 
+test("Steam generated-class market links fall back to the visible anchor, not a layoutless parent", () => {
+  const context = vm.createContext({ URL, Set, Object, String, Number, RegExp });
+  vm.runInContext(itemIdentitySource, context, { filename: "item-identity.js" });
+  vm.runInContext(marketItemsSource, context, { filename: "market-items.js" });
+
+  const name = "Contaminated Reliquary (Arcana)";
+  const href = "https://steamcommunity.com/market/listings/3678970/" + encodeURIComponent(name);
+  const wrapper = {
+    tagName: "DIV",
+    hidden: false,
+    getClientRects() { return []; },
+    querySelectorAll() { return []; }
+  };
+  const anchor = {
+    tagName: "A",
+    className: "SxMdVrGe9aY- mMHE23-XFxU-",
+    href,
+    hidden: false,
+    parentElement: wrapper,
+    textContent: "Offering Material" + name + "待售数量：821起价：US$0.28",
+    getAttribute(key) { return key === "href" ? href : null; },
+    getClientRects() { return [{}]; },
+    closest() { return null; }
+  };
+  const root = {
+    querySelectorAll(selector) {
+      return selector === 'a[href*="/market/listings/"]' ? [anchor] : [];
+    }
+  };
+  const items = context.__ALAXEE_STEAMHUB_MARKET_ITEMS__.collectMarketListingLinks(
+    root,
+    "https://steamcommunity.com/market/search?appid=3678970&l=schinese"
+  );
+  assert.equal(items.length, 1);
+  assert.equal(items[0].appId, "3678970");
+  assert.equal(items[0].marketHashName, name);
+  assert.equal(items[0].element, anchor);
+});
+
 test("Steam Market search collection resolves the full listing row around overlay links", () => {
   const context = vm.createContext({ URL, Set, Object, String, Number, RegExp });
   vm.runInContext(itemIdentitySource, context, { filename: "item-identity.js" });
@@ -272,10 +311,12 @@ test("Steam Market search overview localizes titles inside the current clickable
   const titleElement = makeElement("span", [titleText]);
   const anchor = makeElement("a", [titleElement]);
   anchor.href = href;
-  anchor.className = "market_listing_row_link";
+  anchor.className = "SxMdVrGe9aY- mMHE23-XFxU-";
   anchor.getAttribute = (name) => name === "href" ? href : null;
   anchor.closest = () => null;
   const listingRow = makeElement("div", [anchor]);
+  // Steam's generated wrapper may have no independent layout box.
+  listingRow.getClientRects = () => [];
 
   const body = makeElement("body", [listingRow]);
   const document = {
@@ -284,9 +325,7 @@ test("Steam Market search overview localizes titles inside the current clickable
     readyState: "complete",
     addEventListener() {},
     querySelectorAll(selector) {
-      return selector === 'a[href*="/market/listings/"]' || selector === "a.market_listing_row_link"
-        ? [anchor]
-        : [];
+      return selector === 'a[href*="/market/listings/"]' ? [anchor] : [];
     },
     createTreeWalker(rootNode) {
       const nodes = [];
@@ -346,9 +385,11 @@ test("Steam Market search overview localizes titles inside the current clickable
 
   assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.0");
+  assert.equal(diagnostics.version, "0.9.1");
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.detectedItems, 1);
+  assert.equal(diagnostics.visibleItems, 1);
+  assert.equal(diagnostics.scannedItems, 1);
   assert.equal(diagnostics.matchedItems, 1);
   assert.equal(diagnostics.translatedNames, 1);
   assert.deepEqual(Array.from(diagnostics.errors), []);
@@ -404,7 +445,7 @@ test("runtime status hides success UI and only shows actionable warnings or erro
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.9.0");
+  assert.equal(manifest.version, "0.9.1");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1623,7 +1664,7 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.0");
+  assert.equal(diagnostics.version, "0.9.1");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);

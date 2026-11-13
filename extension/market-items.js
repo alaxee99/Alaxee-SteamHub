@@ -23,14 +23,10 @@
     const nameCell = anchor.closest?.(".market_listing_item_name_cell");
     if (nameCell) return nameCell;
 
-    const parent = anchor.parentElement;
-    if (!parent || parent === root || parent.tagName === "BODY" || parent.tagName === "HTML") {
-      return anchor;
-    }
-    const siblingListingLinks = typeof parent.querySelectorAll === "function"
-      ? parent.querySelectorAll('a[href*="/market/listings/"]')
-      : [];
-    return siblingListingLinks.length <= 1 ? parent : anchor;
+    // Current Steam search pages use generated CSS classes and may not expose
+    // stable row wrappers. The anchor itself contains the exact market name
+    // and has its own block layout, so do not guess an arbitrary parent node.
+    return anchor;
   }
 
   function collectMarketListingLinks(root, pageUrl) {

@@ -5,7 +5,7 @@
   function publishRuntimeStatus(tone, title, details) {
     runtimeStatus?.update({ tone, title, details });
   }
-  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.9.0", "正在初始化 Steam 市场适配器…"]);
+  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.9.1", "正在初始化 Steam 市场适配器…"]);
 
   const marketLocale = globalThis.__ALAXEE_STEAMHUB_MARKET_LOCALE__;
   if (!marketLocale || !window.location) {
@@ -62,11 +62,13 @@
   const localizedTextNodes = new Map();
   let scanScheduled = false;
   const diagnostics = {
-    version: "0.9.0",
+    version: "0.9.1",
     initializedAt: new Date().toISOString(),
     scanCount: 0,
     lastScanAt: null,
     detectedItems: 0,
+    visibleItems: 0,
+    scannedItems: 0,
     matchedItems: 0,
     translatedNames: 0,
     translatedDetailNodes: 0,
@@ -175,9 +177,11 @@
     }
 
     const details = [
-      "版本：0.9.0",
+      "版本：0.9.1",
       "当前页面 AppID：" + (primaryAppId || "未识别"),
-      "页面识别商品：" + diagnostics.detectedItems,
+      "页面发现商品链接：" + diagnostics.detectedItems,
+      "当前可见商品：" + diagnostics.visibleItems,
+      "本轮实际扫描：" + diagnostics.scannedItems,
       "已命中词条：" + diagnostics.matchedItems,
       "当前游戏已替换名称节点：" + diagnostics.translatedNames,
       "当前游戏已替换详情节点：" + diagnostics.translatedDetailNodes
@@ -397,10 +401,13 @@
     diagnostics.unmatchedNames = [];
     diagnostics.errors = [];
 
-    const items = marketItems.collectMarketListingLinks(document, window.location.href)
-      .filter((item) => item.appId && item.marketHashName && isWithinScanViewport(item))
-      .slice(0, MAX_VISIBLE_ITEMS_PER_PASS);
-    diagnostics.detectedItems = items.length;
+    const discoveredItems = marketItems.collectMarketListingLinks(document, window.location.href)
+      .filter((item) => item.appId && item.marketHashName);
+    const visibleItems = discoveredItems.filter(isWithinScanViewport);
+    const items = visibleItems.slice(0, MAX_VISIBLE_ITEMS_PER_PASS);
+    diagnostics.detectedItems = discoveredItems.length;
+    diagnostics.visibleItems = visibleItems.length;
+    diagnostics.scannedItems = items.length;
 
     const processedTextApps = new Set();
     for (let index = 0; index < items.length; index += 12) {
@@ -435,7 +442,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.9.0",
+    version: "0.9.1",
     getDiagnostics() {
       return Object.freeze({
         ...diagnostics,
@@ -470,19 +477,14 @@
     value: api
   });
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", scheduleScan, { once: true });
-  } else {
-    scheduleScan();
-  }
+  let marketDomObserver = null;
 
-  if (typeof window.addEventListener === "function") {
-    window.addEventListener("scroll", scheduleScan, { passive: true });
-    window.addEventListener("resize", scheduleScan, { passive: true });
-  }
+  function installMarketDomObserver() {
+    if (marketDomObserver || typeof MutationObserver !== "function" || !document.documentElement) {
+      return;
+    }
 
-  if (typeof MutationObserver === "function" && document.documentElement) {
-    const observer = new MutationObserver((mutations) => {
+    marketDomObserver = new MutationObserver((mutations) => {
       const relevant = mutations.some((mutation) =>
         mutation.type === "characterData" ||
         Array.from(mutation.addedNodes || []).some((node) =>
@@ -491,11 +493,27 @@
       );
       if (relevant) scheduleScan();
     });
-    observer.observe(document.documentElement, {
+
+    marketDomObserver.observe(document.documentElement, {
       childList: true,
       subtree: true,
       characterData: true
     });
+  }
+
+  if (typeof window.addEventListener === "function") {
+    window.addEventListener("scroll", scheduleScan, { passive: true });
+    window.addEventListener("resize", scheduleScan, { passive: true });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      installMarketDomObserver();
+      scheduleScan();
+    }, { once: true });
+  } else {
+    installMarketDomObserver();
+    scheduleScan();
   }
 
   chrome.storage.onChanged?.addListener((changes, areaName) => {
