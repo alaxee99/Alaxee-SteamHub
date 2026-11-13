@@ -968,6 +968,23 @@
 
 
 
+  document.getElementById("html-detail-template").addEventListener("change", (event) => {
+    const taskBarHero = event.currentTarget.value === "taskbarherowiki";
+    document.getElementById("html-detail-id-labels").value = taskBarHero
+      ? ""
+      : "ItemKey|Item Key|Item ID|ItemId|ID|物品ID|物品 ID";
+    document.getElementById("html-detail-translation-labels").value = taskBarHero
+      ? ""
+      : "简体中文|简体中文名|中文名称|中文名|Chinese Name|zh-CN|zh-Hans";
+    document.getElementById("html-detail-id-selector").value = taskBarHero
+      ? "span.font-mono.text-xs.text-text-faint > span:nth-child(2)"
+      : "";
+    document.getElementById("html-detail-id-attribute").value = taskBarHero ? "textContent" : "auto";
+    document.getElementById("html-detail-translation-selector").value = taskBarHero
+      ? "h1.text-white.text-4xl.font-bold"
+      : "";
+  });
+
   document.getElementById("extract-html-detail").addEventListener("click", () => {
     const summary = document.getElementById("html-detail-summary");
     const preview = document.getElementById("html-detail-preview");
