@@ -5,7 +5,7 @@
   function publishRuntimeStatus(tone, title, details) {
     runtimeStatus?.update({ tone, title, details });
   }
-  publishRuntimeStatus("info", "SteamHub 已注入，正在检查市场内容", ["版本：0.9.3", "页面：" + window.location.href]);
+  publishRuntimeStatus("info", "SteamHub 已注入，正在检查市场内容", ["版本：0.9.4", "页面：" + window.location.href]);
 
   const marketLocale = globalThis.__ALAXEE_STEAMHUB_MARKET_LOCALE__;
   if (!marketLocale || !window.location) {
@@ -62,13 +62,14 @@
   const localizedTextNodes = new Map();
   let scanScheduled = false;
   const diagnostics = {
-    version: "0.9.3",
+    version: "0.9.4",
     initializedAt: new Date().toISOString(),
     scanCount: 0,
     lastScanAt: null,
     detectedItems: 0,
     visibleItems: 0,
     scannedItems: 0,
+    scanFallbackUsed: false,
     matchedItems: 0,
     translatedNames: 0,
     translatedDetailNodes: 0,
@@ -83,20 +84,28 @@
   }
 
   function isWithinScanViewport(item) {
-    const element = item?.element;
-    if (!element || typeof element.getBoundingClientRect !== "function") return true;
-
-    if (typeof element.getClientRects === "function" && element.getClientRects().length === 0) {
-      return false;
-    }
-
-    const rect = element.getBoundingClientRect();
     const viewportHeight = Number(window.innerHeight) ||
       Number(document.documentElement?.clientHeight) || 0;
-    if (!viewportHeight || !Number.isFinite(rect.top) || !Number.isFinite(rect.bottom)) return true;
+    if (!viewportHeight) return true;
 
     const margin = Math.max(160, Math.min(420, viewportHeight * 0.3));
-    return rect.bottom >= -margin && rect.top <= viewportHeight + margin;
+    const candidates = Array.from(new Set([item?.nameElement, item?.element].filter(Boolean)));
+    const measurableRects = [];
+
+    for (const element of candidates) {
+      if (typeof element.getBoundingClientRect !== "function") continue;
+      if (typeof element.getClientRects === "function" && element.getClientRects().length === 0) continue;
+
+      const rect = element.getBoundingClientRect();
+      if (!Number.isFinite(rect.top) || !Number.isFinite(rect.bottom)) continue;
+      measurableRects.push(rect);
+
+      if (rect.bottom >= -margin && rect.top <= viewportHeight + margin) return true;
+    }
+
+    // Steam can wrap a visible name link in a layoutless or virtualized row.
+    // If neither the link nor its row exposes reliable geometry, do not hide it.
+    return measurableRects.length === 0;
   }
 
   function getPrimaryAppId() {
@@ -180,11 +189,12 @@
     }
 
     const details = [
-      "版本：0.9.3",
+      "版本：0.9.4",
       "当前页面 AppID：" + (primaryAppId || "未识别"),
       "页面发现商品链接：" + diagnostics.detectedItems,
-      "当前可见商品：" + diagnostics.visibleItems,
+      "视口范围内商品：" + diagnostics.visibleItems,
       "本轮实际扫描：" + diagnostics.scannedItems,
+      "是否回退扫描已发现链接：" + (diagnostics.scanFallbackUsed ? "是" : "否"),
       "已命中词条：" + diagnostics.matchedItems,
       "当前游戏已替换名称节点：" + diagnostics.translatedNames,
       "当前游戏已替换详情节点：" + diagnostics.translatedDetailNodes
@@ -419,10 +429,13 @@
     const discoveredItems = marketItems.collectMarketListingLinks(document, window.location.href)
       .filter((item) => item.appId && item.marketHashName);
     const visibleItems = discoveredItems.filter(isWithinScanViewport);
-    const items = visibleItems.slice(0, MAX_VISIBLE_ITEMS_PER_PASS);
+    const scanFallbackUsed = visibleItems.length === 0 && discoveredItems.length > 0;
+    const scanCandidates = scanFallbackUsed ? discoveredItems : visibleItems;
+    const items = scanCandidates.slice(0, MAX_VISIBLE_ITEMS_PER_PASS);
     diagnostics.detectedItems = discoveredItems.length;
     diagnostics.visibleItems = visibleItems.length;
     diagnostics.scannedItems = items.length;
+    diagnostics.scanFallbackUsed = scanFallbackUsed;
 
     const processedTextApps = new Set();
     for (let index = 0; index < items.length; index += 12) {
@@ -457,7 +470,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.9.3",
+    version: "0.9.4",
     getDiagnostics() {
       return Object.freeze({
         ...diagnostics,

@@ -315,9 +315,11 @@ test("Steam Market search overview localizes titles inside the current clickable
   anchor.className = "SxMdVrGe9aY- mMHE23-XFxU-";
   anchor.getAttribute = (name) => name === "href" ? href : null;
   anchor.closest = () => null;
+  // Simulate Steam reporting both the linked name and its row outside the viewport.
+  anchor.getBoundingClientRect = () => ({ top: 1200, bottom: 1214 });
   const listingRow = makeElement("div", [anchor]);
-  // Steam's generated wrapper may have no independent layout box.
-  listingRow.getClientRects = () => [];
+  listingRow.getBoundingClientRect = () => ({ top: 1200, bottom: 1280 });
+  listingRow.getClientRects = () => [{}];
 
   const body = makeElement("body", [listingRow]);
   const document = {
@@ -386,11 +388,12 @@ test("Steam Market search overview localizes titles inside the current clickable
 
   assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.3");
+  assert.equal(diagnostics.version, "0.9.4");
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.detectedItems, 1);
-  assert.equal(diagnostics.visibleItems, 1);
+  assert.equal(diagnostics.visibleItems, 0);
   assert.equal(diagnostics.scannedItems, 1);
+  assert.equal(diagnostics.scanFallbackUsed, true);
   assert.equal(diagnostics.matchedItems, 1);
   assert.equal(diagnostics.translatedNames, 1);
   assert.deepEqual(Array.from(diagnostics.errors), []);
@@ -432,7 +435,7 @@ test("runtime status keeps a compact badge visible for startup, warnings, and su
   const status = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__;
 
   assert.equal(mountedHosts.length, 0);
-  status.update({ tone: "info", title: "SteamHub 已注入", details: ["版本：0.9.3"] });
+  status.update({ tone: "info", title: "SteamHub 已注入", details: ["版本：0.9.4"] });
   assert.equal(mountedHosts.length, 1);
   assert.equal(mountedHosts[0].isConnected, true);
 
@@ -449,7 +452,7 @@ test("runtime status keeps a compact badge visible for startup, warnings, and su
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.9.3");
+  assert.equal(manifest.version, "0.9.4");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1668,7 +1671,7 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.3");
+  assert.equal(diagnostics.version, "0.9.4");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);
