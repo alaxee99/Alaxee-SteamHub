@@ -101,7 +101,7 @@
     const variantLetter = suffixMatch[2] || "";
     if (!parentheticalSuffix && !variantLetter) return translated;
 
-    const localizedParentheticalSuffix = parentheticalSuffix.replace(/\\(([^()]+)\\)/g, (original, grade) => {
+    const localizedParentheticalSuffix = parentheticalSuffix.replace(/\(([^()]+)\)/g, (original, grade) => {
       const localizedGrade = textLocalizer.translateGrade(grade);
       return localizedGrade ? "(" + localizedGrade + ")" : original;
     });
