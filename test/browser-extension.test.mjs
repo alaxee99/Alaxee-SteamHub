@@ -1,0 +1,1790 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import vm from "node:vm";
+import { fileURLToPath } from "node:url";
+
+const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const extensionRoot = path.join(root, "extension");
+const manifest = JSON.parse(await readFile(path.join(extensionRoot, "manifest.json"), "utf8"));
+const localeSource = await readFile(path.join(extensionRoot, "market-locale.js"), "utf8");
+const itemIdentitySource = await readFile(path.join(extensionRoot, "core/item-identity.js"), "utf8");
+const marketItemsSource = await readFile(path.join(extensionRoot, "market-items.js"), "utf8");
+const runtimeStatusSource = await readFile(path.join(extensionRoot, "runtime-status.js"), "utf8");
+const contentSource = await readFile(path.join(extensionRoot, "content.js"), "utf8");
+const publicPackLoaderSource = await readFile(path.join(extensionRoot, "core/public-pack-loader.js"), "utf8");
+const sourceRecordMapperSource = await readFile(path.join(extensionRoot, "core/source-record-mapper.js"), "utf8");
+const siteSourceDiscoverySource = await readFile(path.join(extensionRoot, "core/site-source-discovery.js"), "utf8");
+const htmlTableParserSource = await readFile(path.join(extensionRoot, "core/html-table-parser.js"), "utf8");
+const taskBarHeroReferencePack = JSON.parse(await readFile(path.join(root, "docs/game-pack.taskbar-hero-zh-CN.json"), "utf8"));
+const API_KEY = "__ALAXEE_STEAMHUB_MARKET_LOCALE__";
+
+function loadPublicPackLoader() {
+  const context = vm.createContext({ URL, TextDecoder, Uint8Array, Object, TypeError, Error });
+  vm.runInContext(publicPackLoaderSource, context, { filename: "public-pack-loader.js" });
+  return context.__ALAXEE_STEAMHUB_PUBLIC_PACK_LOADER__;
+}
+
+function createResponse(bodyText, options = {}) {
+  const bytes = new TextEncoder().encode(bodyText);
+  let offset = 0;
+  const chunkSize = options.chunkSize || 1024;
+  return {
+    ok: options.ok ?? true,
+    status: options.status ?? 200,
+    url: options.url ?? "https://packs.example/game-pack.json",
+    headers: { get(name) {
+      return name.toLowerCase() === "content-length" ? String(options.contentLength ?? bytes.length) : null;
+    } },
+    body: {
+      getReader() {
+        return {
+          async read() {
+            if (offset >= bytes.length) return { done: true };
+            const value = bytes.slice(offset, Math.min(offset + chunkSize, bytes.length));
+            offset += value.length;
+            return { done: false, value };
+          },
+          async cancel() { return undefined; }
+        };
+      }
+    }
+  };
+}
+
+function loadSiteSourceDiscovery() {
+  const context = vm.createContext({ URL, Object, Set, Map, TypeError, Error, String, Number, Array, RegExp, Promise });
+  vm.runInContext(siteSourceDiscoverySource, context, { filename: "site-source-discovery.js" });
+  return context.__ALAXEE_STEAMHUB_SITE_DISCOVERY__;
+}
+
+
+function loadHtmlTableParser(DOMParserImpl) {
+  const context = vm.createContext({
+    Object, Array, String, Number, TypeError, RangeError,
+    DOMParser: DOMParserImpl
+  });
+  vm.runInContext(htmlTableParserSource, context, { filename: "html-table-parser.js" });
+  return context.__ALAXEE_STEAMHUB_HTML_TABLE_PARSER__;
+}
+
+function loadSourceRecordMapper() {
+  const context = vm.createContext({ Object, Map, Set, TypeError, RangeError, String });
+  vm.runInContext(sourceRecordMapperSource, context, { filename: "source-record-mapper.js" });
+  return context.__ALAXEE_STEAMHUB_SOURCE_RECORD_MAPPER__;
+}
+
+function loadLocaleApi() {
+  const context = vm.createContext({ URL, Set, Object });
+  vm.runInContext(localeSource, context, { filename: "market-locale.js" });
+  return context[API_KEY];
+}
+
+function runContentScript(href) {
+  const replacements = [];
+  const location = {
+    href,
+    replace(value) {
+      replacements.push(value);
+    }
+  };
+  const context = vm.createContext({ URL, Set, Object, window: { location } });
+  vm.runInContext(localeSource, context, { filename: "market-locale.js" });
+  vm.runInContext(contentSource, context, { filename: "content.js" });
+  return replacements;
+}
+
+test("Steam search URL AppID scopes current Steam listing anchors", () => {
+  const context = vm.createContext({ URL, Set, Object, String, Number, RegExp });
+  vm.runInContext(itemIdentitySource, context, { filename: "item-identity.js" });
+  vm.runInContext(marketItemsSource, context, { filename: "market-items.js" });
+
+  const makeAnchor = (appId, marketHashName) => {
+    const href = "https://steamcommunity.com/market/listings/" + appId + "/" +
+      encodeURIComponent(marketHashName);
+    return {
+      tagName: "A",
+      className: "market_listing_row_link",
+      textContent: marketHashName,
+      href,
+      hidden: false,
+      getAttribute(name) { return name === "href" ? href : null; },
+      // An anchor can have no own layout box while its product row is visible.
+      getClientRects() { return []; },
+      closest() { return null; }
+    };
+  };
+  const target = makeAnchor("3678970", "Abyss Amulet (Arcana) C");
+  const unrelated = makeAnchor("440", "Unusual Hat");
+  const anchors = [target, unrelated];
+  const root = {
+    querySelectorAll(selector) {
+      return selector === 'a[href*="/market/listings/"]' || selector === "a.market_listing_row_link"
+        ? anchors
+        : [];
+    }
+  };
+  const searchUrl = "https://steamcommunity.com/market/search?appid=3678970&l=schinese";
+  const identity = context.__ALAXEE_STEAMHUB_ITEM_IDENTITY__;
+  assert.equal(identity.parseMarketSearchPageAppId(searchUrl), "3678970");
+  assert.equal(identity.parseMarketSearchPageAppId("https://example.com/market/search?appid=3678970"), null);
+  assert.equal(identity.parseMarketSearchPageAppId("https://steamcommunity.com/market/search?appid=0"), null);
+
+  const items = context.__ALAXEE_STEAMHUB_MARKET_ITEMS__.collectMarketListingLinks(root, searchUrl);
+  assert.equal(items.length, 1);
+  assert.equal(items[0].appId, "3678970");
+  assert.equal(items[0].marketHashName, "Abyss Amulet (Arcana) C");
+  assert.equal(items[0].element, target);
+  assert.equal(items[0].nameElement, target);
+});
+
+test("Steam generated-class market links fall back to the visible anchor, not a layoutless parent", () => {
+  const context = vm.createContext({ URL, Set, Object, String, Number, RegExp });
+  vm.runInContext(itemIdentitySource, context, { filename: "item-identity.js" });
+  vm.runInContext(marketItemsSource, context, { filename: "market-items.js" });
+
+  const name = "Contaminated Reliquary (Arcana)";
+  const href = "https://steamcommunity.com/market/listings/3678970/" + encodeURIComponent(name);
+  const wrapper = {
+    tagName: "DIV",
+    hidden: false,
+    getClientRects() { return []; },
+    querySelectorAll() { return []; }
+  };
+  const anchor = {
+    tagName: "A",
+    className: "SxMdVrGe9aY- mMHE23-XFxU-",
+    href,
+    hidden: false,
+    parentElement: wrapper,
+    textContent: "Offering Material" + name + "待售数量：821起价：US$0.28",
+    getAttribute(key) { return key === "href" ? href : null; },
+    getClientRects() { return [{}]; },
+    closest() { return null; }
+  };
+  const root = {
+    querySelectorAll(selector) {
+      return selector === 'a[href*="/market/listings/"]' ? [anchor] : [];
+    }
+  };
+  const items = context.__ALAXEE_STEAMHUB_MARKET_ITEMS__.collectMarketListingLinks(
+    root,
+    "https://steamcommunity.com/market/search?appid=3678970&l=schinese"
+  );
+  assert.equal(items.length, 1);
+  assert.equal(items[0].appId, "3678970");
+  assert.equal(items[0].marketHashName, name);
+  assert.equal(items[0].element, anchor);
+});
+
+test("Steam Market search collection resolves the full listing row around overlay links", () => {
+  const context = vm.createContext({ URL, Set, Object, String, Number, RegExp });
+  vm.runInContext(itemIdentitySource, context, { filename: "item-identity.js" });
+  vm.runInContext(marketItemsSource, context, { filename: "market-items.js" });
+
+  const marketHashName = "Mystic Boots (Divine) A";
+  const titleText = { nodeType: 3, nodeValue: marketHashName, parentElement: null };
+  const titleElement = { nodeType: 1, tagName: "SPAN", childNodes: [titleText], parentElement: null };
+  const row = {
+    nodeType: 1,
+    tagName: "DIV",
+    className: "market_listing_row market_listing_searchresult",
+    childNodes: [],
+    hidden: false,
+    getClientRects() { return [{}]; },
+    getBoundingClientRect() { return { top: 100, bottom: 180 }; },
+    closest(selector) {
+      return selector === "tr.market_listing_row" || selector === ".market_listing_row" ? this : null;
+    },
+    querySelectorAll() { return []; },
+    getAttribute() { return null; }
+  };
+  const href = "https://steamcommunity.com/market/listings/3678970/Mystic%20Boots%20%28Divine%29%20A";
+  const anchor = {
+    nodeType: 1,
+    tagName: "A",
+    className: "market_listing_row_link",
+    href,
+    hidden: false,
+    parentElement: row,
+    // The linked product name is visible through the row, but the anchor itself
+    // can report no client rects in Steam's current table-based layout.
+    getClientRects() { return []; },
+    getAttribute(name) { return name === "href" ? href : null; },
+    closest(selector) {
+      return selector === "tr.market_listing_row" || selector === ".market_listing_row" ? row : null;
+    }
+  };
+  row.childNodes = [anchor, titleElement];
+  titleElement.parentElement = row;
+  const root = {
+    querySelectorAll(selector) {
+      return selector === 'a[href*="/market/listings/"]' || selector === "a.market_listing_row_link"
+        ? [anchor]
+        : [];
+    }
+  };
+
+  const items = context.__ALAXEE_STEAMHUB_MARKET_ITEMS__.collectMarketListingLinks(
+    root,
+    "https://steamcommunity.com/market/search?appid=3678970&l=schinese"
+  );
+  assert.equal(items.length, 1);
+  assert.equal(items[0].appId, "3678970");
+  assert.equal(items[0].marketHashName, marketHashName);
+  assert.equal(items[0].element, row);
+  assert.ok(items[0].element.childNodes.includes(titleElement));
+  assert.equal(titleText.nodeValue, marketHashName);
+});
+
+test("Steam Market search overview localizes titles inside the current clickable listing anchor", async () => {
+  const scripts = [
+    "runtime-status.js",
+    "market-locale.js",
+    "core/item-identity.js",
+    "core/translation-engine.js",
+    "core/rate-limiter.js",
+    "core/game-registry.js",
+    "core/game-source-catalog.js",
+    "market-items.js",
+    "storage-adapter.js",
+    "market-text-localizer.js",
+    "content.js"
+  ];
+  const storageKey = "alaxee-steamhub:game-pack:v1:3678970";
+  const storedPack = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: {
+      appId: "3678970",
+      name: "Task Bar Hero",
+      adapter: "steam-community-market",
+      itemKey: "market_hash_name",
+      defaultLocale: "zh-CN",
+      enabled: true
+    },
+    translations: [{
+      marketHashName: "Abyss Amulet (Arcana) C",
+      locale: "zh-CN",
+      translation: "深渊护符",
+      source: "test"
+    }],
+    textTranslations: []
+  };
+
+  function makeText(value) {
+    return { nodeType: 3, nodeValue: value, parentElement: null, isConnected: true };
+  }
+  function makeElement(tagName, children = []) {
+    const element = {
+      nodeType: 1,
+      tagName: tagName.toUpperCase(),
+      childNodes: children,
+      parentElement: null,
+      isConnected: true,
+      attributes: Object.create(null),
+      hidden: false,
+      get textContent() {
+        return this.childNodes.map((child) =>
+          child.nodeType === 3 ? child.nodeValue : child.textContent
+        ).join("");
+      },
+      getAttribute(name) {
+        return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
+      },
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      removeAttribute(name) { delete this.attributes[name]; },
+      getClientRects() { return [{}]; },
+      getBoundingClientRect() { return { top: 100, bottom: 180 }; },
+      closest(selector) {
+        return selector === ".market_listing_row" && this.className?.includes("market_listing_row")
+          ? this
+          : null;
+      },
+      querySelectorAll() { return []; }
+    };
+    for (const child of children) child.parentElement = element;
+    return element;
+  }
+
+  const href = "https://steamcommunity.com/market/listings/3678970/Abyss%20Amulet%20%28Arcana%29%20C";
+  const titleText = makeText("Abyss Amulet (Arcana) C");
+  const titleElement = makeElement("span", [titleText]);
+  const anchor = makeElement("a", [titleElement]);
+  anchor.href = href;
+  anchor.className = "SxMdVrGe9aY- mMHE23-XFxU-";
+  anchor.getAttribute = (name) => name === "href" ? href : null;
+  anchor.closest = () => null;
+  // Simulate Steam reporting both the linked name and its row outside the viewport.
+  anchor.getBoundingClientRect = () => ({ top: 1200, bottom: 1214 });
+  const listingRow = makeElement("div", [anchor]);
+  listingRow.getBoundingClientRect = () => ({ top: 1200, bottom: 1280 });
+  listingRow.getClientRects = () => [{}];
+
+  const body = makeElement("body", [listingRow]);
+  const document = {
+    body,
+    documentElement: body,
+    readyState: "complete",
+    addEventListener() {},
+    querySelectorAll(selector) {
+      return selector === 'a[href*="/market/listings/"]' ? [anchor] : [];
+    },
+    createTreeWalker(rootNode) {
+      const nodes = [];
+      function visit(node) {
+        if (node.nodeType === 3) {
+          nodes.push(node);
+          return;
+        }
+        for (const child of node.childNodes || []) visit(child);
+      }
+      visit(rootNode);
+      let index = 0;
+      return {
+        nextNode() {
+          const next = nodes[index];
+          index += 1;
+          return next || null;
+        }
+      };
+    }
+  };
+  const storageArea = {
+    async get(key) {
+      if (key === null) return { [storageKey]: storedPack };
+      return key === storageKey ? { [storageKey]: storedPack } : {};
+    },
+    async set() {},
+    async remove() {}
+  };
+  const location = {
+    href: "https://steamcommunity.com/market/search?appid=3678970&sort=2&dir=1&l=schinese",
+    replace() { throw new Error("The search URL already uses Simplified Chinese."); }
+  };
+  const context = vm.createContext({
+    URL,
+    fetch: async () => ({ ok: true, async json() { return { format: "alaxee-steamhub-game-pack", schemaVersion: 1, game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name", defaultLocale: "zh-CN" }, translations: [], textTranslations: [] }; } }),
+    NodeFilter: { SHOW_TEXT: 4 },
+    window: {
+      location,
+      innerHeight: 800,
+      setTimeout() { return 1; },
+      addEventListener() {}
+    },
+    document,
+    chrome: {
+      runtime: { getURL(path) { return path; } },
+      storage: {
+        local: storageArea,
+        onChanged: { addListener() {} }
+      }
+    }
+  });
+
+  for (const relativePath of scripts) {
+    const source = await readFile(path.join(extensionRoot, relativePath), "utf8");
+    vm.runInContext(source, context, { filename: relativePath });
+  }
+  await context.__ALAXEE_STEAMHUB__.refresh();
+
+  assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
+  const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
+  assert.equal(diagnostics.version, "0.9.8");
+  assert.equal(diagnostics.primaryAppId, "3678970");
+  assert.equal(diagnostics.detectedItems, 1);
+  assert.equal(diagnostics.visibleItems, 0);
+  assert.equal(diagnostics.scannedItems, 1);
+  assert.equal(diagnostics.scanFallbackUsed, true);
+  assert.equal(diagnostics.matchedItems, 1);
+  assert.equal(diagnostics.translatedNames, 1);
+  assert.deepEqual(Array.from(diagnostics.errors), []);
+});
+
+test("runtime status keeps a compact badge visible for startup, warnings, and successful scans", () => {
+  const mountedHosts = [];
+  function makeElement(tagName) {
+    return {
+      tagName,
+      style: {},
+      dataset: {},
+      attributes: Object.create(null),
+      children: [],
+      hidden: false,
+      isConnected: false,
+      setAttribute(name, value) { this.attributes[name] = String(value); },
+      append(...children) { this.children.push(...children); },
+      attachShadow() { this.shadowRoot = makeElement("shadow"); return this.shadowRoot; },
+      addEventListener() {},
+      remove() { this.isConnected = false; }
+    };
+  }
+  const document = {
+    createElement: makeElement,
+    documentElement: {
+      append(...nodes) {
+        for (const node of nodes) {
+          node.isConnected = true;
+          mountedHosts.push(node);
+        }
+      }
+    },
+    addEventListener() {},
+    removeEventListener() {}
+  };
+  const context = vm.createContext({ document });
+  vm.runInContext(runtimeStatusSource, context, { filename: "runtime-status.js" });
+  const status = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__;
+
+  assert.equal(mountedHosts.length, 0);
+  status.update({ tone: "info", title: "SteamHub 已注入", details: ["版本：0.9.8"] });
+  assert.equal(mountedHosts.length, 1);
+  assert.equal(mountedHosts[0].isConnected, true);
+
+  status.update({ tone: "warning", title: "没有商品进入扫描范围", details: ["AppID 3678970"] });
+  assert.equal(mountedHosts.length, 1);
+  assert.equal(mountedHosts[0].isConnected, true);
+
+  status.update({ tone: "success", title: "汉化已生效", details: ["已替换 10 个商品名称"] });
+  assert.equal(mountedHosts.length, 1);
+  assert.equal(mountedHosts[0].isConnected, true);
+  assert.equal(status.snapshot().tone, "success");
+  assert.equal(mountedHosts[0].shadowRoot.children[1].children[1].textContent, "汉化已生效");
+});
+
+test("market scan supports 87 visible listings and serializes overlapping passes", async () => {
+  assert.match(contentSource, /MAX_VISIBLE_ITEMS_PER_PASS = 200/);
+  assert.match(contentSource, /let activeScanPromise = null/);
+  assert.match(contentSource, /rescanRequested = true/);
+  assert.match(contentSource, /diagnostics\.omittedItems = Math\.max\(0, scanCandidates\.length - items\.length\)/);
+  const sourceCatalog = await readFile(path.join(extensionRoot, "core", "game-source-catalog.js"), "utf8");
+  assert.match(sourceCatalog, /translationCount:1116/);
+  assert.match(sourceCatalog, /detailTranslationCount:18/);
+  assert.match(sourceCatalog, /bundleVersion:2/);
+});
+
+test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
+  assert.equal(manifest.manifest_version, 3);
+  assert.equal(manifest.version, "0.9.8");
+  assert.equal(manifest.content_scripts.length, 1);
+  const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
+  for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
+    assert.ok(quickSetupHtml.includes('id="' + id + '"'));
+  }
+  assert.ok(quickSetupHtml.includes("advanced-shell"));
+  assert.ok(quickSetupHtml.includes("高级管理与调试工具"));
+
+  const script = manifest.content_scripts[0];
+  assert.deepEqual(script.matches, [
+    "https://steamcommunity.com/market",
+    "https://steamcommunity.com/market/*",
+    "https://www.steamcommunity.com/market",
+    "https://www.steamcommunity.com/market/*"
+  ]);
+  assert.deepEqual(script.js, [
+    "runtime-status.js",
+    "market-locale.js",
+    "core/item-identity.js",
+    "core/translation-engine.js",
+    "core/rate-limiter.js",
+    "core/game-registry.js",
+    "core/game-source-catalog.js",
+    "market-items.js",
+    "storage-adapter.js",
+    "market-text-localizer.js",
+    "content.js"
+  ]);
+  assert.equal(script.run_at, "document_start");
+  assert.equal(script.all_frames, false);
+  assert.equal(script.world, "ISOLATED");
+
+  assert.deepEqual(manifest.permissions, ["storage"]);
+  assert.deepEqual(manifest.optional_host_permissions, ["https://*/*"]);
+  assert.equal(manifest.options_page, "options.html");
+  assert.equal(manifest.host_permissions, undefined);
+  assert.deepEqual(manifest.web_accessible_resources, [{
+    resources: ["data/taskbar-hero-zh-CN.json"],
+    matches: ["https://steamcommunity.com/*", "https://www.steamcommunity.com/*"]
+  }]);
+  assert.equal(manifest.background, undefined);
+
+  const optionsHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
+  const optionsSource = await readFile(path.join(extensionRoot, "options.js"), "utf8");
+  assert.match(optionsSource, /localeSelect\.options/);
+  assert.match(optionsSource, /localeSelect\.append\(localeOption\)/);
+  assert.match(optionsSource, /添加并启用汉化/);
+  assert.match(optionsSource, /loadBundledPack\(quickGame, source\)/);
+  assert.match(optionsSource, /autoImportEmptyBundledProfiles/);
+  assert.match(optionsSource, /initializeOptionsPage\(\)/);
+  assert.match(optionsSource, /正在添加游戏并自动安装中文词库/);
+  assert.match(optionsSource, /添加游戏时会自动安装这份词库/);
+  assert.match(optionsHtml, /id="game-app-id"/);
+  assert.match(optionsHtml, /id="game-name"/);
+  assert.match(optionsHtml, /id="entry-market-name"/);
+  assert.match(optionsHtml, /id="entry-translation"/);
+  assert.match(optionsHtml, /id="pack-json"/);
+  assert.match(optionsHtml, /id="entry-source-id"/);
+  assert.match(optionsHtml, /id="entry-source"/);
+  assert.match(optionsHtml, /id="manage-game"/);
+  assert.match(optionsHtml, /id="entry-search"/);
+  assert.match(optionsHtml, /id="entry-list"/);
+  assert.match(optionsHtml, /id="entry-prev"/);
+  assert.match(optionsHtml, /id="entry-next"/);
+  assert.match(optionsHtml, /id="cancel-entry-edit"/);
+  assert.match(optionsHtml, /id="pack-file"/);
+  assert.match(optionsHtml, /id="pack-url"/);
+  assert.match(optionsHtml, /id="load-pack-url"/);
+  assert.match(optionsHtml, /普通网页需要专用解析适配器/);
+  assert.match(optionsHtml, /id="source-url"/);
+  assert.match(optionsHtml, /id="source-record-path"/);
+  assert.match(optionsHtml, /id="source-market-field"/);
+  assert.match(optionsHtml, /id="source-translation-field"/);
+  assert.match(optionsHtml, /id="convert-source"/);
+  assert.match(optionsHtml, /id="site-index-url"/);
+  assert.match(optionsHtml, /id="html-page-url"/);
+  assert.match(optionsHtml, /id="extract-html-page"/);
+  assert.match(optionsHtml, /id="html-table-select"/);
+  assert.match(optionsHtml, /id="html-market-field"/);
+  assert.match(optionsHtml, /id="html-translation-field"/);
+  assert.match(optionsHtml, /id="html-mapping-mode"/);
+  assert.match(optionsHtml, /id="html-reference-game"/);
+  assert.ok(optionsHtml.includes("docs/game-pack.taskbar-hero-zh-CN.json"));
+  assert.match(optionsHtml, /id="html-card-candidates"/);
+  assert.match(optionsHtml, /id="html-card-selector"/);
+  assert.match(optionsHtml, /id="html-card-id-selector"/);
+  assert.match(optionsHtml, /id="html-card-translation-selector"/);
+  assert.match(optionsHtml, /id="extract-html-cards"/);
+  assert.match(optionsHtml, /id="convert-html-cards"/);
+  assert.match(optionsSource, /parseHtmlCards/);
+  assert.match(optionsSource, /discoverHtmlCardSelectors/);
+  assert.match(optionsSource, /buildGamePackFromSourceIds/);
+  assert.match(optionsSource, /updateHtmlReferenceTarget/);
+  assert.match(optionsSource, /siteDiscoveryApi\.isRobotsAllowed/);
+  assert.match(optionsHtml, /html-table-parser.js/);
+  assert.match(optionsHtml, /id="analyze-site"/);
+  assert.match(optionsHtml, /id="site-discovery-pages"/);
+  assert.ok(optionsHtml.includes('src="core/site-source-discovery.js"'));
+  assert.ok(optionsSource.includes("siteDiscoveryApi.discoverSiteMap"));
+  assert.ok(optionsHtml.includes('src="core/source-record-mapper.js"'));
+  assert.match(publicPackLoaderSource, /credentials: "omit"/);
+  assert.match(publicPackLoaderSource, /redirect: "error"/);
+  assert.match(publicPackLoaderSource, /5 \* 1024 \* 1024/);
+  assert.match(optionsSource, /registryApi\.normalizePack\(parsed\)/);
+  assert.match(optionsSource, /chrome\.permissions\.request/);
+  assert.ok(publicPackLoaderSource.includes("response.body.getReader()"));
+  assert.match(publicPackLoaderSource, /new TextDecoder/);
+  assert.ok(publicPackLoaderSource.includes("setTimeoutImpl"));
+  assert.ok(publicPackLoaderSource.includes("hostname.startsWith"));
+  assert.match(optionsHtml, /options.js/);
+});
+
+test("recognizes only HTTPS Steam Community Market routes", () => {
+  const api = loadLocaleApi();
+
+  assert.equal(api.isCommunityMarketUrl("https://steamcommunity.com/market"), true);
+  assert.equal(api.isCommunityMarketUrl("https://steamcommunity.com/market/"), true);
+  assert.equal(api.isCommunityMarketUrl("https://steamcommunity.com/market/listings/3678970/item"), true);
+  assert.equal(api.isCommunityMarketUrl("https://www.steamcommunity.com/market/listings/"), true);
+
+  assert.equal(api.isCommunityMarketUrl("http://steamcommunity.com/market/"), false);
+  assert.equal(api.isCommunityMarketUrl("https://store.steampowered.com/market/"), false);
+  assert.equal(api.isCommunityMarketUrl("https://notsteamcommunity.com/market/"), false);
+  assert.equal(api.isCommunityMarketUrl("https://steamcommunity.com/marketplace/"), false);
+  assert.equal(api.isCommunityMarketUrl("https://steamcommunity.com/id/example/"), false);
+  assert.equal(api.isCommunityMarketUrl("file:///market/"), false);
+});
+
+test("adds the official Simplified Chinese locale without losing market state", () => {
+  const api = loadLocaleApi();
+  const input = "https://steamcommunity.com/market/listings/3678970/Example?query=rare&start=20&count=10#history";
+  const localized = api.getSimplifiedChineseMarketUrl(input);
+
+  assert.ok(localized);
+  const url = new URL(localized);
+  assert.equal(url.searchParams.get("l"), "schinese");
+  assert.equal(url.searchParams.get("query"), "rare");
+  assert.equal(url.searchParams.get("start"), "20");
+  assert.equal(url.searchParams.get("count"), "10");
+  assert.equal(url.hash, "#history");
+});
+
+test("replaces a different locale and does not redirect an already localized page", () => {
+  const api = loadLocaleApi();
+  const english = api.getSimplifiedChineseMarketUrl("https://steamcommunity.com/market/?l=english&query=test");
+  assert.equal(new URL(english).searchParams.get("l"), "schinese");
+
+  assert.equal(
+    api.getSimplifiedChineseMarketUrl("https://steamcommunity.com/market/?l=schinese&query=test"),
+    null
+  );
+});
+
+test("content script redirects only when a locale update is required", () => {
+  const changed = runContentScript("https://steamcommunity.com/market/listings/3678970/Example?query=test");
+  assert.equal(changed.length, 1);
+  assert.equal(new URL(changed[0]).searchParams.get("l"), "schinese");
+  assert.equal(new URL(changed[0]).searchParams.get("query"), "test");
+
+  const unchanged = runContentScript("https://steamcommunity.com/market/?l=schinese");
+  assert.deepEqual(unchanged, []);
+});
+
+
+test("public pack loader accepts only public HTTPS URL origins", () => {
+  const api = loadPublicPackLoader();
+  assert.equal(api.validatePublicHttpsUrl("https://packs.example/path/data.json#section").href,
+    "https://packs.example/path/data.json");
+  for (const invalid of [
+    "http://packs.example/data.json",
+    "https://localhost/data.json",
+    "https://thing.local/data.json",
+    "https://127.0.0.1/data.json",
+    "https://10.0.0.5/data.json",
+    "https://192.168.1.2/data.json",
+    "https://172.20.0.1/data.json",
+    "https://8.8.8.8/data.json",
+    "https://[::1]/data.json",
+    "https://user:pass@packs.example/data.json",
+    "https://packs.example:8443/data.json"
+  ]) {
+    assert.throws(() => api.validatePublicHttpsUrl(invalid), TypeError, invalid);
+  }
+});
+
+test("public pack loader requests one origin before fetching and validates the pack", async () => {
+  const api = loadPublicPackLoader();
+  const calls = [];
+  const pack = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name", defaultLocale: "zh-CN" },
+    translations: [{ marketHashName: "Silver Ingot", locale: "zh-CN", translation: "银锭" }]
+  };
+  let clearedTimer = false;
+  class FakeAbortController { constructor() { this.signal = {}; } abort() { this.aborted = true; } }
+  const result = await api.fetchGamePackFromUrl("https://packs.example/game-pack.json", {
+    requestPermission(pattern) {
+      calls.push(["permission", pattern]);
+      return Promise.resolve(true);
+    },
+    fetchImpl: async (url, request) => {
+      calls.push(["fetch", url, request]);
+      return createResponse(JSON.stringify(pack), { chunkSize: 7 });
+    },
+    normalizePack(value) {
+      calls.push(["normalize"]);
+      return { ...value, normalized: true };
+    },
+    AbortControllerImpl: FakeAbortController,
+    setTimeoutImpl(callback, milliseconds) {
+      calls.push(["timeout", milliseconds]);
+      return callback;
+    },
+    clearTimeoutImpl() { clearedTimer = true; }
+  });
+
+  assert.equal(calls[0][0], "permission");
+  assert.equal(calls[0][1], "https://packs.example/*");
+  assert.equal(calls[1][0], "timeout");
+  assert.equal(calls[2][0], "fetch");
+  assert.equal(calls[2][2].credentials, "omit");
+  assert.equal(calls[2][2].redirect, "error");
+  assert.equal(calls[2][2].referrerPolicy, "no-referrer");
+  assert.match(calls[2][2].headers.Accept, /text\/html/);
+  assert.equal(calls[3][0], "normalize");
+  assert.equal(result.pack.normalized, true);
+  assert.equal(result.pack.translations.length, 1);
+  assert.equal(result.sourceUrl, "https://packs.example/game-pack.json");
+  assert.equal(clearedTimer, true);
+});
+
+test("public pack loader stops when origin permission is denied", async () => {
+  const api = loadPublicPackLoader();
+  let fetchCalled = false;
+  await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
+    requestPermission: () => Promise.resolve(false),
+    fetchImpl: async () => { fetchCalled = true; },
+    normalizePack: (value) => value,
+    AbortControllerImpl: class { constructor() { this.signal = {}; } abort() {} },
+    setTimeoutImpl: () => 1,
+    clearTimeoutImpl: () => {}
+  }), /未获准访问/);
+  assert.equal(fetchCalled, false);
+});
+
+test("public pack loader rejects cross-origin responses and non-pack JSON", async () => {
+  const api = loadPublicPackLoader();
+  const dependencies = {
+    requestPermission: () => Promise.resolve(true),
+    normalizePack: (value) => value,
+    AbortControllerImpl: class { constructor() { this.signal = {}; } abort() {} },
+    setTimeoutImpl: () => 1,
+    clearTimeoutImpl: () => {}
+  };
+  await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
+    ...dependencies,
+    fetchImpl: async () => createResponse("{}", { url: "https://other.example/data.json" })
+  }), /跨站跳转/);
+  await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
+    ...dependencies,
+    fetchImpl: async () => createResponse(JSON.stringify({ items: [] }))
+  }), /不是 SteamHub Game Pack/);
+});
+
+test("public pack loader enforces a streaming size cap and clears timeout after abort", async () => {
+  const api = loadPublicPackLoader();
+  let timeoutCleared = false;
+  let aborted = false;
+  class FakeAbortController { constructor() { this.signal = {}; } abort() { aborted = true; } }
+  const overLimit = "x".repeat(5 * 1024 * 1024 + 1);
+  await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
+    requestPermission: () => Promise.resolve(true),
+    fetchImpl: async () => createResponse(overLimit, { chunkSize: 1024 * 1024 }),
+    normalizePack: (value) => value,
+    AbortControllerImpl: FakeAbortController,
+    setTimeoutImpl: () => 99,
+    clearTimeoutImpl: (id) => { timeoutCleared = id === 99; }
+  }), /超过 5 MiB/);
+  assert.equal(aborted, true);
+  assert.equal(timeoutCleared, true);
+});
+
+test("public pack loader normalizes aborted fetches to a timeout error", async () => {
+  const api = loadPublicPackLoader();
+  let timeoutCleared = false;
+  class FakeAbortController { constructor() { this.signal = {}; } abort() {} }
+  const aborted = new Error("aborted");
+  aborted.name = "AbortError";
+  await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
+    requestPermission: () => Promise.resolve(true),
+    fetchImpl: async () => { throw aborted; },
+    normalizePack: (value) => value,
+    AbortControllerImpl: FakeAbortController,
+    setTimeoutImpl: () => 123,
+    clearTimeoutImpl: (id) => { timeoutCleared = id === 123; }
+  }), /读取超时/);
+  assert.equal(timeoutCleared, true);
+});
+
+
+test("CSV source parser supports quoted commas, escaped quotes and multiline cells", () => {
+  const mapper = loadSourceRecordMapper();
+  const records = mapper.parseCsv('market_hash_name,zh-Hans,id\r\nSilver Ingot,"银锭, 银块",142001\r\n"Name ""Quoted""","多行\n译文",142002\r\n');
+  assert.equal(records.length, 2);
+  assert.equal(records[0].market_hash_name, "Silver Ingot");
+  assert.equal(records[0]["zh-Hans"], "银锭, 银块");
+  assert.equal(records[1].market_hash_name, 'Name "Quoted"');
+  assert.equal(records[1]["zh-Hans"], "多行\n译文");
+  assert.throws(() => mapper.parseCsv('name,name\nA,B\n'), /不能重复/);
+  assert.throws(() => mapper.parseCsv('name,translation\n"unterminated,译文\n'), /未闭合的引号/);
+  assert.equal(mapper.parseCsv("\uFEFFmarket_hash_name,zh-Hans\nSilver Ingot,银锭\n")[0].market_hash_name, "Silver Ingot");
+  assert.throws(() => mapper.parseCsv('name,translation\n"quoted"tail,译文\n'), /多余字符/);
+  assert.throws(() => mapper.parseCsv("name,translation\nA,译文,extra\n"), /列数/);
+});
+
+test("JSON source parser resolves nested record arrays without unsafe property paths", () => {
+  const mapper = loadSourceRecordMapper();
+  const data = { response: { items: [{ id: 1 }, { id: 2 }] } };
+  assert.deepEqual(mapper.parseJsonRecords(data, "response.items"), [{ id: 1 }, { id: 2 }]);
+  assert.throws(() => mapper.parseJsonRecords(data, "response.__proto__"), /记录数组/);
+  assert.throws(() => mapper.parseJsonRecords({ items: {} }, "items"), /记录数组/);
+});
+
+test("source record mapper builds exact game-pack keys and excludes conflicts", () => {
+  const mapper = loadSourceRecordMapper();
+  const records = [
+    { market: { key: "Silver Ingot" }, labels: { zh: "银锭" }, id: 142001 },
+    { market: { key: "Silver Ingot" }, labels: { zh: "银锭" }, id: 142001 },
+    { market: { key: "Arcane Crystal" }, labels: { zh: "奥术水晶" }, id: 115001 },
+    { market: { key: "Conflict Item" }, labels: { zh: "译名甲" }, id: 77 },
+    { market: { key: "Conflict Item" }, labels: { zh: "译名乙" }, id: 77 },
+    { market: { key: "" }, labels: { zh: "缺键" }, id: 88 },
+    { market: { key: "No Translation" }, labels: { zh: "" }, id: 89 },
+    { market: { key: " Not Exact" }, labels: { zh: "前后空格不能改写" }, id: 90 }
+  ];
+  const result = mapper.buildGamePackFromRecords(records, {
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name" },
+    locale: "zh-CN",
+    fields: { marketHashName: "market.key", translation: "labels.zh", sourceItemId: "id" },
+    source: "test-source"
+  });
+
+  assert.equal(result.stats.scanned, 8);
+  assert.equal(result.stats.imported, 2);
+  assert.equal(result.stats.duplicateRows, 1);
+  assert.equal(result.stats.conflictingKeys, 1);
+  assert.equal(result.stats.missingMarketKey, 2);
+  assert.equal(result.stats.missingTranslation, 1);
+  assert.deepEqual(Array.from(result.pack.translations, (entry) => entry.marketHashName), ["Silver Ingot", "Arcane Crystal"]);
+  assert.equal(result.pack.translations[0].translation, "银锭");
+  assert.equal(result.pack.translations[0].sourceItemId, "142001");
+  assert.equal(result.pack.translations[1].source, "test-source");
+});
+
+
+
+test("source ID mapper joins Wiki ItemKeys to one exact Steam market key and excludes ambiguity", () => {
+  const mapper = loadSourceRecordMapper();
+  const referencePack = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: {
+      appId: "3678970",
+      name: "Task Bar Hero",
+      adapter: "steam-community-market",
+      itemKey: "market_hash_name",
+      defaultLocale: "zh-CN"
+    },
+    translations: [
+      { marketHashName: "Mystic Armor (Beyond) A", sourceItemId: "516111", locale: "zh-CN", translation: "神秘盔甲" },
+      { marketHashName: "Silver Ingot", sourceItemId: "142001", locale: "zh-CN", translation: "银锭" },
+      { marketHashName: "Silver Ingot", sourceItemId: "142001", locale: "zh-CN", translation: "银锭" },
+      { marketHashName: "Variant A", sourceItemId: "ambiguous-id", locale: "zh-CN", translation: "甲" },
+      { marketHashName: "Variant B", sourceItemId: "ambiguous-id", locale: "zh-CN", translation: "乙" }
+    ]
+  };
+  const records = [
+    { itemKey: "516111", name: "神秘盔甲 Wiki 译名" },
+    { itemKey: "516111", name: "神秘盔甲 Wiki 译名" },
+    { itemKey: "142001", name: "银锭" },
+    { itemKey: "unknown-id", name: "未知物品" },
+    { itemKey: "ambiguous-id", name: "不能确定" },
+    { itemKey: "", name: "缺少 ID" },
+    { itemKey: "142001", name: "" },
+    { itemKey: "516111", name: "冲突译名" }
+  ];
+  const result = mapper.buildGamePackFromSourceIds(records, {
+    referencePack,
+    locale: "zh-CN",
+    fields: { sourceItemId: "itemKey", translation: "name" },
+    source: "test-wiki"
+  });
+
+  assert.equal(result.pack.game.appId, "3678970");
+  assert.equal(result.pack.game.name, "Task Bar Hero");
+  assert.equal(result.stats.scanned, 8);
+  assert.equal(result.stats.referenceIds, 2);
+  assert.equal(result.stats.imported, 1);
+  assert.equal(result.stats.duplicateRows, 1);
+  assert.equal(result.stats.conflictingKeys, 1);
+  assert.equal(result.stats.unmatchedSourceId, 1);
+  assert.equal(result.stats.ambiguousSourceId, 1);
+  assert.equal(result.stats.missingSourceId, 1);
+  assert.equal(result.stats.missingTranslation, 1);
+  assert.deepEqual(
+    Array.from(result.pack.translations, (entry) => [entry.marketHashName, entry.sourceItemId, entry.translation]),
+    [["Silver Ingot", "142001", "银锭"]]
+  );
+  assert.equal(result.pack.translations[0].source, "test-wiki");
+});
+
+test("source ID mapper rejects invalid reference packs and unsafe source fields", () => {
+  const mapper = loadSourceRecordMapper();
+  const base = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name" },
+    translations: [{ marketHashName: "Known Item", sourceItemId: "100", locale: "zh-CN", translation: "已知物品" }]
+  };
+  assert.throws(() => mapper.buildGamePackFromSourceIds([], {
+    referencePack: { ...base, game: { ...base.game, appId: "invalid" } },
+    locale: "zh-CN",
+    fields: { sourceItemId: "id", translation: "name" }
+  }), /参考词库/);
+  assert.throws(() => mapper.buildGamePackFromSourceIds([], {
+    referencePack: base,
+    locale: "zh-CN",
+    fields: { sourceItemId: "__proto__", translation: "name" }
+  }), /来源 ID 字段/);
+});
+
+test("source record mapper rejects invalid game identity, unsafe fields and excessive rows", () => {
+  const mapper = loadSourceRecordMapper();
+  assert.equal(mapper.readPath({ safe: { name: "x" } }, "safe.name"), "x");
+  assert.equal(mapper.readPath({ safe: {} }, "safe.constructor"), undefined);
+  assert.throws(() => mapper.buildGamePackFromRecords([], {
+    game: { appId: "0", name: "Bad", adapter: "steam-community-market", itemKey: "market_hash_name" },
+    locale: "zh-CN",
+    fields: { marketHashName: "name", translation: "zh" }
+  }), /AppID/);
+  assert.throws(() => mapper.buildGamePackFromRecords([], {
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name" },
+    locale: "zh-CN",
+    fields: { marketHashName: "constructor", translation: "zh" }
+  }), /市场键字段/);
+  assert.throws(() => mapper.parseJsonRecords(Array.from({ length: 10001 }, () => ({}))), /10,000/);
+});
+
+
+test("sitemap parser decodes XML URLs and applies robots allow/disallow precedence", () => {
+  const api = loadSiteSourceDiscovery();
+  const locations = Array.from(api.extractLocs("<urlset><url><loc>https://wiki.example/a?x=1&amp;y=2</loc></url></urlset>"));
+  assert.deepEqual(locations, ["https://wiki.example/a?x=1&y=2"]);
+
+  const robots = api.parseRobots([
+    "User-agent: *",
+    "Disallow: /private/",
+    "Allow: /private/public/",
+    "Sitemap: https://wiki.example/sitemap.xml"
+  ].join("\n"));
+  assert.equal(robots.sitemaps[0], "https://wiki.example/sitemap.xml");
+  assert.equal(api.isRobotsAllowed(new URL("https://wiki.example/private/item"), robots), false);
+  assert.equal(api.isRobotsAllowed(new URL("https://wiki.example/private/public/item"), robots), true);
+  assert.equal(api.isRobotsAllowed(new URL("https://wiki.example/wiki"), robots), true);
+});
+
+test("site discovery reads same-origin robots and sitemap indexes without fetching page bodies", async () => {
+  const api = loadSiteSourceDiscovery();
+  const loader = loadPublicPackLoader();
+  const calls = [];
+  const sourceFiles = new Map([
+    ["https://wiki.example/robots.txt", [
+      "User-agent: *",
+      "Disallow: /private/",
+      "Sitemap: https://wiki.example/sitemap-index.xml"
+    ].join("\n")],
+    ["https://wiki.example/sitemap-index.xml", [
+      "<sitemapindex>",
+      "<sitemap><loc>https://wiki.example/sitemap-a.xml</loc></sitemap>",
+      "<sitemap><loc>https://wiki.example/sitemap-b.xml</loc></sitemap>",
+      "<sitemap><loc>https://other.example/foreign.xml</loc></sitemap>",
+      "</sitemapindex>"
+    ].join("")],
+    ["https://wiki.example/sitemap-a.xml", [
+      "<urlset>",
+      "<url><loc>https://wiki.example/zh/wiki</loc></url>",
+      "<url><loc>https://wiki.example/zh/wiki/gear</loc></url>",
+      "<url><loc>https://wiki.example/private/profile</loc></url>",
+      "<url><loc>https://other.example/page</loc></url>",
+      "</urlset>"
+    ].join("")],
+    ["https://wiki.example/sitemap-b.xml", [
+      "<urlset><url><loc>https://wiki.example/zh/wiki/materials</loc></url></urlset>"
+    ].join("")]
+  ]);
+  const result = await api.discoverSiteMap("https://wiki.example/zh/wiki", {
+    validatePublicHttpsUrl: (value) => loader.validatePublicHttpsUrl(value),
+    requestPermission: async (pattern) => {
+      calls.push(["permission", pattern]);
+      return true;
+    },
+    fetchText: async (url) => {
+      calls.push(["fetch", url]);
+      if (!sourceFiles.has(url)) throw new Error("not found");
+      return { text: sourceFiles.get(url) };
+    },
+    maxUrls: 3
+  });
+
+  assert.deepEqual(calls[0], ["permission", "https://wiki.example/*"]);
+  assert.deepEqual(calls.slice(1).map((entry) => entry[1]), [
+    "https://wiki.example/robots.txt",
+    "https://wiki.example/sitemap-index.xml",
+    "https://wiki.example/sitemap-a.xml",
+    "https://wiki.example/sitemap-b.xml"
+  ]);
+  assert.deepEqual(Array.from(result.urls), [
+    "https://wiki.example/zh/wiki",
+    "https://wiki.example/zh/wiki/gear",
+    "https://wiki.example/zh/wiki/materials"
+  ]);
+  assert.equal(result.blockedByRobots, 1);
+  assert.equal(result.truncated, true);
+  assert.equal(result.sitemaps.length, 3);
+  assert.equal(api.isRobotsAllowed(new URL("https://wiki.example/private/profile"), result.robots), false);
+  assert.equal(api.isRobotsAllowed(new URL("https://wiki.example/zh/wiki/gear"), result.robots), true);
+  assert.equal(result.errors.length, 0);
+});
+
+test("site discovery rejects denied permission and never fetches off-origin sitemap URLs", async () => {
+  const api = loadSiteSourceDiscovery();
+  const loader = loadPublicPackLoader();
+  let fetchCount = 0;
+  await assert.rejects(api.discoverSiteMap("https://wiki.example/wiki", {
+    validatePublicHttpsUrl: (value) => loader.validatePublicHttpsUrl(value),
+    requestPermission: async () => false,
+    fetchText: async () => { fetchCount += 1; return { text: "" }; }
+  }), /未获准访问/);
+  assert.equal(fetchCount, 0);
+});
+
+
+test("HTML table parser extracts header-mapped rows from an inert DOM without reading scripts", () => {
+  const makeCell = (tagName, value, spans = {}) => ({
+    tagName,
+    textContent: value,
+    colSpan: spans.colSpan || 1,
+    rowSpan: spans.rowSpan || 1
+  });
+  const makeRow = (cells, table) => ({
+    cells,
+    closest(selector) { return selector === "table" ? table : null; }
+  });
+  const makeTable = (rows, options = {}) => {
+    const table = {
+      caption: { textContent: options.caption || "" },
+      querySelectorAll(selector) {
+        if (selector === "tr") return rows;
+        if (selector === "thead tr") return options.theadRows || [];
+        return [];
+      },
+      getAttribute(name) { return name === "aria-label" ? (options.ariaLabel || "") : null; }
+    };
+    for (const row of rows) row.closest = (selector) => selector === "table" ? table : null;
+    return table;
+  };
+  const goodTable = makeTable([
+    { cells: [makeCell("TH", "Market name"), makeCell("TH", "zh-Hans"), makeCell("TH", "ID")] },
+    { cells: [makeCell("TD", "Silver  Ingot"), makeCell("TD", "银锭"), makeCell("TD", "142001")] },
+    { cells: [makeCell("TD", "Arcane Crystal"), makeCell("TD", "奥术水晶"), makeCell("TD", "115001")] }
+  ], { caption: "Item catalog", ariaLabel: "Public item catalog" });
+  const noHeaderTable = makeTable([
+    { cells: [makeCell("TD", "not a header"), makeCell("TD", "not data")] }
+  ]);
+  class FakeDOMParser {
+    parseFromString(source, type) {
+      assert.equal(type, "text/html");
+      assert.match(source, /<script>/i);
+      return {
+        title: { textContent: "Example Wiki" },
+        querySelector(selector) { return selector === "title" ? { textContent: "Example Wiki" } : null; },
+        querySelectorAll(selector) {
+          if (selector === "table") return [goodTable, noHeaderTable];
+          if (selector === "h1, h2, h3") return [{ textContent: "Items" }];
+          if (selector.startsWith("script,")) return [{ remove() {} }];
+          return [];
+        }
+      };
+    }
+  }
+
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const result = api.parseHtmlTables("<script>ignored()</script><table></table>", {
+    pageUrl: "https://wiki.example/items",
+    maxRowsPerTable: 1
+  });
+  assert.equal(result.pageTitle, "Example Wiki");
+  assert.deepEqual(Array.from(result.pageHeadings), ["Items"]);
+  assert.equal(result.tableCount, 2);
+  assert.equal(result.skippedTables, 1);
+  assert.equal(result.tables.length, 1);
+  assert.equal(result.tables[0].caption, "Item catalog");
+  assert.deepEqual(
+    Array.from(result.tables[0].headers, (header) => [header.key, header.label]),
+    [["column_1", "Market name"], ["column_2", "zh-Hans"], ["column_3", "ID"]]
+  );
+  assert.equal(result.tables[0].records.length, 1);
+  assert.equal(result.tables[0].records[0].column_1, "Silver  Ingot");
+  assert.equal(result.tables[0].records[0].column_2, "银锭");
+  assert.equal(result.tables[0].rowCount, 2);
+  assert.equal(result.tables[0].truncatedRows, true);
+  assert.equal(result.pageUrl, "https://wiki.example/items");
+});
+
+
+
+test("HTML card discovery suggests repeated item selectors without fetching more pages", () => {
+  const createNode = (tagName, options = {}) => ({
+    tagName: tagName.toUpperCase(),
+    textContent: options.text || "",
+    classList: new Set(options.classes || []),
+    attributes: options.attributes || {},
+    hasAttribute(name) { return Object.prototype.hasOwnProperty.call(this.attributes, name); },
+    getAttribute(name) { return this.attributes[name] ?? null; },
+    matches(selector) {
+      if (selector === ".item-card") return this.classList.has("item-card");
+      if (selector === "article.item-card") return this.tagName === "ARTICLE" && this.classList.has("item-card");
+      if (selector === "article") return this.tagName === "ARTICLE";
+      return false;
+    },
+    querySelector(selector) { return options.descendants?.[selector] || null; }
+  });
+  const cardOne = createNode("article", { classes: ["item-card"], text: "银锭 Silver Ingot" });
+  const cardTwo = createNode("article", { classes: ["item-card"], text: "奥术水晶 Arcane Crystal" });
+  const cardThree = createNode("article", { classes: ["item-card"], text: "神秘盔甲 Mystic Armor" });
+  const allNodes = [cardOne, cardTwo, cardThree];
+  const selectors = {
+    "*": allNodes,
+    "article": allNodes,
+    ".item-card": allNodes,
+    "article.item-card": allNodes,
+    "[data-item-key]": []
+  };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          return selectors[selector] || [];
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const candidates = api.discoverHtmlCardSelectors("<article class='item-card'>");
+  assert.ok(candidates.some((candidate) => candidate.selector === ".item-card" && candidate.count === 3));
+  assert.ok(candidates.some((candidate) => candidate.selector === "article.item-card" && candidate.count === 3));
+});
+
+test("HTML card parser extracts exact source IDs and translations with bounded skips", () => {
+  const makeField = (text, attributes = {}) => ({
+    textContent: text,
+    getAttribute(name) { return attributes[name] ?? null; }
+  });
+  const createCard = (id, translation, title) => {
+    const idNode = makeField("", { "data-item-key": id });
+    const translationNode = translation ? makeField(translation) : null;
+    const titleNode = makeField(title);
+    return {
+      tagName: "ARTICLE",
+      textContent: title + " " + (translation || ""),
+      matches(selector) { return selector === ".item-card"; },
+      querySelector(selector) {
+        if (selector === "[data-item-key]") return idNode;
+        if (selector === ".item-name") return translationNode;
+        if (selector === "h1, h2, h3, h4, [itemprop='name'], [data-item-name]") return titleNode;
+        return null;
+      }
+    };
+  };
+  const cards = [
+    createCard("516111", "神秘盔甲", "Mystic Armor"),
+    createCard("142001", "银锭", "Silver Ingot"),
+    createCard("115001", "", "Arcane Crystal")
+  ];
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === ".item-card") return cards;
+          return [];
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const result = api.parseHtmlCards("<article></article>", {
+    cardSelector: ".item-card",
+    sourceIdSelector: "[data-item-key]",
+    sourceIdAttribute: "auto",
+    translationSelector: ".item-name",
+    maxCards: 2
+  });
+  assert.equal(result.totalCards, 3);
+  assert.equal(result.scanned, 2);
+  assert.equal(result.records.length, 2);
+  assert.equal(result.records[0].sourceId, "516111");
+  assert.equal(result.records[0].translation, "神秘盔甲");
+  assert.equal(result.records[0].title, "Mystic Armor");
+  assert.equal(result.missingSourceId, 0);
+  assert.equal(result.missingTranslation, 0);
+  assert.equal(result.truncated, true);
+});
+
+test("HTML card parser fails closed on invalid selectors and empty mappings", () => {
+  const card = {
+    textContent: "card",
+    matches() { return false; },
+    querySelector(selector) {
+      if (selector === ".bad[") throw new Error("invalid selector");
+      return null;
+    },
+    getAttribute() { return null; }
+  };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === ".item-card") return [card];
+          return [];
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  assert.throws(() => api.parseHtmlCards("<div></div>", {
+    cardSelector: ".item-card",
+    translationSelector: ".item-name",
+    sourceIdSelector: ".bad["
+  }), /选择器无效/);
+});
+
+test("HTML table parser rejects oversized pages and tables with ambiguous spanning headers", () => {
+  const makeRow = (cells, table) => ({
+    cells,
+    closest(selector) { return selector === "table" ? table : null; }
+  });
+  const table = {
+    caption: null,
+    querySelectorAll(selector) { return selector === "tr" ? this.rows : []; },
+    getAttribute() { return null; },
+    rows: []
+  };
+  table.rows = [
+    makeRow([{ tagName: "TH", textContent: "Name", colSpan: 2, rowSpan: 1 }], table),
+    makeRow([{ tagName: "TD", textContent: "Item", colSpan: 1, rowSpan: 1 }], table)
+  ];
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        title: null,
+        querySelector() { return null; },
+        querySelectorAll(selector) {
+          if (selector === "table") return [table];
+          return [];
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  assert.throws(() => api.parseHtmlTables("12345", { maxChars: 4 }), /超过 1 MiB/);
+  assert.equal(api.parseHtmlTables("<table></table>").skippedTables, 1);
+});
+
+
+test("HTML detail parser extracts one explicit ItemKey and localized name from definition lists", () => {
+  const makePair = (label, value) => {
+    const dd = { tagName: "DD", textContent: value, nextElementSibling: null };
+    const dt = { tagName: "DT", textContent: label, nextElementSibling: dd };
+    return [dt, dd];
+  };
+  const pairs = [
+    ...makePair("ItemKey", "516111"),
+    ...makePair("简体中文", "神秘盔甲")
+  ];
+  const heading = { tagName: "H1", textContent: "Mystic Armor" };
+  const title = { tagName: "TITLE", textContent: "Mystic Armor · Wiki" };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === "dl dt") return pairs.filter((node) => node.tagName === "DT");
+          if (selector === "tr" || selector.startsWith("meta[") || selector === "[itemprop]" ||
+              selector.includes("data-item-key")) return [];
+          if (selector === "h1, h2, h3") return [heading];
+          return [];
+        },
+        querySelector(selector) {
+          if (selector === "h1") return heading;
+          if (selector === "title") return title;
+          return null;
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const result = api.parseHtmlDetailRecord("<dl><dt>ItemKey</dt><dd>516111</dd></dl>", {
+    pageUrl: "https://wiki.example/item/516111"
+  });
+  assert.equal(result.pageUrl, "https://wiki.example/item/516111");
+  assert.equal(result.pageTitle, "Mystic Armor · Wiki");
+  assert.equal(result.title, "Mystic Armor");
+  assert.equal(result.sourceId, "516111");
+  assert.equal(result.translation, "神秘盔甲");
+  assert.equal(result.records.length, 1);
+  assert.deepEqual(
+    { sourceId: result.records[0].sourceId, translation: result.records[0].translation },
+    { sourceId: "516111", translation: "神秘盔甲" }
+  );
+});
+
+test("HTML detail parser supports key-value table rows and explicit selectors without guessing headings", () => {
+  const row = {
+    cells: [
+      { tagName: "TH", textContent: "Item ID" },
+      { tagName: "TD", textContent: "142001" }
+    ]
+  };
+  const translationNode = { tagName: "SPAN", textContent: "银锭" };
+  const heading = { tagName: "H1", textContent: "Silver Ingot" };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === "dl dt") return [];
+          if (selector === "tr") return [row];
+          if (selector === ".localized-name") return [translationNode];
+          if (selector === "h1, h2, h3") return [heading];
+          return [];
+        },
+        querySelector(selector) {
+          if (selector === "h1") return heading;
+          return null;
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const result = api.parseHtmlDetailRecord("<table></table>", {
+    translationSelector: ".localized-name"
+  });
+  assert.equal(result.sourceId, "142001");
+  assert.equal(result.translation, "银锭");
+  assert.equal(result.title, "Silver Ingot");
+  assert.equal(result.records.length, 1);
+});
+
+test("HTML detail parser rejects missing or conflicting identity fields and invalid selectors", () => {
+  const makeTerm = (label, value) => ({
+    tagName: "DT",
+    textContent: label,
+    nextElementSibling: { tagName: "DD", textContent: value }
+  });
+  const terms = [
+    makeTerm("ItemKey", "516111"),
+    makeTerm("ItemKey", "142001"),
+    makeTerm("简体中文", "神秘盔甲")
+  ];
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === ".invalid[") throw new Error("invalid selector");
+          if (selector === "dl dt") return terms;
+          if (selector === "tr" || selector.startsWith("meta[") || selector === "[itemprop]" ||
+              selector.includes("data-item-key")) return [];
+          return [];
+        },
+        querySelector() { return null; }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const ambiguous = api.parseHtmlDetailRecord("<dl></dl>");
+  assert.equal(ambiguous.ambiguousSourceId, true);
+  assert.equal(ambiguous.records.length, 0);
+
+  const missing = api.parseHtmlDetailRecord("<dl></dl>", {
+    sourceIdLabels: ["Missing ID"],
+    translationLabels: ["Missing Name"]
+  });
+  assert.equal(missing.missingSourceId, true);
+  assert.equal(missing.missingTranslation, true);
+  assert.equal(missing.records.length, 0);
+
+  assert.throws(() => api.parseHtmlDetailRecord("<dl></dl>", {
+    sourceIdSelector: ".invalid["
+  }), /CSS 选择器无效/);
+});
+
+test("Options page wires detail extraction to the existing exact mapping workflow", async () => {
+  const optionsHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
+  const optionsJs = await readFile(path.join(extensionRoot, "options.js"), "utf8");
+  for (const id of [
+    "html-detail-id-labels",
+    "html-detail-translation-labels",
+    "html-detail-id-selector",
+    "html-detail-translation-selector",
+    "extract-html-detail",
+    "convert-html-detail",
+    "html-detail-preview",
+    "html-local-file",
+    "html-detail-template"
+  ]) {
+    assert.match(optionsHtml, new RegExp('id="' + id + '"'));
+  }
+  assert.match(optionsJs, /parseHtmlDetailRecord\(extractedHtmlSource/);
+  assert.match(optionsJs, /html-detail-template/);
+  assert.match(optionsJs, /span\.font-mono\.text-xs\.text-text-faint/);
+  assert.match(optionsJs, /heading\.pixel/);
+  assert.match(optionsJs, /file\.size > 1024 \* 1024/);
+  assert.match(optionsJs, /await file\.text\(\)/);
+  assert.match(optionsJs, /parseHtmlTables\(localHtml/);
+  assert.match(optionsJs, /credentials|chrome\.permissions\.request/);
+  assert.match(optionsJs, /buildGamePackFromSourceIds\(extractedHtmlDetailResult\.records/);
+  assert.match(optionsJs, /buildGamePackFromRecords\(\s*extractedHtmlDetailResult\.records/);
+});
+
+
+test("HTML detail parser reads explicit meta and itemprop fields", () => {
+  const metaId = {
+    tagName: "META",
+    getAttribute(name) {
+      return ({ name: "ItemKey", content: "516111" })[name] || null;
+    }
+  };
+  const localized = {
+    tagName: "SPAN",
+    textContent: "神秘盔甲",
+    getAttribute(name) { return name === "itemprop" ? "zh-Hans" : null; }
+  };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === "dl dt" || selector === "tr") return [];
+          if (selector === "meta[name], meta[property], meta[itemprop]") return [metaId];
+          if (selector === "[itemprop]") return [localized];
+          if (selector.includes("data-item-key")) return [];
+          if (selector === "h1, h2, h3") return [];
+          return [];
+        },
+        querySelector() { return null; }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const result = api.parseHtmlDetailRecord("<meta name='ItemKey' content='516111'>", {
+    translationLabels: ["zh-Hans"]
+  });
+  assert.equal(result.sourceId, "516111");
+  assert.equal(result.translation, "神秘盔甲");
+  assert.equal(result.records.length, 1);
+});
+
+
+test("TaskBarHeroWiki Minor Ruby detail page uses the current localized DOM and normalizes its item key", () => {
+  const itemIdNode = { tagName: "SPAN", textContent: "#110001" };
+  const itemHeading = { tagName: "HEADING", textContent: "小红宝石" };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === "dl dt" || selector === "tr" || selector.startsWith("meta[") ||
+              selector === "[itemprop]" || selector.includes("data-item-key")) return [];
+          if (selector === "span.font-mono.text-xs.text-text-faint") return [itemIdNode];
+          if (selector === "heading.pixel") return [itemHeading];
+          if (selector === "h1, h2, h3") return [];
+          return [];
+        },
+        querySelector() { return null; }
+      };
+    }
+  }
+  const parser = loadHtmlTableParser(FakeDOMParser);
+  const parsed = parser.parseHtmlDetailRecord("<heading class='pixel'>小红宝石</heading>", {
+    pageUrl: "https://taskbarherowiki.com/items/110001",
+    sourceIdSelector: "span.font-mono.text-xs.text-text-faint",
+    translationSelector: "heading.pixel"
+  });
+  assert.equal(parsed.sourceId, "110001");
+  assert.equal(parsed.translation, "小红宝石");
+  assert.equal(parsed.records.length, 1);
+
+  const mapper = loadSourceRecordMapper();
+  const mapped = mapper.buildGamePackFromSourceIds([{
+    sourceId: parsed.sourceId,
+    translation: parsed.translation
+  }], {
+    referencePack: taskBarHeroReferencePack,
+    locale: "zh-CN",
+    fields: { sourceItemId: "sourceId", translation: "translation" },
+    source: "taskbarherowiki.com:single-page-id-cross-check"
+  });
+  assert.equal(mapped.stats.imported, 1);
+  assert.deepEqual(
+    Array.from(mapped.pack.translations, (entry) => [
+      entry.marketHashName, entry.sourceItemId, entry.locale, entry.translation
+    ]),
+    [["Minor Ruby", "110001", "zh-CN", "小红宝石"]]
+  );
+});
+
+
+test("Steam Market content script replaces exact item names and localizes detail text in the DOM", async () => {
+  const scripts = [
+    "runtime-status.js",
+    "market-locale.js",
+    "core/item-identity.js",
+    "core/translation-engine.js",
+    "core/rate-limiter.js",
+    "core/game-registry.js",
+    "core/game-source-catalog.js",
+    "market-items.js",
+    "storage-adapter.js",
+    "market-text-localizer.js",
+    "content.js"
+  ];
+  const storageKey = "alaxee-steamhub:game-pack:v1:3678970";
+  const storedPack = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: {
+      appId: "3678970",
+      name: "Task Bar Hero",
+      adapter: "steam-community-market",
+      itemKey: "market_hash_name",
+      defaultLocale: "zh-CN",
+      enabled: true
+    },
+    translations: [{
+      marketHashName: "Abyss Amulet (Arcana) C",
+      locale: "zh-CN",
+      translation: "深渊护符",
+      source: "test"
+    }],
+    textTranslations: [{
+      sourceText: "A mysterious abyssal relic.",
+      translation: "神秘的深渊遗物。"
+    }]
+  };
+
+  function makeText(value) {
+    return { nodeType: 3, nodeValue: value, parentElement: null, isConnected: true };
+  }
+
+  function makeElement(tagName, children = []) {
+    const element = {
+      nodeType: 1,
+      tagName: tagName.toUpperCase(),
+      childNodes: children,
+      parentElement: null,
+      isConnected: true,
+      attributes: Object.create(null),
+      get title() { return this.attributes.title || ""; },
+      set title(value) { this.attributes.title = String(value); },
+      get textContent() {
+        return this.childNodes.map((child) =>
+          child.nodeType === 3 ? child.nodeValue : child.textContent
+        ).join("");
+      },
+      closest() { return null; },
+      getAttribute(name) {
+        return Object.prototype.hasOwnProperty.call(this.attributes, name)
+          ? this.attributes[name]
+          : null;
+      },
+      setAttribute(name, value) {
+        this.attributes[name] = String(value);
+      },
+      removeAttribute(name) {
+        delete this.attributes[name];
+      },
+      querySelectorAll() { return []; }
+    };
+    for (const child of children) child.parentElement = element;
+    return element;
+  }
+
+  const breadcrumbTitleText = makeText("Abyss Amulet (Arcana) C");
+  const titleText = makeText("Abyss Amulet (Arcana) C");
+  // Current Steam markup uses generated wrapper classes, not a stable h1/h2 ID.
+  const breadcrumbElement = makeElement("div", [breadcrumbTitleText]);
+  const titleElement = makeElement("div", [titleText]);
+  const itemLevelText = makeText("Amulet - Lv. 90");
+  const gradeText = makeText("Arcana Grade");
+  const inherentText = makeText("Inherent Stats");
+  const speedText = makeText("22% Increased Attack Speed");
+  const skillText = makeText("All Skill Level +2");
+  const criticalText = makeText("43% Increased Critical Chance Multiplier");
+  const decorationText = makeText("Decoration Slot ×2");
+  const engravingText = makeText("Engraving Slot ×1");
+  const inscriptionText = makeText("Inscription Slot ×1");
+  const requiredText = makeText("Requires Lv.90");
+  const descriptionText = makeText("A mysterious abyssal relic.");
+  const unknownText = makeText("Uncatalogued property 123");
+  const detailRoot = makeElement("section", [
+    makeElement("div", [itemLevelText]),
+    makeElement("div", [gradeText]),
+    makeElement("div", [inherentText]),
+    makeElement("li", [speedText]),
+    makeElement("li", [skillText]),
+    makeElement("li", [criticalText]),
+    makeElement("li", [decorationText]),
+    makeElement("li", [engravingText]),
+    makeElement("li", [inscriptionText]),
+    makeElement("p", [requiredText]),
+    makeElement("p", [descriptionText]),
+    makeElement("p", [unknownText])
+  ]);
+  const body = makeElement("body", [breadcrumbElement, titleElement, detailRoot]);
+  const pageUrl = "https://steamcommunity.com/market/listings/3678970/Abyss%20Amulet%20%28Arcana%29%20C?l=schinese";
+  const unrelatedAnchor = {
+    href: "https://steamcommunity.com/market/listings/440/Unusual%20Hat",
+    hidden: false,
+    isConnected: true,
+    getAttribute(name) { return name === "href" ? this.href : null; },
+    getClientRects() { return [{}]; },
+    childNodes: []
+  };
+
+  const document = {
+    body,
+    documentElement: body,
+    readyState: "complete",
+    addEventListener() {},
+    querySelectorAll(selector) {
+      return selector === 'a[href*="/market/listings/"]' ? [unrelatedAnchor] : [];
+    },
+    createTreeWalker(rootNode) {
+      const nodes = [];
+      function visit(node) {
+        if (node.nodeType === 3) {
+          nodes.push(node);
+          return;
+        }
+        for (const child of node.childNodes || []) visit(child);
+      }
+      visit(rootNode);
+      let index = 0;
+      return {
+        nextNode() {
+          const next = nodes[index];
+          index += 1;
+          return next || null;
+        }
+      };
+    }
+  };
+
+  const storedValues = new Map([[storageKey, storedPack]]);
+  const storageArea = {
+    async get(key) {
+      if (key === null) return Object.fromEntries(storedValues);
+      return storedValues.has(key) ? { [key]: storedValues.get(key) } : {};
+    },
+    async set(values) {
+      for (const [key, value] of Object.entries(values)) storedValues.set(key, value);
+    },
+    async remove(key) { storedValues.delete(key); }
+  };
+  const location = {
+    href: pageUrl,
+    replace() { throw new Error("The test URL is already using the simplified Chinese locale."); }
+  };
+  const context = vm.createContext({
+    URL,
+    fetch: async () => ({ ok: true, async json() { return { format: "alaxee-steamhub-game-pack", schemaVersion: 1, game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name", defaultLocale: "zh-CN" }, translations: [], textTranslations: [] }; } }),
+    NodeFilter: { SHOW_TEXT: 4 },
+    window: {
+      location,
+      setTimeout() { return 1; }
+    },
+    document,
+    chrome: {
+      runtime: { getURL(path) { return path; } },
+      storage: {
+        local: storageArea,
+        onChanged: { addListener() {} }
+      }
+    }
+  });
+
+  for (const relativePath of scripts) {
+    const source = await readFile(path.join(extensionRoot, relativePath), "utf8");
+    vm.runInContext(source, context, { filename: relativePath });
+  }
+
+  await context.__ALAXEE_STEAMHUB__.refresh();
+
+  assert.equal(breadcrumbTitleText.nodeValue, "深渊护符 (至宝) C");
+  assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
+  assert.equal(titleElement.getAttribute("title"), "原文：Abyss Amulet (Arcana) C");
+  assert.equal(titleElement.getAttribute("data-alaxee-steamhub-app-id"), "3678970");
+  assert.equal(itemLevelText.nodeValue, "护符 · 等级 90");
+  assert.equal(gradeText.nodeValue, "至宝品阶");
+  assert.equal(inherentText.nodeValue, "固有属性");
+  assert.equal(speedText.nodeValue, "攻击速度提高 22%");
+  assert.equal(skillText.nodeValue, "所有技能等级 +2");
+  assert.equal(criticalText.nodeValue, "暴击几率倍率提高 43%");
+  assert.equal(decorationText.nodeValue, "装饰槽 ×2");
+  assert.equal(engravingText.nodeValue, "雕刻槽 ×1");
+  assert.equal(inscriptionText.nodeValue, "铭刻槽 ×1");
+  assert.equal(requiredText.nodeValue, "需求等级：90");
+  assert.equal(descriptionText.nodeValue, "神秘的深渊遗物。");
+  assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
+
+  const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
+  assert.equal(diagnostics.version, "0.9.8");
+  assert.equal(diagnostics.detectedItems, 2);
+  assert.equal(diagnostics.primaryAppId, "3678970");
+  assert.equal(diagnostics.matchedItems, 1);
+  assert.equal(diagnostics.translatedNames, 2);
+  assert.ok(diagnostics.translatedDetailNodes >= 11);
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Amber Ring (Immortal) A", "琥珀戒指"), "琥珀戒指 (不朽) A");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Abyss Amulet (Arcana) C", "深渊护符"), "深渊护符 (至宝) C");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Mystic Armor (Beyond) A", "神秘盔甲"), "神秘盔甲 (超凡) A");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Arcana)", "被污染的圣物"), "被污染的圣物 (至宝)");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Unlisted Grade)", "被污染的圣物"), "被污染的圣物 (Unlisted Grade)");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Plain Item", "普通物品"), "普通物品");
+  assert.deepEqual(Array.from(diagnostics.missingPacks), ["440"]);
+  assert.deepEqual(Array.from(diagnostics.errors), []);
+  const runtime = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__.snapshot();
+  assert.equal(runtime.title, "汉化已生效");
+  assert.ok(runtime.details.some((line) => line.includes("不影响当前商品")));
+  assert.equal(runtime.tone, "success");
+});
+
+
+test("Game onboarding automatically imports a bundled pack and repairs previously empty profiles", async () => {
+  const optionsSource = await readFile(path.join(extensionRoot, "options.js"), "utf8");
+  const addFlow = optionsSource.slice(
+    optionsSource.indexOf("async function addQuickProfile"),
+    optionsSource.indexOf("async function importBundledSource")
+  );
+  const migrationFlow = optionsSource.slice(
+    optionsSource.indexOf("async function autoImportEmptyBundledProfiles"),
+    optionsSource.indexOf("function renderQuickGame")
+  );
+  assert.match(addFlow, /listSources\(quickGame\.appId\)\[0\]/);
+  assert.match(addFlow, /await loadBundledPack\(quickGame, source\)/);
+  assert.match(migrationFlow, /pack\.translations\.length === 0/);
+  assert.match(migrationFlow, /await loadBundledPack\(profile\.game, source\)/);
+  assert.match(optionsSource, /initializeOptionsPage\(\)\.catch/);
+});
+
+ 
+test("bundled Task Bar Hero pack includes the exact Cosmic C listing and detail text mappings", async () => {
+  const pack = JSON.parse(await readFile(path.join(extensionRoot, "data", "taskbar-hero-zh-CN.json"), "utf8"));
+  const axe = pack.translations.find((entry) =>
+    entry.marketHashName === "Dimensional Axe (Cosmic) C" && entry.locale === "zh-CN"
+  );
+  assert.equal(axe?.translation, "次元斧");
+  assert.equal(axe?.source, "task-bar-trade-center; steamcommunity.com");
+  assert.equal(axe?.sourceItemId, undefined);
+
+  const details = new Map((pack.textTranslations || []).map((entry) => [
+    entry.sourceText, entry.translation
+  ]));
+  assert.equal(details.get("Base Stats"), "基础属性");
+  assert.equal(details.get("Unique Stats"), "独特属性");
+  assert.equal(details.get("Slots"), "槽位");
+  assert.equal(
+    details.get("Killing a bleeding enemy with Axe Spin increases Axe Spin's duration by 1 second"),
+    "使用旋转斧击杀流血中的敌人后，旋转斧的持续时间延长 1 秒。"
+  );
+});
+
+ 
+test("bundled Task Bar Hero pack includes all Steam-verified level-80 C variants", async () => {
+  const pack = JSON.parse(await readFile(path.join(extensionRoot, "data", "taskbar-hero-zh-CN.json"), "utf8"));
+  const expected = [["Dimensional Armor (Beyond) C","次元铠甲"],["Dimensional Armor (Celestial) C","次元铠甲"],["Ethereal Ring (Arcana) C","以太戒指"],["Dimensional Axe (Cosmic) C","次元斧"],["Dimensional Scepter (Arcana) C","次元权杖"],["Dimensional Crossbow (Beyond) C","次元弩"],["Dimensional Crossbow (Divine) C","次元弩"],["Dimensional Bolt (Divine) C","次元弩箭"],["Dimensional Hatchet (Beyond) C","次元手斧"],["Dimensional Armor (Divine) C","次元铠甲"],["Dimensional Armor (Cosmic) C","次元铠甲"],["Dimensional Gloves (Arcana) C","次元手套"],["Ethereal Bracer (Beyond) C","以太腕甲"]];
+  for (const [marketHashName, translation] of expected) {
+    const entry = pack.translations.find((item) =>
+      item.marketHashName === marketHashName && item.locale === "zh-CN"
+    );
+    assert.equal(entry?.translation, translation, marketHashName);
+  }
+  for (const [marketHashName, translation] of [["Dimensional Axe (Cosmic) C","次元斧"],["Dimensional Scepter (Arcana) C","次元权杖"],["Dimensional Crossbow (Beyond) C","次元弩"],["Dimensional Crossbow (Divine) C","次元弩"],["Dimensional Bolt (Divine) C","次元弩箭"],["Dimensional Hatchet (Beyond) C","次元手斧"],["Dimensional Armor (Divine) C","次元铠甲"],["Dimensional Armor (Cosmic) C","次元铠甲"],["Dimensional Gloves (Arcana) C","次元手套"],["Ethereal Bracer (Beyond) C","以太腕甲"]]) {
+    const entry = pack.translations.find((item) => item.marketHashName === marketHashName);
+    assert.equal(entry?.source, "task-bar-trade-center; steamcommunity.com", marketHashName);
+    assert.equal(entry?.sourceItemId, undefined, marketHashName);
+  }
+  assert.equal(
+    pack.translations.some((item) => item.marketHashName === "Ethereal Bracer (Cosmic) C"),
+    false,
+    "do not invent a C listing that was not found on Steam"
+  );
+});
+
+ 
+test("bundled Task Bar Hero detail pack covers sampled unique effects", async () => {
+  const pack = JSON.parse(await readFile(path.join(extensionRoot, "data", "taskbar-hero-zh-CN.json"), "utf8"));
+  const translations = new Map((pack.textTranslations || []).map((entry) => [
+    entry.sourceText, entry.translation
+  ]));
+  assert.equal(translations.get("Arcana Grade"), "至宝品阶");
+  assert.equal(translations.get("Heal skill's cooldown is reduced by 30."), "治疗技能的冷却时间缩短 30。");
+  assert.equal(translations.get("Crossbow Turret cooldown is reduced by 50%."), "弩炮的冷却时间缩短 50%。");
+  assert.equal(translations.get("Chaos Resistance is fixed to the highest elemental resistance value."), "混沌抗性固定为最高的元素抗性值。");
+  assert.ok(translations.has("This item is a commodity, where all the individual items are effectively identical. Individual listings aren't accessible; you can instead issue orders to buy at a specific price, with the cheapest listing getting automatically matched to the highest buy order."));
+  assert.equal(pack.textTranslations.length, 18);
+});

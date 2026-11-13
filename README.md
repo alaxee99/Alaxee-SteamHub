@@ -1,37 +1,70 @@
-# Alaxee SteamHub
+# ALAXEE SteamHub
 
-ALAXEE's independently maintained Steam translation and browser enhancement project.
+ALAXEE SteamHub is a multi-game browser extension for improving Steam Community Market pages with exact-match Chinese translations.
 
-## Product direction
+## Current status — v0.6.1
 
-- Translation logic and game/item data matching are owned by ALAXEE.
-- Prefer a standalone Steam integration over requiring Millennium or Extendium.
-- Keep host integration replaceable: a standalone Steam CEF/CDP adapter is the first path being validated; a Millennium adapter is an optional fallback, not the translation core.
-- Start with Steam Store and Community Market pages. Support game-specific configurations keyed by Steam AppID.
-- For Taskbar Hero (AppID `3678970`), use TBHIndex as an on-demand public data provider where exact item matches can be established. Do not bulk crawl or guess translations.
-- Keep all translation data and caches local by default. No Steam account login, inventory reading, cookies, or private game-save access in the initial scope.
+- Manifest V3 extension restricted to Steam Community Market pages.
+- Per-game profiles keyed by Steam AppID; each game has its own enable state and translation dictionary.
+- Settings page supports manual game registration, searchable dictionary management (single-entry edit/delete), JSON game-pack import/export, per-game enable/disable, and deletion.
+- Game-pack schema is versioned and supports up to 10,000 exact translation entries per game.
+- Market item identity uses the exact appid + market_hash_name pair.
+- Local dictionaries are resolved by exact AppID, market hash name, and locale; no fuzzy matching.
+- Local game packs are persistent extension data. The 30-day translation cache remains available for future remote providers.
+- A Steam market adapter is implemented first. Other game surfaces that do not use Steam Community Market require their own adapter; they are not silently treated as supported.
 
-## Current status
+TBH Index (tbhindex.com) is the primary Chinese market-name reference for Task Bar Hero. SteamHub uses Steam's current AppID 3678970 Market search results as the canonical source of exact item keys, then cross-checks each item's Chinese name on TBH Index's localized Market Info page and its internal ItemKey on the linked Wiki page. A small three-entry personal-use seed is available at docs/game-pack.tbhindex-seed.json. TBH Index currently displays 1,757 tracked market records while Steam's current search reports 1,098 results; those sets are not interchangeable. Several Wiki category pages also have inconsistent headline and rendered counts. See docs/providers/tbhindex.md.
 
-This repository is being initialized from the standalone CDP injection proof of concept. The first version demonstrates how ALAXEE can enter Steam pages without Millennium/Extendium; it is not yet the finished translator.
+## Configure games
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the host-independence decision and security boundaries.
+Open the extension's Options page from edge://extensions or chrome://extensions.
 
-## Development
+For each game:
 
-The standalone bridge requires Node.js 22+ and uses built-in Node APIs only.
+1. Enter its Steam AppID and display name.
+2. Enter exact item keys and translations manually, or import a game pack JSON file.
+3. Enable or disable the game independently.
+4. Search the selected game's dictionary and edit or delete an individual item/locale entry.
+5. Export the game's pack to back it up or share it.
 
-```powershell
-npm test
-npm run check
-npm start
-```
+A schema-only pack example is available at docs/game-pack.example.json. A separate three-entry personally verified starter pack is available at docs/game-pack.tbhindex-seed.json; it is not a complete Task Bar Hero dictionary. The separate taskbarhero.wiki site remains a secondary market cross-check only; see docs/providers/taskbarhero-wiki.md. Each entry may also include `sourceItemId`, an optional exact ID from the game's own catalog; this is metadata for cross-referencing and does not replace Steam's exact `market_hash_name` match.
 
-## Scope and safety
+## Convert a structured JSON / CSV source
 
-- Do not inject scripts into non-Steam origins.
-- Keep the Steam CDP endpoint bound to loopback; fail closed if it is exposed on a LAN/public interface.
-- Never use `-dev`, disable the CEF sandbox, or accept arbitrary remote CDP endpoints.
-- Do not read Steam cookies, authentication tokens, private profiles, inventory, or game save files.
-- Respect third-party data-provider terms; only perform low-rate on-demand lookups for visible items.
-- Never claim a page translation or proxy route is working without real Steam client verification.
+The Options page can also turn public JSON record arrays or CSV tables into a SteamHub Game Pack. Supply the target AppID and map the exact Steam market_hash_name, localized text and optional source ID fields. JSON supports nested record paths such as data.items; CSV supports quoted commas and multiline cells. Duplicate identical rows are collapsed; conflicting translations or source IDs are excluded and reported. See docs/importing/structured-json-csv.md.
+
+This handles structured source data, not arbitrary Wiki HTML. A website-specific page adapter is still needed to discover permitted pages and extract exact Steam listing identities.
+## Discover a Wiki site map
+
+The Options page can analyze a public HTTPS Wiki homepage or sitemap URL. It reads the same-origin robots.txt and sitemap documents, follows bounded sitemap indexes, applies robots rules and previews discovered same-origin page URLs. It is capped at 8 sitemap files and 500 page URLs.
+
+This first stage only discovers URLs; it does not fetch page bodies or create translations. A source-specific adapter is still required to parse each page and map its entries to exact Steam market_hash_name values. See docs/importing/site-discovery.md. TBH Index is not bulk-crawled.
+## Import a public Game Pack URL
+
+The Options page accepts a direct HTTPS URL to a JSON file using the `alaxee-steamhub-game-pack` v1 schema. After an explicit click, the extension requests optional access to that one HTTPS origin, fetches without cookies or referrer, rejects redirects, and enforces a 5 MiB streaming limit and 20-second timeout. The fetched pack is validated and placed in the JSON editor; the user must still choose merge or replace.
+
+This is not a generic Wiki crawler. A Wiki homepage, HTML page, sitemap or CSV is not a Game Pack. Turning site pages into translations requires a source-specific parser and exact Steam `market_hash_name` mapping. See `docs/importing/public-json-url.md`.
+
+Current Task Bar Hero pack URL:
+
+`https://raw.githubusercontent.com/alaxee99/Alaxee-SteamHub/feat/browser-extension-first/docs/game-pack.taskbar-hero-zh-CN.json`
+
+## Install for local testing
+
+1. Open edge://extensions in Microsoft Edge or chrome://extensions in Chrome.
+2. Enable Developer mode.
+3. Select Load unpacked and choose the repository's extension/ directory.
+4. Open the extension's Details page and select Extension options, or open its options page directly.
+5. Add a game and import or enter translations before opening its Steam Market page.
+
+This is source for local testing, not a browser-store release.
+
+## Privacy and data handling
+
+- The extension requires storage for local game packs and translation cache. A user-triggered public JSON import may request optional access to the supplied HTTPS origin only.
+- It does not read Steam cookies, authentication tokens, account details, private inventory, or save files.
+- Imported packs are stored locally in the browser's extension storage.
+- Merge import rejects conflicting translations; replace import replaces only the selected game's pack.
+- No telemetry, account login, cloud sync, bulk crawling, or remote code is included.
+
+See ARCHITECTURE.md, AGENTS.md, and docs/providers/tbhindex.md.

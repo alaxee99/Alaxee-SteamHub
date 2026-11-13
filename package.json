@@ -1,0 +1,14 @@
+{
+  "name": "alaxee-steamhub",
+  "version": "0.9.8",
+  "private": true,
+  "type": "module",
+  "description": "Steam Community Market item name and detail localization with per-game dictionaries.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check extension/runtime-status.js && node --check extension/core/item-identity.js && node --check extension/core/translation-engine.js && node --check extension/core/rate-limiter.js && node --check extension/core/game-registry.js && node --check extension/core/public-pack-loader.js && node --check extension/core/source-record-mapper.js && node --check extension/core/site-source-discovery.js && node --check extension/core/html-table-parser.js && node --check extension/core/steam-app-lookup.js && node --check extension/core/game-source-catalog.js && node --check extension/market-items.js && node --check extension/storage-adapter.js && node --check extension/market-locale.js && node --check extension/market-text-localizer.js && node --check extension/content.js && node --check extension/options.js && node --check test/browser-extension.test.mjs && node --check test/market-text-localizer.test.mjs && node --check test/translation-core.test.mjs"
+  }
+}

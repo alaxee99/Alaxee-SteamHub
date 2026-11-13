@@ -1,0 +1,27 @@
+{
+  "format": "alaxee-steamhub-game-pack",
+  "schemaVersion": 1,
+  "game": {
+    "appId": "3678970",
+    "name": "Task Bar Hero",
+    "adapter": "steam-community-market",
+    "itemKey": "market_hash_name",
+    "defaultLocale": "zh-CN",
+    "enabled": true
+  },
+  "translations": [
+    {
+      "marketHashName": "Example Market Item A",
+      "sourceItemId": "example-item-001",
+      "locale": "zh-CN",
+      "translation": "示例物品甲",
+      "source": "illustrative-example"
+    },
+    {
+      "marketHashName": "Example Market Item B",
+      "locale": "zh-CN",
+      "translation": "示例物品乙",
+      "source": "illustrative-example"
+    }
+  ]
+}
