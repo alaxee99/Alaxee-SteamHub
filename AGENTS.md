@@ -16,7 +16,8 @@
 - The initial extension may run only on HTTPS Steam Community Market routes: steamcommunity.com/market, steamcommunity.com/market/*, and their www equivalents.
 - Prefer static Manifest V3 content scripts and the narrowest possible match patterns.
 - The storage permission is allowed only for extension-local game profiles, dictionaries, and translation cache; never use page-origin storage for these records.
-- Do not add other API permissions or broader host permissions unless a concrete feature requires them and the change is reviewed.\n- Public JSON pack URL import may request one HTTPS origin through `optional_host_permissions` only after an explicit click; fetch with omitted credentials, reject redirects, cap payloads, and never crawl links or inject scripts.
+- Do not add other API permissions or broader host permissions unless a concrete feature requires them and the change is reviewed.
+- Public JSON pack URL import may request one HTTPS origin through `optional_host_permissions` only after an explicit click; fetch with omitted credentials, reject redirects, cap payloads, and never crawl links or inject scripts.
 - Do not read Steam cookies, auth/session tokens, Steam account credentials, private profiles, inventory, or save files.
 - Do not add telemetry, remote code, accounts, cloud sync, or proxy control without explicit product approval.
 - Do not silently connect to local debugging ports or launch/modify the Steam client from the browser extension.
