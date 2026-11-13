@@ -12,6 +12,7 @@ const localeSource = await readFile(path.join(extensionRoot, "market-locale.js")
 const contentSource = await readFile(path.join(extensionRoot, "content.js"), "utf8");
 const publicPackLoaderSource = await readFile(path.join(extensionRoot, "core/public-pack-loader.js"), "utf8");
 const sourceRecordMapperSource = await readFile(path.join(extensionRoot, "core/source-record-mapper.js"), "utf8");
+const siteSourceDiscoverySource = await readFile(path.join(extensionRoot, "core/site-source-discovery.js"), "utf8");
 const API_KEY = "__ALAXEE_STEAMHUB_MARKET_LOCALE__";
 
 function loadPublicPackLoader() {
@@ -45,6 +46,12 @@ function createResponse(bodyText, options = {}) {
       }
     }
   };
+}
+
+function loadSiteSourceDiscovery() {
+  const context = vm.createContext({ URL, Object, Set, Map, TypeError, Error, String, Number, Array, RegExp, Promise });
+  vm.runInContext(siteSourceDiscoverySource, context, { filename: "site-source-discovery.js" });
+  return context.__ALAXEE_STEAMHUB_SITE_DISCOVERY__;
 }
 
 function loadSourceRecordMapper() {
@@ -131,6 +138,11 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.match(optionsHtml, /id="source-market-field"/);
   assert.match(optionsHtml, /id="source-translation-field"/);
   assert.match(optionsHtml, /id="convert-source"/);
+  assert.match(optionsHtml, /id="site-index-url"/);
+  assert.match(optionsHtml, /id="analyze-site"/);
+  assert.match(optionsHtml, /id="site-discovery-pages"/);
+  assert.ok(optionsHtml.includes('src="core/site-source-discovery.js"'));
+  assert.ok(optionsSource.includes("siteDiscoveryApi.discoverSiteMap"));
   assert.ok(optionsHtml.includes('src="core/source-record-mapper.js"'));
   assert.match(publicPackLoaderSource, /credentials: "omit"/);
   assert.match(publicPackLoaderSource, /redirect: "error"/);
@@ -401,4 +413,90 @@ test("source record mapper rejects invalid game identity, unsafe fields and exce
     fields: { marketHashName: "constructor", translation: "zh" }
   }), /市场键字段/);
   assert.throws(() => mapper.parseJsonRecords(Array.from({ length: 10001 }, () => ({}))), /10,000/);
+});
+
+
+test("sitemap parser decodes XML URLs and applies robots allow/disallow precedence", () => {
+  const api = loadSiteSourceDiscovery();
+  const locations = Array.from(api.extractLocs("<urlset><url><loc>https://wiki.example/a?x=1&amp;y=2</loc></url></urlset>"));
+  assert.deepEqual(locations, ["https://wiki.example/a?x=1&y=2"]);
+
+  const robots = api.parseRobots([
+    "User-agent: *",
+    "Disallow: /private/",
+    "Allow: /private/public/",
+    "Sitemap: https://wiki.example/sitemap.xml"
+  ].join("\n"));
+  assert.equal(robots.sitemaps[0], "https://wiki.example/sitemap.xml");
+  assert.equal(api.isRobotsAllowed(new URL("https://wiki.example/private/item"), robots), false);
+  assert.equal(api.isRobotsAllowed(new URL("https://wiki.example/private/public/item"), robots), true);
+  assert.equal(api.isRobotsAllowed(new URL("https://wiki.example/wiki"), robots), true);
+});
+
+test("site discovery reads same-origin robots and sitemap indexes without fetching page bodies", async () => {
+  const api = loadSiteSourceDiscovery();
+  const loader = loadPublicPackLoader();
+  const calls = [];
+  const sourceFiles = new Map([
+    ["https://wiki.example/robots.txt", [
+      "User-agent: *",
+      "Disallow: /private/",
+      "Sitemap: https://wiki.example/sitemap-index.xml"
+    ].join("\n")],
+    ["https://wiki.example/sitemap-index.xml", [
+      "<sitemapindex>",
+      "<sitemap><loc>https://wiki.example/sitemap-a.xml</loc></sitemap>",
+      "<sitemap><loc>https://wiki.example/sitemap-b.xml</loc></sitemap>",
+      "<sitemap><loc>https://other.example/foreign.xml</loc></sitemap>",
+      "</sitemapindex>"
+    ].join("")],
+    ["https://wiki.example/sitemap-a.xml", [
+      "<urlset>",
+      "<url><loc>https://wiki.example/zh/wiki</loc></url>",
+      "<url><loc>https://wiki.example/zh/wiki/gear</loc></url>",
+      "<url><loc>https://wiki.example/private/profile</loc></url>",
+      "<url><loc>https://other.example/page</loc></url>",
+      "</urlset>"
+    ].join("")]
+  ]);
+  const result = await api.discoverSiteMap("https://wiki.example/zh/wiki", {
+    validatePublicHttpsUrl: (value) => loader.validatePublicHttpsUrl(value),
+    requestPermission: async (pattern) => {
+      calls.push(["permission", pattern]);
+      return true;
+    },
+    fetchText: async (url) => {
+      calls.push(["fetch", url]);
+      if (!sourceFiles.has(url)) throw new Error("not found");
+      return { text: sourceFiles.get(url) };
+    },
+    maxUrls: 2
+  });
+
+  assert.deepEqual(calls[0], ["permission", "https://wiki.example/*"]);
+  assert.deepEqual(calls.slice(1).map((entry) => entry[1]), [
+    "https://wiki.example/robots.txt",
+    "https://wiki.example/sitemap-index.xml",
+    "https://wiki.example/sitemap-a.xml"
+  ]);
+  assert.deepEqual(Array.from(result.urls), [
+    "https://wiki.example/zh/wiki",
+    "https://wiki.example/zh/wiki/gear"
+  ]);
+  assert.equal(result.blockedByRobots, 1);
+  assert.equal(result.truncated, true);
+  assert.equal(result.sitemaps.length, 2);
+  assert.equal(result.errors.length, 0);
+});
+
+test("site discovery rejects denied permission and never fetches off-origin sitemap URLs", async () => {
+  const api = loadSiteSourceDiscovery();
+  const loader = loadPublicPackLoader();
+  let fetchCount = 0;
+  await assert.rejects(api.discoverSiteMap("https://wiki.example/wiki", {
+    validatePublicHttpsUrl: (value) => loader.validatePublicHttpsUrl(value),
+    requestPermission: async () => false,
+    fetchText: async () => { fetchCount += 1; return { text: "" }; }
+  }), /未获准访问/);
+  assert.equal(fetchCount, 0);
 });
