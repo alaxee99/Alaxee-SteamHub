@@ -71,6 +71,12 @@ button { border: 0; cursor: pointer; }
 .source-transform[open] > summary { margin-bottom: 13px; }
 .source-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 13px 0; }
 .source-summary { color: var(--muted); font-size: 11px; line-height: 1.5; }
+.site-discovery { margin-top: 12px; }
+.site-discovery-pages { max-height: 220px; overflow: auto; margin: 9px 0 0; padding: 0 0 0 18px; color: var(--muted); }
+.site-discovery-pages li { margin: 5px 0; font-size: 10px; overflow-wrap: anywhere; }
+.site-discovery-pages a { color: var(--cyan); text-decoration: none; }
+.site-discovery-pages a:hover { text-decoration: underline; }
+
 .import-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 13px; margin-top: 13px; }
 .mode-label { width: 220px; }
 .text-link { padding: 11px 0; color: var(--cyan); font-size: 11px; text-decoration: none; }
