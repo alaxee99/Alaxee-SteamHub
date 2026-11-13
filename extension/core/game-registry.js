@@ -265,6 +265,79 @@
       return updated;
     }
 
+    async function updateTranslation(appId, previousIdentity, input) {
+      const current = await get(appId);
+      if (!current) throw new Error("Game profile was not found.");
+
+      const previousMarketHashName = validateMarketHashName(previousIdentity?.marketHashName);
+      const previousLocale = validateLocale(previousIdentity?.locale);
+      if (!previousMarketHashName || !previousLocale) {
+        throw new TypeError("A valid existing market hash name and locale are required.");
+      }
+
+      const previous = current.translations.find((candidate) =>
+        candidate.marketHashName === previousMarketHashName &&
+        candidate.locale === previousLocale
+      );
+      if (!previous) throw new Error("Translation entry was not found.");
+
+      const entry = normalizeTranslation(input, current.game.appId, "manual");
+      if (!entry) throw new TypeError("Enter an exact market hash name, locale, and translation.");
+
+      const nextKey = entry.locale + "\u0000" + entry.marketHashName;
+      const collision = current.translations.find((candidate) =>
+        candidate.marketHashName === entry.marketHashName &&
+        candidate.locale === entry.locale &&
+        !(candidate.marketHashName === previousMarketHashName &&
+          candidate.locale === previousLocale)
+      );
+      if (collision) {
+        throw new Error("Another translation already uses this market item and locale.");
+      }
+
+      const normalizedEntry = {
+        ...entry,
+        source: input?.source === undefined ? previous.source : entry.source,
+        ...(input?.sourceItemId === undefined
+          ? (previous.sourceItemId ? { sourceItemId: previous.sourceItemId } : {})
+          : (entry.sourceItemId ? { sourceItemId: entry.sourceItemId } : {}))
+      };
+      const translations = current.translations.filter((candidate) =>
+        !(candidate.marketHashName === previousMarketHashName &&
+          candidate.locale === previousLocale)
+      );
+      translations.push(normalizedEntry);
+
+      const updated = normalizePack({ ...current, translations });
+      await storage.set(storageKey(appId), updated);
+      return updated;
+    }
+
+    async function removeTranslation(appId, identity) {
+      const current = await get(appId);
+      if (!current) throw new Error("Game profile was not found.");
+
+      const marketHashName = validateMarketHashName(identity?.marketHashName);
+      const locale = validateLocale(identity?.locale);
+      if (!marketHashName || !locale) {
+        throw new TypeError("A valid market hash name and locale are required.");
+      }
+
+      const exists = current.translations.some((entry) =>
+        entry.marketHashName === marketHashName && entry.locale === locale
+      );
+      if (!exists) throw new Error("Translation entry was not found.");
+
+      const updated = normalizePack({
+        ...current,
+        translations: current.translations.filter((entry) =>
+          !(entry.marketHashName === marketHashName && entry.locale === locale)
+        )
+      });
+      await storage.set(storageKey(appId), updated);
+      return updated;
+    }
+
     async function setEnabled(appId, enabled) {
       if (typeof enabled !== "boolean") throw new TypeError("enabled must be a boolean.");
       const current = await get(appId);
@@ -292,7 +365,7 @@
       };
     }
 
-    return Object.freeze({ get, list, addGame, importPack, upsertTranslation, setEnabled, remove, exportPack });
+    return Object.freeze({ get, list, addGame, importPack, upsertTranslation, updateTranslation, removeTranslation, setEnabled, remove, exportPack });
   }
 
   function createGamePackProvider(registry) {
