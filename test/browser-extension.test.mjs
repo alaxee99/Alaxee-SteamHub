@@ -457,6 +457,9 @@ test("site discovery reads same-origin robots and sitemap indexes without fetchi
       "<url><loc>https://wiki.example/private/profile</loc></url>",
       "<url><loc>https://other.example/page</loc></url>",
       "</urlset>"
+    ].join("")],
+    ["https://wiki.example/sitemap-b.xml", [
+      "<urlset><url><loc>https://wiki.example/zh/wiki/materials</loc></url></urlset>"
     ].join("")]
   ]);
   const result = await api.discoverSiteMap("https://wiki.example/zh/wiki", {
