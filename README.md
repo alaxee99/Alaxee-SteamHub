@@ -29,6 +29,16 @@ For each game:
 
 A schema-only pack example is available at docs/game-pack.example.json. A separate three-entry personally verified starter pack is available at docs/game-pack.tbhindex-seed.json; it is not a complete Task Bar Hero dictionary. The separate taskbarhero.wiki site remains a secondary market cross-check only; see docs/providers/taskbarhero-wiki.md. Each entry may also include `sourceItemId`, an optional exact ID from the game's own catalog; this is metadata for cross-referencing and does not replace Steam's exact `market_hash_name` match.
 
+## Import a public Game Pack URL
+
+The Options page accepts a direct HTTPS URL to a JSON file using the `alaxee-steamhub-game-pack` v1 schema. After an explicit click, the extension requests optional access to that one HTTPS origin, fetches without cookies or referrer, rejects redirects, and enforces a 5 MiB streaming limit and 20-second timeout. The fetched pack is validated and placed in the JSON editor; the user must still choose merge or replace.
+
+This is not a generic Wiki crawler. A Wiki homepage, HTML page, sitemap or CSV is not a Game Pack. Turning site pages into translations requires a source-specific parser and exact Steam `market_hash_name` mapping. See `docs/importing/public-json-url.md`.
+
+Current Task Bar Hero pack URL:
+
+`https://raw.githubusercontent.com/alaxee99/Alaxee-SteamHub/feat/browser-extension-first/docs/game-pack.taskbar-hero-zh-CN.json`
+
 ## Install for local testing
 
 1. Open edge://extensions in Microsoft Edge or chrome://extensions in Chrome.
@@ -41,7 +51,7 @@ This is source for local testing, not a browser-store release.
 
 ## Privacy and data handling
 
-- The extension requests only the storage permission for local game packs and translation cache.
+- The extension requires storage for local game packs and translation cache. A user-triggered public JSON import may request optional access to the supplied HTTPS origin only.
 - It does not read Steam cookies, authentication tokens, account details, private inventory, or save files.
 - Imported packs are stored locally in the browser's extension storage.
 - Merge import rejects conflicting translations; replace import replaces only the selected game's pack.
