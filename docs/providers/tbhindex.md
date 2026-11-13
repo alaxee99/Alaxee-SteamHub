@@ -4,9 +4,9 @@ Assessment date: 2026-11-13
 
 ## Decision
 
-**Use TBH Index's Chinese Market Info detail pages as the primary human-readable source for Task Bar Hero market translations. Use Steam Community Market as the canonical list of exact item keys.**
+**TBH Index remains a useful secondary human-readable cross-check, but bulk dictionary construction now uses Task Bar Trade Center's published game-item catalog (`zh-Hans`) plus Steam Bulk Sell's machine-readable commodity keys. Steam Community Market listing URLs/titles remain the exact-key authority for exceptions.**
 
-No API or maintainer contact is needed for the current workflow: SteamHub is collecting a small, manually verified set of publicly readable pages for a private local dictionary. Do not turn this into a high-volume crawler. TBH Index's Terms of Service prohibit excessive scraping, interfering with or overloading its servers/APIs, and unauthorized access.
+No documented public TBH Index translation API or complete export was found during this check; its API host blocks automated reads. No maintainer contact is required for the current workflow. TBH pages are now used only for selective human cross-checks; the full pack is generated from the separately published structured game catalog. Do not high-volume crawl TBH Index. Its Terms of Service prohibit excessive scraping, interfering with or overloading its servers/APIs, and unauthorized access.
 
 The useful division of responsibility is:
 
@@ -277,3 +277,7 @@ Evidence:
 - Steam Fate Bolt A: https://steamcommunity.com/market/listings/3678970/Fate%20Bolt%20(Arcana)%20A
 
 `Elite Hatchet (Rare) A` was excluded: its Wiki record labels it Untradable, and its Steam listing resolves to a deleted listing. `Obsidian Bracer (Immortal)` was also excluded because the fetched Market Info page did not expose a readable Chinese label or Steam link. The five new records do not set `sourceItemId` because ItemKey was not explicitly visible in the fetched Wiki content.
+
+## Revised role after bulk-source discovery (2026-11-13)
+
+TBH Index is no longer the primary bulk dictionary source. Its Chinese Market Info pages remain useful for checking ambiguous labels, variant naming, and edge cases. The bulk zh-CN pack now comes from Task Bar Trade Center's public `items.json` game catalog, whose 7,031 records include 16 languages and the `zh-Hans` field. Steam Bulk Sell's public commodity JSON is used as a separate exact-key validation set. See `docs/providers/taskbar-trade-center.md` for the complete import method and verified exceptions. The previous 27-row evidence table remains historical page-by-page research, not the full dictionary coverage count.
