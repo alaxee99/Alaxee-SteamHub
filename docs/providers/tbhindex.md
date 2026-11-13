@@ -27,7 +27,7 @@ The site's current public pages identify their game-data snapshot as Task Bar He
 - A separate Market Info catalogue showing 1,751 tracked items.
 - 19 interface/localization languages.
 
-These are the site's published counts, not an independent proof that every row has been checked against the current game build. Counts from different sections and other sites are not necessarily comparable: a page may count unique item definitions, grade/level variants, market-tradable entries, or expanded data rows.
+These are the site's published counts, not an independent proof that every row has been checked against the current game build. The Terms of Service explicitly disclaim any guarantee of accuracy, completeness, or availability. Counts from different sections and other sites are not necessarily comparable: a page may count unique item definitions, grade/level variants, market-tradable entries, or expanded data rows.
 
 Primary pages:
 - https://tbhindex.com/
@@ -59,19 +59,15 @@ This is a verified example of the catalog-to-market cross-reference SteamHub nee
 | Translation status | Pending in-game / game-locale verification |
 | Provenance | `tbhindex.com` |
 
-A game-pack record can therefore be represented as:
+For a future game-pack record, the mapping fields are:
 
-```json
-{
-  "marketHashName": "Mystic Armor (Beyond) A",
-  "sourceItemId": "516111",
-  "locale": "zh-CN",
-  "translation": "神秘盔甲A",
-  "source": "tbhindex.com"
-}
-```
+- `marketHashName`: `Mystic Armor (Beyond) A`
+- `sourceItemId`: `516111`
+- `locale`: `zh-CN`
+- `source`: `tbhindex.com`
+- Candidate TBH Index page title: `神秘盔甲A`
 
-The Steam market hash name remains the matching key. The TBH Index ID is only a cross-reference and must never replace it. The distinct site taskbarhero.wiki also maps catalog ID 516111 to the same Steam listing but displays the Chinese item name as `神秘盔甲` rather than `神秘盔甲A`. Preserve both source observations; do not silently choose either translation or bundle this sample as a verified dictionary entry until it has been checked against the game's own Simplified Chinese UI.
+The Steam market hash name remains the matching key. The TBH Index ID is only a cross-reference and must never replace it. The distinct site taskbarhero.wiki maps the same catalog ID and Steam market item but its localized item page title is `神秘盔甲`. These may represent a market-facing suffix versus a base game item name rather than a true translation conflict. Preserve both observations and verify the intended Steam Market overlay wording against the actual Steam Simplified Chinese page before adding the record to a distributable game pack. **No translation record for this sample is bundled by this assessment.**
 
 ## Important coverage qualification: Farming page
 
@@ -82,7 +78,7 @@ Its own explanation says:
 - Reference clear-time rankings currently cover 108 of those 168 farmable stages.
 - The remaining 60 Plaguelands hard-mode stages are still awaiting measured clear times.
 
-Therefore this specific calculator is intentionally incomplete for measured farming rankings. It should not be treated as evidence that the whole TBH Index database is incomplete, nor should it be used as a source for the Steam translation dictionary. Use the Gear, Materials, Market, and individual item pages for item mapping.
+The Farming page reports 189 stages while the main Wiki overview reports 192; the public pages therefore use different stage-count scopes or have a count inconsistency that still needs clarification. Therefore this specific calculator is incomplete for measured farming rankings. It should not be treated as evidence that the whole TBH Index database is incomplete, nor should it be used as a source for the Steam translation dictionary. Use the Gear, Materials, Market, and individual item pages for item mapping.
 
 ## Comparison with other public resources
 
