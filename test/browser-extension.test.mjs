@@ -999,3 +999,41 @@ test("Options page wires detail extraction to the existing exact mapping workflo
   assert.match(optionsJs, /buildGamePackFromSourceIds\(extractedHtmlDetailResult\.records/);
   assert.match(optionsJs, /buildGamePackFromRecords\(\s*extractedHtmlDetailResult\.records/);
 });
+
+
+test("HTML detail parser reads explicit meta and itemprop fields", () => {
+  const metaId = {
+    tagName: "META",
+    getAttribute(name) {
+      return ({ name: "ItemKey", content: "516111" })[name] || null;
+    }
+  };
+  const localized = {
+    tagName: "SPAN",
+    textContent: "神秘盔甲",
+    getAttribute(name) { return name === "itemprop" ? "zh-Hans" : null; }
+  };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === "dl dt" || selector === "tr") return [];
+          if (selector === "meta[name], meta[property], meta[itemprop]") return [metaId];
+          if (selector === "[itemprop]") return [localized];
+          if (selector.includes("data-item-key")) return [];
+          if (selector === "h1, h2, h3") return [];
+          return [];
+        },
+        querySelector() { return null; }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const result = api.parseHtmlDetailRecord("<meta name='ItemKey' content='516111'>", {
+    translationLabels: ["zh-Hans"]
+  });
+  assert.equal(result.sourceId, "516111");
+  assert.equal(result.translation, "神秘盔甲");
+  assert.equal(result.records.length, 1);
+});
