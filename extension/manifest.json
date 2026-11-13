@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "ALAXEE SteamHub",
-  "version": "0.6.1",
-  "description": "Multi-game Steam Market localization with source-game item ID mapping and exact-match translation.",
+  "version": "0.7.0",
+  "description": "Simple Steam AppID lookup and guided game dictionary import for Steam Community Market.",
   "permissions": [
     "storage"
   ],
