@@ -467,10 +467,9 @@
     },
     {
       "marketHashName": "Arcane Crystal",
-      "sourceItemId": "115001",
       "locale": "zh-CN",
       "translation": "奥术水晶",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Arcane Orb (Arcana) A",
@@ -838,10 +837,9 @@
     },
     {
       "marketHashName": "Buckler (Legendary) A",
-      "sourceItemId": "403011",
       "locale": "zh-CN",
       "translation": "小圆盾",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Celestial Earring (Arcana) A",
@@ -1321,10 +1319,9 @@
     },
     {
       "marketHashName": "Crimson Bracer (Arcana) A",
-      "sourceItemId": "635091",
       "locale": "zh-CN",
       "translation": "绯红腕甲",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Crimson Bracer (Beyond) A",
@@ -1755,10 +1752,9 @@
     },
     {
       "marketHashName": "Dimensional Gloves (Cosmic) A",
-      "sourceItemId": "529171",
       "locale": "zh-CN",
       "translation": "次元手套",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Dimensional Gloves (Divine) A",
@@ -2544,10 +2540,9 @@
     },
     {
       "marketHashName": "Emerald Bracer (Divine) A",
-      "sourceItemId": "638111",
       "locale": "zh-CN",
       "translation": "祖母绿护腕",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Emerald Bracer (Immortal) A",
@@ -2698,10 +2693,9 @@
     },
     {
       "marketHashName": "Empire Gloves (Legendary) A",
-      "sourceItemId": "523021",
       "locale": "zh-CN",
       "translation": "帝国手套",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Empire Helmet (Immortal) A",
@@ -2733,10 +2727,9 @@
     },
     {
       "marketHashName": "Enchanted Ruby",
-      "sourceItemId": "115003",
       "locale": "zh-CN",
       "translation": "附魔红宝石",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Eternal Armor (Arcana) C",
@@ -3230,10 +3223,9 @@
     },
     {
       "marketHashName": "Eternal Scepter (Legendary) C",
-      "sourceItemId": "333193",
       "locale": "zh-CN",
       "translation": "永恒权杖",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Eternal Shield (Arcana) C",
@@ -3718,10 +3710,9 @@
     },
     {
       "marketHashName": "Fate Axe (Beyond) A",
-      "sourceItemId": "356111",
       "locale": "zh-CN",
       "translation": "命运之斧",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Fate Axe (Celestial) A",
@@ -3753,10 +3744,9 @@
     },
     {
       "marketHashName": "Fate Bolt (Arcana) A",
-      "sourceItemId": "445111",
       "locale": "zh-CN",
       "translation": "命运弩箭",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Fate Bolt (Beyond) A",
@@ -4152,10 +4142,9 @@
     },
     {
       "marketHashName": "Gold Ingot",
-      "sourceItemId": "142002",
       "locale": "zh-CN",
       "translation": "金锭",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Gold Ring (Arcana) A",
@@ -4481,10 +4470,9 @@
     },
     {
       "marketHashName": "Iron Bolt (Beyond) A",
-      "sourceItemId": "446071",
       "locale": "zh-CN",
       "translation": "铁制弩箭",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Iron Bolt (Immortal) A",
@@ -4635,10 +4623,9 @@
     },
     {
       "marketHashName": "Jade Stone",
-      "sourceItemId": "111003",
       "locale": "zh-CN",
       "translation": "翡翠石",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Kingdom 100th Anniversary Coin",
@@ -4663,10 +4650,9 @@
     },
     {
       "marketHashName": "Kingdom 50th Anniversary Coin",
-      "sourceItemId": "160005",
       "locale": "zh-CN",
       "translation": "王国50周年纪念币",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Knight Boots (Arcana) A",
@@ -4747,10 +4733,9 @@
     },
     {
       "marketHashName": "Knight Sword (Immortal) A",
-      "sourceItemId": "304071",
       "locale": "zh-CN",
       "translation": "骑士之剑",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Knight Sword (Legendary) A",
@@ -4810,10 +4795,9 @@
     },
     {
       "marketHashName": "Lapis Lazuli",
-      "sourceItemId": "114003",
       "locale": "zh-CN",
       "translation": "青金石",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Leather",
@@ -4985,10 +4969,9 @@
     },
     {
       "marketHashName": "Limitless Crossbow (Cosmic) A",
-      "sourceItemId": "349141",
       "locale": "zh-CN",
       "translation": "无限弩",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Limitless Crossbow (Divine) A",
@@ -5303,7 +5286,7 @@
       "sourceItemId": "516111",
       "locale": "zh-CN",
       "translation": "神秘盔甲",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Mystic Armor (Celestial) A",
@@ -5377,10 +5360,9 @@
     },
     {
       "marketHashName": "Mystic Bow (Arcana) A",
-      "sourceItemId": "315111",
       "locale": "zh-CN",
       "translation": "神秘之弓",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Mystic Bow (Beyond) A",
@@ -5706,10 +5688,9 @@
     },
     {
       "marketHashName": "Orichalcum Ore",
-      "sourceItemId": "146002",
       "locale": "zh-CN",
       "translation": "山铜矿石",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Pearl",
@@ -5755,10 +5736,9 @@
     },
     {
       "marketHashName": "Plague Fruit (Immortal)",
-      "sourceItemId": "150105",
       "locale": "zh-CN",
       "translation": "瘟疫之果",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Plague Fruit (Rare)",
@@ -6539,10 +6519,9 @@
     },
     {
       "marketHashName": "Scroll of Arcana Inscription",
-      "sourceItemId": "135001",
       "locale": "zh-CN",
       "translation": "奥术铭文卷轴",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Scroll of Beyond Inscription",
@@ -6906,7 +6885,7 @@
       "sourceItemId": "142001",
       "locale": "zh-CN",
       "translation": "银锭",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Silver Ring (Immortal) A",
@@ -6987,10 +6966,9 @@
     },
     {
       "marketHashName": "Starlight Sapphire",
-      "sourceItemId": "115004",
       "locale": "zh-CN",
       "translation": "星光蓝宝石",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Steel Axe (Arcana) A",
@@ -7029,10 +7007,9 @@
     },
     {
       "marketHashName": "Steel Hatchet (Legendary) A",
-      "sourceItemId": "453041",
       "locale": "zh-CN",
       "translation": "钢铁手斧",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Steel Scepter (Arcana) A",
@@ -7064,10 +7041,9 @@
     },
     {
       "marketHashName": "Sunstone",
-      "sourceItemId": "147002",
       "locale": "zh-CN",
       "translation": "太阳石",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "Tempest Staff (Arcana) A",
@@ -7463,10 +7439,9 @@
     },
     {
       "marketHashName": "War Helmet (Arcana) A",
-      "sourceItemId": "505071",
       "locale": "zh-CN",
       "translation": "战争头盔",
-      "source": "task-bar-trade-center"
+      "source": "tbhindex.com"
     },
     {
       "marketHashName": "War Helmet (Beyond) A",
