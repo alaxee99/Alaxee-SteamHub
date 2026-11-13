@@ -315,9 +315,219 @@
     };
   }
 
+
+
+  const DEFAULT_DETAIL_SOURCE_LABELS = [
+    "ItemKey", "Item Key", "Item ID", "ItemId", "ID", "物品ID", "物品 ID"
+  ];
+  const DEFAULT_DETAIL_TRANSLATION_LABELS = [
+    "简体中文", "简体中文名", "中文名称", "中文名", "Chinese Name", "zh-CN", "zh-Hans"
+  ];
+
+  function normalizeDetailLabel(value) {
+    return String(value || "").trim().toLowerCase().replace(/[\s_\-:：()（）\[\]]/g, "");
+  }
+
+  function parseDetailLabels(value, fallback) {
+    const values = Array.isArray(value)
+      ? value
+      : typeof value === "string" && value.trim()
+        ? value.split(/[|\n;]/)
+        : fallback;
+    return new Set(values.map(normalizeDetailLabel).filter(Boolean));
+  }
+
+  function parseHtmlDetailRecord(html, options = {}) {
+    if (typeof html !== "string") throw new TypeError("HTML 页面内容必须是文本");
+    const maxChars = Number.isSafeInteger(options.maxChars) && options.maxChars > 0
+      ? Math.min(options.maxChars, DEFAULT_MAX_CHARS)
+      : DEFAULT_MAX_CHARS;
+    if (html.length > maxChars) throw new RangeError("HTML 页面超过 1 MiB 解析上限");
+
+    const Parser = options.DOMParserImpl || globalThis.DOMParser;
+    const parsedDocument = createInertDocument(html, Parser);
+    const entries = [];
+    const addEntry = (label, value) => {
+      const cleanLabel = String(label || "").trim();
+      const cleanValue = getCardText({ textContent: value || "" });
+      if (cleanLabel && cleanValue) entries.push({ label: cleanLabel, value: cleanValue });
+    };
+
+    // Definition lists are the most explicit format for single-item property pages.
+    for (const term of parsedDocument.querySelectorAll("dl dt")) {
+      let sibling = term.nextElementSibling;
+      while (sibling && String(sibling.tagName || "").toUpperCase() !== "DD" &&
+          String(sibling.tagName || "").toUpperCase() !== "DT") {
+        sibling = sibling.nextElementSibling;
+      }
+      if (sibling && String(sibling.tagName || "").toUpperCase() === "DD") {
+        addEntry(textOf(term), textOf(sibling));
+      }
+    }
+
+    // Only simple two-cell rows are interpreted as key/value properties.
+    for (const row of parsedDocument.querySelectorAll("tr")) {
+      const cells = Array.from(row.cells || []);
+      if (cells.length !== 2) continue;
+      const firstTag = String(cells[0]?.tagName || "").toUpperCase();
+      if (firstTag !== "TH" && typeof cells[0]?.getAttribute !== "function") continue;
+      addEntry(textOf(cells[0]), textOf(cells[1]));
+    }
+
+    for (const meta of parsedDocument.querySelectorAll("meta[name], meta[property], meta[itemprop]")) {
+      const label = meta.getAttribute?.("name") || meta.getAttribute?.("property") ||
+        meta.getAttribute?.("itemprop") || "";
+      addEntry(label, meta.getAttribute?.("content") || "");
+    }
+
+    for (const element of parsedDocument.querySelectorAll("[itemprop]")) {
+      if (String(element.tagName || "").toUpperCase() === "META") continue;
+      addEntry(
+        element.getAttribute?.("itemprop") || "",
+        element.getAttribute?.("content") || textOf(element)
+      );
+    }
+
+    for (const element of parsedDocument.querySelectorAll(
+      "[data-item-key], [data-item-id], [data-itemid], [data-id], [data-key]"
+    )) {
+      for (const attribute of AUTO_ID_ATTRIBUTES) {
+        const value = element.getAttribute?.(attribute);
+        if (value) addEntry("ItemKey", value);
+      }
+    }
+
+    const readSelectorValues = (selector, attribute, fieldName) => {
+      if (!selector) return null;
+      if (selector.length > 256) throw new TypeError(fieldName + " CSS 选择器过长");
+      if (attribute !== "auto" && attribute !== "textContent" &&
+          !/^[A-Za-z_:][A-Za-z0-9_.:-]{0,63}$/.test(attribute)) {
+        throw new TypeError(fieldName + " 属性名无效");
+      }
+      let nodes;
+      try {
+        nodes = Array.from(parsedDocument.querySelectorAll(selector));
+      } catch {
+        throw new TypeError(fieldName + " CSS 选择器无效");
+      }
+      const values = [];
+      for (const node of nodes) {
+        let value = "";
+        if (attribute === "textContent") {
+          value = textOf(node);
+        } else if (attribute === "auto") {
+          if (String(node.tagName || "").toUpperCase() === "META") {
+            value = node.getAttribute?.("content") || "";
+          }
+          if (!value) {
+            for (const name of AUTO_ID_ATTRIBUTES) {
+              value = node.getAttribute?.(name) || "";
+              if (value) break;
+            }
+          }
+          if (!value) value = node.getAttribute?.("value") || "";
+          if (!value) value = textOf(node);
+        } else {
+          value = node.getAttribute?.(attribute) || "";
+        }
+        const clean = getCardText({ textContent: value });
+        if (clean && !values.includes(clean)) values.push(clean);
+      }
+      return values;
+    };
+
+    const resolveLabel = (labels) => {
+      const matches = entries.filter((entry) => labels.has(normalizeDetailLabel(entry.label)));
+      const values = Array.from(new Set(matches.map((entry) => entry.value)));
+      return {
+        value: values.length === 1 ? values[0] : "",
+        ambiguous: values.length > 1,
+        matchedLabels: Array.from(new Set(matches.map((entry) => entry.label))),
+        values
+      };
+    };
+
+    const sourceIdSelector = typeof options.sourceIdSelector === "string"
+      ? options.sourceIdSelector.trim()
+      : "";
+    const translationSelector = typeof options.translationSelector === "string"
+      ? options.translationSelector.trim()
+      : "";
+    const sourceIdAttribute = typeof options.sourceIdAttribute === "string"
+      ? options.sourceIdAttribute.trim() || "auto"
+      : "auto";
+    const translationAttribute = typeof options.translationAttribute === "string"
+      ? options.translationAttribute.trim() || "textContent"
+      : "textContent";
+
+    const sourceIdResult = sourceIdSelector
+      ? (() => {
+          const values = readSelectorValues(sourceIdSelector, sourceIdAttribute, "来源 ID");
+          return {
+            value: values.length === 1 ? values[0] : "",
+            ambiguous: values.length > 1,
+            matchedLabels: [],
+            values
+          };
+        })()
+      : resolveLabel(parseDetailLabels(options.sourceIdLabels, DEFAULT_DETAIL_SOURCE_LABELS));
+
+    const translationResult = translationSelector
+      ? (() => {
+          const values = readSelectorValues(translationSelector, translationAttribute, "译文");
+          return {
+            value: values.length === 1 ? values[0] : "",
+            ambiguous: values.length > 1,
+            matchedLabels: [],
+            values
+          };
+        })()
+      : resolveLabel(parseDetailLabels(options.translationLabels, DEFAULT_DETAIL_TRANSLATION_LABELS));
+
+    const heading = parsedDocument.querySelector("h1");
+    const ogTitle = parsedDocument.querySelector('meta[property="og:title"]');
+    const titleNode = parsedDocument.querySelector("title");
+    const title = textOf(heading) ||
+      String(ogTitle?.getAttribute?.("content") || "").trim() ||
+      textOf(titleNode);
+    const pageTitle = textOf(titleNode) || title;
+    const pageHeadings = Array.from(parsedDocument.querySelectorAll("h1, h2, h3"))
+      .map(textOf)
+      .filter(Boolean)
+      .slice(0, 10);
+
+    const valid = Boolean(
+      sourceIdResult.value && translationResult.value &&
+      !sourceIdResult.ambiguous && !translationResult.ambiguous
+    );
+    const record = valid
+      ? { sourceId: sourceIdResult.value, translation: translationResult.value, title }
+      : null;
+
+    return {
+      pageUrl: typeof options.pageUrl === "string" ? options.pageUrl : "",
+      pageTitle,
+      pageHeadings,
+      title,
+      sourceId: sourceIdResult.value,
+      translation: translationResult.value,
+      sourceIdCandidates: sourceIdResult.values,
+      translationCandidates: translationResult.values,
+      sourceIdLabels: sourceIdResult.matchedLabels,
+      translationLabels: translationResult.matchedLabels,
+      missingSourceId: !sourceIdResult.value && !sourceIdResult.ambiguous,
+      missingTranslation: !translationResult.value && !translationResult.ambiguous,
+      ambiguousSourceId: sourceIdResult.ambiguous,
+      ambiguousTranslation: translationResult.ambiguous,
+      records: record ? [record] : []
+    };
+  }
+
+
   globalThis.__ALAXEE_STEAMHUB_HTML_TABLE_PARSER__ = Object.freeze({
     parseHtmlTables,
     discoverHtmlCardSelectors,
-    parseHtmlCards
+    parseHtmlCards,
+    parseHtmlDetailRecord
   });
 })();
