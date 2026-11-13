@@ -58,8 +58,35 @@ The following are individually checked across TBH Index and the official Steam C
 | `Mystic Armor (Beyond) A` | 神秘盔甲 | `516111` | TBH Market Info page links to the exact Steam listing and to Wiki item `516111` |
 | `Silver Ingot` | 银锭 | `142001` | TBH Chinese Wiki item page exposes ItemKey 142001; Steam listing title is exact |
 | `Kingdom 50th Anniversary Coin` | 王国50周年纪念币 | Not copied yet | TBH localized Market Info page shows the Chinese and English names; Steam listing title matches |
+| `Starlight Sapphire` | 星光蓝宝石 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
+| `Arcane Crystal` | 奥术水晶 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
+| `Enchanted Ruby` | 附魔红宝石 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
+| `Scroll of Arcana Inscription` | 奥术铭文卷轴 | Not recorded | TBH Chinese Market Info label, direct Steam listing link and Steam listing title match |
 
 Evidence pages:
+
+- Mystic Armor Market Info: https://tbhindex.com/zh/market/item/mystic-armor-beyond
+- Mystic Armor Wiki: https://tbhindex.com/zh/wiki/gear/mystic-armor-beyond-516111
+- Steam Mystic Armor: https://steamcommunity.com/market/listings/3678970/Mystic%20Armor%20(Beyond)%20A
+- Silver Ingot Wiki: https://tbhindex.com/zh/wiki/materials/silver-ingot-rare-142001
+- Steam Silver Ingot: https://steamcommunity.com/market/listings/3678970/Silver%20Ingot
+- Kingdom Coin Market Info: https://tbhindex.com/zh/market/item/kingdom-50th-anniversary-coin-immortal
+- Steam Kingdom Coin: https://steamcommunity.com/market/listings/3678970/Kingdom%2050th%20Anniversary%20Coin
+- Starlight Sapphire Market Info: https://tbhindex.com/zh/market/item/starlight-sapphire-arcana
+- Starlight Sapphire Wiki: https://tbhindex.com/wiki/materials/starlight-sapphire-arcana-115004
+- Steam Starlight Sapphire: https://steamcommunity.com/market/listings/3678970/Starlight%20Sapphire
+- Arcane Crystal Market Info: https://tbhindex.com/zh/market/item/arcane-crystal-arcana
+- Arcane Crystal Wiki: https://tbhindex.com/wiki/materials/arcane-crystal-arcana-115001
+- Steam Arcane Crystal: https://steamcommunity.com/market/listings/3678970/Arcane%20Crystal
+- Enchanted Ruby Market Info: https://tbhindex.com/zh/market/item/enchanted-ruby-arcana
+- Enchanted Ruby Wiki: https://tbhindex.com/wiki/materials/enchanted-ruby-arcana-115003
+- Steam Enchanted Ruby: https://steamcommunity.com/market/listings/3678970/Enchanted%20Ruby
+- Scroll of Arcana Inscription Market Info: https://tbhindex.com/zh/market/item/scroll-of-arcana-inscription-arcana
+- Scroll of Arcana Inscription Wiki: https://tbhindex.com/wiki/materials/scroll-of-arcana-inscription-arcana-135001
+- Steam Scroll of Arcana Inscription: https://steamcommunity.com/market/listings/3678970/Scroll%20of%20Arcana%20Inscription
+
+The four newly added sourceItemId fields are intentionally omitted: the Wiki routes were confirmed, but the fetched readable page content did not explicitly expose an ItemKey value. The route suffix is not treated as proof of the catalog key.
+
 
 - Mystic Armor Market Info: https://tbhindex.com/zh/market/item/mystic-armor-beyond
 - Mystic Armor Wiki: https://tbhindex.com/zh/wiki/gear/mystic-armor-beyond-516111
@@ -79,7 +106,7 @@ A small, importable, personally maintained starter pack is available at:
 
 `docs/game-pack.tbhindex-seed.json`
 
-It contains the three checked mappings above. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
+It contains seven checked mappings: three original entries plus four newly cross-checked Arcana materials/inscription entries. It is intentionally **not** represented as a complete dictionary. Each record uses Steam's exact market hash name as its matching key; `sourceItemId` is optional provenance metadata, never the resolver key.
 
 ## Collection rules
 
@@ -102,4 +129,15 @@ Other community sites remain useful for cross-checking missing names and game-ve
 - `taskbarherowiki.com`: auxiliary catalog; the inspected `/data/items.json` exposed English names and item metadata but not the required Chinese-to-Steam crosswalk.
 - `tbherohelper.com`: auxiliary data reference; its reported game version and collection counts differ from TBH Index.
 
-**Current status: TBH Index selected as the primary Chinese market-name reference; a three-entry verified local seed exists; full current-market coverage has not yet been established.**
+**Current status: TBH Index selected as the primary Chinese market-name reference; a seven-entry verified local seed exists; full current-market coverage has not yet been established.**
+
+## Latest collection batch (2026-11-13)
+
+Four additional records were checked in a small batch. For each item, the TBH Simplified Chinese Market Info page showed the Chinese market label and English market name, linked directly to the matching AppID 3678970 Steam listing, and linked to the corresponding Wiki article. The official Steam listing title independently matched the exact dictionary key.
+
+- `Starlight Sapphire` → `星光蓝宝石`
+- `Arcane Crystal` → `奥术水晶`
+- `Enchanted Ruby` → `附魔红宝石`
+- `Scroll of Arcana Inscription` → `奥术铭文卷轴`
+
+The Wiki route suffixes are retained only in the evidence URLs. Since the fetched readable page content did not explicitly expose the actual `ItemKey` field, `sourceItemId` remains unset for these four records.
