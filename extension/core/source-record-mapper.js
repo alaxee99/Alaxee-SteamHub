@@ -222,10 +222,147 @@
     };
   }
 
+
+  function buildGamePackFromSourceIds(records, options = {}) {
+    if (!Array.isArray(records)) throw new TypeError("来源记录必须是数组");
+    if (records.length > MAX_RECORDS) throw new RangeError("单次最多转换 10,000 条记录");
+
+    const referencePack = options.referencePack;
+    const locale = options.locale;
+    const fields = options.fields || {};
+    const source = typeof options.source === "string" ? options.source.trim() : "";
+
+    if (!referencePack || typeof referencePack !== "object" ||
+        referencePack.format !== PACK_FORMAT || referencePack.schemaVersion !== PACK_SCHEMA_VERSION ||
+        !referencePack.game || referencePack.game.adapter !== "steam-community-market" ||
+        referencePack.game.itemKey !== "market_hash_name" ||
+        typeof referencePack.game.appId !== "string" ||
+        !/^[1-9]\\d{0,9}$/.test(referencePack.game.appId) ||
+        typeof referencePack.game.name !== "string" || !referencePack.game.name.trim() ||
+        !Array.isArray(referencePack.translations)) {
+      throw new TypeError("必须选择有效的 SteamHub 参考词库");
+    }
+    if (typeof locale !== "string" || !/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(locale)) {
+      throw new TypeError("目标语言代码无效");
+    }
+    if (!isSafePath(fields.sourceItemId) || !isSafePath(fields.translation)) {
+      throw new TypeError("必须指定安全、有效的来源 ID 字段和译文字段");
+    }
+    if (source.length > 128) throw new TypeError("数据来源标记不能超过 128 个字符");
+
+    const marketNamesBySourceId = new Map();
+    const ambiguousReferenceIds = new Set();
+    for (const entry of referencePack.translations) {
+      if (typeof entry?.marketHashName !== "string" ||
+          !entry.marketHashName || entry.marketHashName.trim() !== entry.marketHashName ||
+          entry.marketHashName.length > 512) continue;
+      const rawId = entry.sourceItemId;
+      if ((typeof rawId !== "string" && !(typeof rawId === "number" && Number.isSafeInteger(rawId))) ||
+          !String(rawId) || String(rawId) !== String(rawId).trim()) continue;
+      const sourceId = String(rawId);
+      if (ambiguousReferenceIds.has(sourceId)) continue;
+      const previous = marketNamesBySourceId.get(sourceId);
+      if (previous && previous !== entry.marketHashName) {
+        marketNamesBySourceId.delete(sourceId);
+        ambiguousReferenceIds.add(sourceId);
+      } else {
+        marketNamesBySourceId.set(sourceId, entry.marketHashName);
+      }
+    }
+
+    const stats = {
+      scanned: records.length,
+      imported: 0,
+      duplicateRows: 0,
+      missingSourceId: 0,
+      missingTranslation: 0,
+      unmatchedSourceId: 0,
+      ambiguousSourceId: 0,
+      conflictingKeys: 0,
+      referenceIds: marketNamesBySourceId.size
+    };
+    const entriesByKey = new Map();
+    const conflictedKeys = new Set();
+
+    for (const record of records) {
+      const rawId = readPath(record, fields.sourceItemId);
+      const rawTranslation = readPath(record, fields.translation);
+
+      if ((typeof rawId !== "string" && !(typeof rawId === "number" && Number.isSafeInteger(rawId))) ||
+          !String(rawId) || String(rawId) !== String(rawId).trim() || String(rawId).length > 128) {
+        stats.missingSourceId += 1;
+        continue;
+      }
+      const sourceId = String(rawId);
+      if (ambiguousReferenceIds.has(sourceId)) {
+        stats.ambiguousSourceId += 1;
+        continue;
+      }
+      const marketHashName = marketNamesBySourceId.get(sourceId);
+      if (!marketHashName) {
+        stats.unmatchedSourceId += 1;
+        continue;
+      }
+      if (typeof rawTranslation !== "string" || !rawTranslation.trim() ||
+          rawTranslation.length > 1000) {
+        stats.missingTranslation += 1;
+        continue;
+      }
+
+      const entry = {
+        marketHashName,
+        sourceItemId: sourceId,
+        locale,
+        translation: rawTranslation.trim(),
+        ...(source ? { source } : {})
+      };
+
+      if (conflictedKeys.has(marketHashName)) {
+        stats.duplicateRows += 1;
+        continue;
+      }
+
+      const previous = entriesByKey.get(marketHashName);
+      if (!previous) {
+        entriesByKey.set(marketHashName, entry);
+        continue;
+      }
+      if (previous.translation === entry.translation &&
+          previous.sourceItemId === entry.sourceItemId) {
+        stats.duplicateRows += 1;
+        continue;
+      }
+
+      entriesByKey.delete(marketHashName);
+      conflictedKeys.add(marketHashName);
+      stats.conflictingKeys += 1;
+    }
+
+    const translations = Array.from(entriesByKey.values());
+    stats.imported = translations.length;
+    return {
+      pack: {
+        format: PACK_FORMAT,
+        schemaVersion: PACK_SCHEMA_VERSION,
+        game: {
+          appId: referencePack.game.appId,
+          name: referencePack.game.name.trim(),
+          adapter: "steam-community-market",
+          itemKey: "market_hash_name",
+          defaultLocale: locale,
+          enabled: referencePack.game.enabled !== false
+        },
+        translations
+      },
+      stats
+    };
+  }
+
   globalThis.__ALAXEE_STEAMHUB_SOURCE_RECORD_MAPPER__ = Object.freeze({
     parseCsv,
     parseJsonRecords,
     buildGamePackFromRecords,
+    buildGamePackFromSourceIds,
     readPath
   });
 })();
