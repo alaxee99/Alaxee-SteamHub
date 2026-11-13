@@ -6,14 +6,19 @@
   const MAX_RECORDS = 10000;
   const MAX_FIELD_PATH = 256;
 
+  function isSafePath(path) {
+    if (typeof path !== "string" || path.length === 0 || path.length > MAX_FIELD_PATH) return false;
+    return path.split(".").every((part) =>
+      /^[A-Za-z_$][A-Za-z0-9_$-]*$/.test(part) &&
+      part !== "__proto__" && part !== "prototype" && part !== "constructor"
+    );
+  }
+
   function readPath(record, path) {
-    if (typeof path !== "string" || path.length === 0 || path.length > MAX_FIELD_PATH) return undefined;
-    const parts = path.split(".");
+    if (!isSafePath(path)) return undefined;
     let value = record;
-    for (const part of parts) {
-      if (!/^[A-Za-z_$][A-Za-z0-9_$-]*$/.test(part) ||
-          part === "__proto__" || part === "prototype" || part === "constructor" ||
-          value === null || typeof value !== "object" ||
+    for (const part of path.split(".")) {
+      if (value === null || typeof value !== "object" ||
           !Object.prototype.hasOwnProperty.call(value, part)) {
         return undefined;
       }
@@ -74,7 +79,6 @@
       for (let column = 0; column < headers.length; column += 1) {
         record[headers[column]] = cells[column] ?? "";
       }
-      record.__sourceRow = index + 2;
       return record;
     });
   }
@@ -111,8 +115,9 @@
     if (typeof locale !== "string" || !/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(locale)) {
       throw new TypeError("目标语言代码无效");
     }
-    if (!fields.marketHashName || !fields.translation) {
-      throw new TypeError("必须指定 Steam 市场键字段和译文字段");
+    if (!isSafePath(fields.marketHashName) || !isSafePath(fields.translation) ||
+        (fields.sourceItemId && !isSafePath(fields.sourceItemId))) {
+      throw new TypeError("必须指定安全、有效的 Steam 市场键字段和译文字段");
     }
     if (source.length > 128) throw new TypeError("数据来源标记不能超过 128 个字符");
 
