@@ -460,7 +460,7 @@
       ? options.translationAttribute.trim() || "textContent"
       : "textContent";
 
-    const sourceIdResult = sourceIdSelector
+    const sourceIdResultRaw = sourceIdSelector
       ? (() => {
           const values = readSelectorValues(sourceIdSelector, sourceIdAttribute, "来源 ID");
           return {
@@ -471,6 +471,19 @@
           };
         })()
       : resolveLabel(parseDetailLabels(options.sourceIdLabels, DEFAULT_DETAIL_SOURCE_LABELS));
+    // Some Wiki themes display numeric item keys with a decorative leading hash.
+    // Normalize only source IDs; never alter Steam market keys or localized text.
+    const normalizedSourceIds = Array.from(new Set(
+      sourceIdResultRaw.values
+        .map((value) => String(value).trim().replace(/^#\\s*/, ""))
+        .filter(Boolean)
+    ));
+    const sourceIdResult = {
+      ...sourceIdResultRaw,
+      value: normalizedSourceIds.length === 1 ? normalizedSourceIds[0] : "",
+      ambiguous: normalizedSourceIds.length > 1,
+      values: normalizedSourceIds
+    };
 
     const translationResult = translationSelector
       ? (() => {
