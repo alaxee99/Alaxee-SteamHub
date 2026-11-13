@@ -51,3 +51,17 @@ The join is exact and case-sensitive. A source ID that maps to multiple distinct
 For Task Bar Hero, the repository includes `docs/game-pack.taskbar-hero-zh-CN.json` as a Steam reference catalog: 1,106 exact market keys, 1,070 with source IDs. The current catalog's source IDs are unique. For example, ItemKey `516111` maps to `Mystic Armor (Beyond) A`; `142001` maps to `Silver Ingot`. Import the reference Game Pack into the extension once before using this lookup mode.
 
 This only makes records from an individually selected, permitted page mappable. It does not authorize crawling all Wiki pages or bypass site terms. TBH Index remains excluded from automated bulk crawling.
+
+
+## Repeated HTML item-card extraction
+
+The same explicitly fetched page can also be analyzed as a repeated item-card grid. Candidate CSS selectors are suggested from repeated semantic classes such as `.item-card`, `.product-card`, `article`, and data attributes such as `[data-item-key]`. Suggestions are only structural hints; the user selects or edits the card selector.
+
+The user configures three pieces of page structure:
+- Card selector: identifies one repeated item block.
+- ID selector + attribute: reads an exact source ID (default attribute detection checks `data-item-key`, `data-item-id`, `data-itemid`, `data-id`, and `data-key`).
+- Translation selector: reads the localized item label inside each card.
+
+The parser returns only text values and exact IDs. It does not infer the item's Steam key from a display name. The result is limited to 500 cards, previews at most 8 records, skips cards missing an ID or translation, and reuses the already fetched HTML body without another request. Select **Wiki ItemKey / ID** mode to join IDs against an imported reference Game Pack, or **direct market key** mode only when the selected ID node contains an exact Steam `market_hash_name`.
+
+This generic extractor does not run scripts, execute JavaScript, load lazy content, follow links, paginate, or fetch any additional page. CSS selectors are user-defined and must be checked against the page preview. The source's automated-access and reuse terms still apply.
