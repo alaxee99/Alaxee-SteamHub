@@ -155,6 +155,10 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.match(optionsHtml, /id="html-table-select"/);
   assert.match(optionsHtml, /id="html-market-field"/);
   assert.match(optionsHtml, /id="html-translation-field"/);
+  assert.match(optionsHtml, /id="html-mapping-mode"/);
+  assert.match(optionsHtml, /id="html-reference-game"/);
+  assert.match(optionsSource, /buildGamePackFromSourceIds/);
+  assert.match(optionsSource, /updateHtmlReferenceTarget/);
   assert.match(optionsSource, /siteDiscoveryApi\.isRobotsAllowed/);
   assert.match(optionsHtml, /html-table-parser.js/);
   assert.match(optionsHtml, /id="analyze-site"/);
@@ -415,6 +419,83 @@ test("source record mapper builds exact game-pack keys and excludes conflicts", 
   assert.equal(result.pack.translations[0].translation, "银锭");
   assert.equal(result.pack.translations[0].sourceItemId, "142001");
   assert.equal(result.pack.translations[1].source, "test-source");
+});
+
+
+
+test("source ID mapper joins Wiki ItemKeys to one exact Steam market key and excludes ambiguity", () => {
+  const mapper = loadSourceRecordMapper();
+  const referencePack = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: {
+      appId: "3678970",
+      name: "Task Bar Hero",
+      adapter: "steam-community-market",
+      itemKey: "market_hash_name",
+      defaultLocale: "zh-CN"
+    },
+    translations: [
+      { marketHashName: "Mystic Armor (Beyond) A", sourceItemId: "516111", locale: "zh-CN", translation: "神秘盔甲" },
+      { marketHashName: "Silver Ingot", sourceItemId: "142001", locale: "zh-CN", translation: "银锭" },
+      { marketHashName: "Silver Ingot", sourceItemId: "142001", locale: "zh-CN", translation: "银锭" },
+      { marketHashName: "Variant A", sourceItemId: "ambiguous-id", locale: "zh-CN", translation: "甲" },
+      { marketHashName: "Variant B", sourceItemId: "ambiguous-id", locale: "zh-CN", translation: "乙" }
+    ]
+  };
+  const records = [
+    { itemKey: "516111", name: "神秘盔甲 Wiki 译名" },
+    { itemKey: "516111", name: "神秘盔甲 Wiki 译名" },
+    { itemKey: "142001", name: "银锭" },
+    { itemKey: "unknown-id", name: "未知物品" },
+    { itemKey: "ambiguous-id", name: "不能确定" },
+    { itemKey: "", name: "缺少 ID" },
+    { itemKey: "142001", name: "" },
+    { itemKey: "516111", name: "冲突译名" }
+  ];
+  const result = mapper.buildGamePackFromSourceIds(records, {
+    referencePack,
+    locale: "zh-CN",
+    fields: { sourceItemId: "itemKey", translation: "name" },
+    source: "test-wiki"
+  });
+
+  assert.equal(result.pack.game.appId, "3678970");
+  assert.equal(result.pack.game.name, "Task Bar Hero");
+  assert.equal(result.stats.scanned, 8);
+  assert.equal(result.stats.referenceIds, 2);
+  assert.equal(result.stats.imported, 1);
+  assert.equal(result.stats.duplicateRows, 1);
+  assert.equal(result.stats.conflictingKeys, 1);
+  assert.equal(result.stats.unmatchedSourceId, 1);
+  assert.equal(result.stats.ambiguousSourceId, 1);
+  assert.equal(result.stats.missingSourceId, 1);
+  assert.equal(result.stats.missingTranslation, 1);
+  assert.deepEqual(
+    Array.from(result.pack.translations, (entry) => [entry.marketHashName, entry.sourceItemId, entry.translation]),
+    [["Silver Ingot", "142001", "银锭"]]
+  );
+  assert.equal(result.pack.translations[0].source, "test-wiki");
+});
+
+test("source ID mapper rejects invalid reference packs and unsafe source fields", () => {
+  const mapper = loadSourceRecordMapper();
+  const base = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name" },
+    translations: [{ marketHashName: "Known Item", sourceItemId: "100", locale: "zh-CN", translation: "已知物品" }]
+  };
+  assert.throws(() => mapper.buildGamePackFromSourceIds([], {
+    referencePack: { ...base, game: { ...base.game, appId: "invalid" } },
+    locale: "zh-CN",
+    fields: { sourceItemId: "id", translation: "name" }
+  }), /参考词库/);
+  assert.throws(() => mapper.buildGamePackFromSourceIds([], {
+    referencePack: base,
+    locale: "zh-CN",
+    fields: { sourceItemId: "__proto__", translation: "name" }
+  }), /来源 ID 字段/);
 });
 
 test("source record mapper rejects invalid game identity, unsafe fields and excessive rows", () => {
