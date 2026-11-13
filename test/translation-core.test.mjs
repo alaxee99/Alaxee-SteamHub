@@ -129,6 +129,25 @@ test("market item detail pages bind the current Steam item name element", async 
   assert.equal(result[0].element, titleElement);
 });
 
+
+test("market item detail pages bind a modern exact-matched heading", async () => {
+  const context = await loadModules(coreFiles);
+  const scanner = context.__ALAXEE_STEAMHUB_MARKET_ITEMS__;
+  const titleElement = { textContent: "Example Item" };
+  const root = {
+    querySelectorAll(selector) {
+      return selector === "h2" ? [titleElement] : [];
+    }
+  };
+
+  const result = scanner.collectMarketListingLinks(
+    root,
+    "https://steamcommunity.com/market/listings/3678970/Example%20Item"
+  );
+  assert.equal(result.length, 1);
+  assert.equal(result[0].element, titleElement);
+});
+
 test("translation engine accepts only one exact provider match and caches successful translations", async () => {
   const context = await loadModules(coreFiles);
   const engineApi = context.__ALAXEE_STEAMHUB_TRANSLATION_ENGINE__;

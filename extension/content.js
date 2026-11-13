@@ -145,7 +145,11 @@
         continue;
       }
 
-      const existing = localizedTextNodes.get(node);
+      let existing = localizedTextNodes.get(node);
+      if (existing?.kind === "detail" && existing.appId !== appId) {
+        restoreTextNode(node);
+        existing = null;
+      }
       const original = existing?.original ?? node.nodeValue;
       if (existing?.kind === "name") {
         node = walker.nextNode();
