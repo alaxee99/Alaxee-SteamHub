@@ -5,7 +5,7 @@
   function publishRuntimeStatus(tone, title, details) {
     runtimeStatus?.update({ tone, title, details });
   }
-  publishRuntimeStatus("info", "SteamHub 正在启动", ["版本：0.9.2", "正在初始化 Steam 市场适配器…"]);
+  publishRuntimeStatus("info", "SteamHub 已注入，正在检查市场内容", ["版本：0.9.3", "页面：" + window.location.href]);
 
   const marketLocale = globalThis.__ALAXEE_STEAMHUB_MARKET_LOCALE__;
   if (!marketLocale || !window.location) {
@@ -62,7 +62,7 @@
   const localizedTextNodes = new Map();
   let scanScheduled = false;
   const diagnostics = {
-    version: "0.9.2",
+    version: "0.9.3",
     initializedAt: new Date().toISOString(),
     scanCount: 0,
     lastScanAt: null,
@@ -168,6 +168,9 @@
     } else if (diagnostics.detectedItems === 0) {
       tone = "warning";
       title = "未识别到 Steam 市场商品";
+    } else if (diagnostics.visibleItems === 0) {
+      tone = "warning";
+      title = "已发现商品链接，但本轮没有商品进入扫描范围";
     } else if (primaryUnmatched.length) {
       tone = "warning";
       title = "商品已识别，但词库没有命中";
@@ -177,7 +180,7 @@
     }
 
     const details = [
-      "版本：0.9.2",
+      "版本：0.9.3",
       "当前页面 AppID：" + (primaryAppId || "未识别"),
       "页面发现商品链接：" + diagnostics.detectedItems,
       "当前可见商品：" + diagnostics.visibleItems,
@@ -454,7 +457,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.9.2",
+    version: "0.9.3",
     getDiagnostics() {
       return Object.freeze({
         ...diagnostics,

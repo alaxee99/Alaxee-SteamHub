@@ -386,7 +386,7 @@ test("Steam Market search overview localizes titles inside the current clickable
 
   assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.2");
+  assert.equal(diagnostics.version, "0.9.3");
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.detectedItems, 1);
   assert.equal(diagnostics.visibleItems, 1);
@@ -396,7 +396,7 @@ test("Steam Market search overview localizes titles inside the current clickable
   assert.deepEqual(Array.from(diagnostics.errors), []);
 });
 
-test("runtime status hides success UI and only shows actionable warnings or errors", () => {
+test("runtime status keeps a compact badge visible for startup, warnings, and successful scans", () => {
   const mountedHosts = [];
   function makeElement(tagName) {
     return {
@@ -432,21 +432,24 @@ test("runtime status hides success UI and only shows actionable warnings or erro
   const status = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__;
 
   assert.equal(mountedHosts.length, 0);
-  status.update({ tone: "success", title: "汉化已生效", details: [] });
-  assert.equal(mountedHosts.length, 0);
-
-  status.update({ tone: "warning", title: "缺少本地词库", details: ["AppID 3678970"] });
+  status.update({ tone: "info", title: "SteamHub 已注入", details: ["版本：0.9.3"] });
   assert.equal(mountedHosts.length, 1);
   assert.equal(mountedHosts[0].isConnected, true);
 
-  status.update({ tone: "success", title: "汉化已生效", details: [] });
-  assert.equal(mountedHosts[0].isConnected, false);
+  status.update({ tone: "warning", title: "没有商品进入扫描范围", details: ["AppID 3678970"] });
+  assert.equal(mountedHosts.length, 1);
+  assert.equal(mountedHosts[0].isConnected, true);
+
+  status.update({ tone: "success", title: "汉化已生效", details: ["已替换 10 个商品名称"] });
+  assert.equal(mountedHosts.length, 1);
+  assert.equal(mountedHosts[0].isConnected, true);
   assert.equal(status.snapshot().tone, "success");
+  assert.equal(mountedHosts[0].shadowRoot.children[1].children[1].textContent, "汉化已生效");
 });
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.9.2");
+  assert.equal(manifest.version, "0.9.3");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1665,7 +1668,7 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.2");
+  assert.equal(diagnostics.version, "0.9.3");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);

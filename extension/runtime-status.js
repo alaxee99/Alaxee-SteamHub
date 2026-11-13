@@ -46,7 +46,7 @@
     if (!document?.createElement || !document.documentElement) return false;
 
     host = document.createElement("div");
-    host.setAttribute("data-alaxee-steamhub-runtime-status", "0.9.2");
+    host.setAttribute("data-alaxee-steamhub-runtime-status", "0.9.3");
     host.style.cssText = "all:initial!important;position:fixed!important;right:12px!important;bottom:12px!important;z-index:2147483647!important;";
 
     const shadow = typeof host.attachShadow === "function"
@@ -87,11 +87,13 @@
   }
 
   function mountWhenAvailable() {
-    if (mount()) return true;
+    if (mount()) {
+      stopPendingMount();
+      return true;
+    }
 
     if (!pendingMountListener && typeof document?.addEventListener === "function") {
       pendingMountListener = () => {
-        if (state.tone !== "warning" && state.tone !== "error") return;
         if (mount()) {
           render();
           stopPendingMount();
@@ -102,10 +104,6 @@
 
     if (!pendingObserver && typeof MutationObserver === "function" && document) {
       pendingObserver = new MutationObserver(() => {
-        if (state.tone !== "warning" && state.tone !== "error") {
-          stopPendingMount();
-          return;
-        }
         if (mount()) {
           render();
           stopPendingMount();
@@ -122,10 +120,6 @@
         if (typeof next.tone === "string") state.tone = next.tone;
         if (typeof next.title === "string") state.title = next.title;
         if (Array.isArray(next.details)) state.details = next.details.map((value) => String(value));
-      }
-      if (state.tone === "success" || state.tone === "info") {
-        dismiss();
-        return;
       }
       mountWhenAvailable();
       render();
