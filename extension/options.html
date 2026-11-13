@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ALAXEE SteamHub · 游戏配置</title>
+  <title>ALAXEE SteamHub · 游戏汉化</title>
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
@@ -12,12 +12,50 @@
       <div class="brand-mark" aria-hidden="true">A</div>
       <div>
         <p class="eyebrow">ALAXEE STEAMHUB · GAME PROFILES</p>
-        <h1>游戏适配中心</h1>
-        <p class="subtitle">每款游戏独立配置，支持词条检索与维护。</p>
+        <h1>Steam 游戏汉化</h1>
+        <p class="subtitle">输入 AppID，查找词库，让 Steam 市场物品自动显示中文。</p>
       </div>
-      <span class="version">v0.6.1</span>
+      <span class="version">v0.7.0</span>
     </header>
 
+    <section class="panel quick-setup">
+      <div class="section-heading">
+        <div><span class="step">01</span><h2>添加游戏</h2></div>
+        <p>只需 Steam AppID，其余信息自动查询。</p>
+      </div>
+      <form id="quick-lookup-form" class="quick-lookup-form">
+        <label>Steam AppID
+          <input id="quick-app-id" inputmode="numeric" autocomplete="off" placeholder="粘贴 Steam 游戏链接中的数字 ID，例如 3678970" required>
+        </label>
+        <button id="quick-lookup-button" type="submit" class="primary">查询游戏</button>
+      </form>
+      <div id="quick-game-card" class="quick-game-card" hidden aria-live="polite"></div>
+      <section id="quick-source-section" class="quick-source-section" hidden>
+        <div class="quick-source-heading">
+          <div><span class="step">02</span><h2>查找游戏数据源</h2></div>
+          <p>优先使用已适配词库；也可以搜索 Wiki 或数据接口。</p>
+        </div>
+        <div id="quick-known-sources" class="quick-known-sources"></div>
+        <div class="quick-search-panel">
+          <strong>搜索其他 Wiki</strong>
+          <p>打开搜索结果，选择包含游戏物品 / 市场数据的 Wiki，再把它公开的数据接口地址填到下方。</p>
+          <div id="quick-search-links" class="quick-search-links"></div>
+        </div>
+        <div class="quick-source-url">
+          <label>Wiki / JSON / CSV 数据地址
+            <input id="quick-source-url" type="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/api/items.json">
+          </label>
+          <button id="quick-import-source" type="button" class="primary">识别并导入</button>
+        </div>
+        <p class="quick-source-help">支持公开 JSON / CSV 数据接口，自动识别常见 Steam 市场键与简体中文字段。普通 Wiki 页面如没有结构化接口，需要为该站点制作一次适配器；不会把网页标题误当作译文。</p>
+        <p id="quick-source-status" class="source-summary" aria-live="polite"></p>
+      </section>
+    </section>
+
+    <details class="advanced-shell">
+      <summary>高级管理与调试工具</summary>
+      <div class="advanced-shell-content">
+        <p class="advanced-intro">日常使用无需打开这里。手工词条、词库编辑、数据包维护、站点解析器和 CSS 选择器只在特殊维护场景使用。</p>
     <section class="panel">
       <div class="section-heading">
         <div><span class="step">01</span><h2>添加游戏</h2></div>
@@ -325,12 +363,17 @@
       </div>
     </section>
 
+
+      </div>
+    </details>
     <footer class="footer">
       <span>本地存储 · 不读取 Steam 账号凭据</span>
       <span id="status" role="status" aria-live="polite">就绪</span>
     </footer>
   </main>
 
+  <script src="core/steam-app-lookup.js"></script>
+  <script src="core/game-source-catalog.js"></script>
   <script src="storage-adapter.js"></script>
   <script src="core/game-registry.js"></script>
   <script src="core/public-pack-loader.js"></script>
