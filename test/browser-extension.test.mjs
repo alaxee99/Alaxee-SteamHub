@@ -11,6 +11,7 @@ const manifest = JSON.parse(await readFile(path.join(extensionRoot, "manifest.js
 const localeSource = await readFile(path.join(extensionRoot, "market-locale.js"), "utf8");
 const contentSource = await readFile(path.join(extensionRoot, "content.js"), "utf8");
 const publicPackLoaderSource = await readFile(path.join(extensionRoot, "core/public-pack-loader.js"), "utf8");
+const sourceRecordMapperSource = await readFile(path.join(extensionRoot, "core/source-record-mapper.js"), "utf8");
 const API_KEY = "__ALAXEE_STEAMHUB_MARKET_LOCALE__";
 
 function loadPublicPackLoader() {
@@ -44,6 +45,12 @@ function createResponse(bodyText, options = {}) {
       }
     }
   };
+}
+
+function loadSourceRecordMapper() {
+  const context = vm.createContext({ Object, Map, Set, TypeError, RangeError, String });
+  vm.runInContext(sourceRecordMapperSource, context, { filename: "source-record-mapper.js" });
+  return context.__ALAXEE_STEAMHUB_SOURCE_RECORD_MAPPER__;
 }
 
 function loadLocaleApi() {
@@ -119,6 +126,12 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.match(optionsHtml, /id="pack-url"/);
   assert.match(optionsHtml, /id="load-pack-url"/);
   assert.match(optionsHtml, /普通网页需要专用解析适配器/);
+  assert.match(optionsHtml, /id="source-url"/);
+  assert.match(optionsHtml, /id="source-record-path"/);
+  assert.match(optionsHtml, /id="source-market-field"/);
+  assert.match(optionsHtml, /id="source-translation-field"/);
+  assert.match(optionsHtml, /id="convert-source"/);
+  assert.match(optionsHtml, /core\\/source-record-mapper\\.js/);
   assert.match(publicPackLoaderSource, /credentials: "omit"/);
   assert.match(publicPackLoaderSource, /redirect: "error"/);
   assert.match(publicPackLoaderSource, /5 \* 1024 \* 1024/);
@@ -313,4 +326,73 @@ test("public pack loader normalizes aborted fetches to a timeout error", async (
     clearTimeoutImpl: (id) => { timeoutCleared = id === 123; }
   }), /读取超时/);
   assert.equal(timeoutCleared, true);
+});
+
+
+test("CSV source parser supports quoted commas, escaped quotes and multiline cells", () => {
+  const mapper = loadSourceRecordMapper();
+  const records = mapper.parseCsv('market_hash_name,zh-Hans,id\r\nSilver Ingot,"银锭, 银块",142001\r\n"Name ""Quoted""","多行\n译文",142002\r\n');
+  assert.equal(records.length, 2);
+  assert.equal(records[0].market_hash_name, "Silver Ingot");
+  assert.equal(records[0]["zh-Hans"], "银锭, 银块");
+  assert.equal(records[1].market_hash_name, 'Name "Quoted"');
+  assert.equal(records[1]["zh-Hans"], "多行\n译文");
+  assert.throws(() => mapper.parseCsv('name,name\nA,B\n'), /不能重复/);
+  assert.throws(() => mapper.parseCsv('name,translation\n"unterminated,译文\n'), /未闭合的引号/);
+});
+
+test("JSON source parser resolves nested record arrays without unsafe property paths", () => {
+  const mapper = loadSourceRecordMapper();
+  const data = { response: { items: [{ id: 1 }, { id: 2 }] } };
+  assert.deepEqual(mapper.parseJsonRecords(data, "response.items"), [{ id: 1 }, { id: 2 }]);
+  assert.throws(() => mapper.parseJsonRecords(data, "response.__proto__"), /记录数组/);
+  assert.throws(() => mapper.parseJsonRecords({ items: {} }, "items"), /记录数组/);
+});
+
+test("source record mapper builds exact game-pack keys and excludes conflicts", () => {
+  const mapper = loadSourceRecordMapper();
+  const records = [
+    { market: { key: "Silver Ingot" }, labels: { zh: "银锭" }, id: 142001 },
+    { market: { key: "Silver Ingot" }, labels: { zh: "银锭" }, id: 142001 },
+    { market: { key: "Arcane Crystal" }, labels: { zh: "奥术水晶" }, id: 115001 },
+    { market: { key: "Conflict Item" }, labels: { zh: "译名甲" }, id: 77 },
+    { market: { key: "Conflict Item" }, labels: { zh: "译名乙" }, id: 77 },
+    { market: { key: "" }, labels: { zh: "缺键" }, id: 88 },
+    { market: { key: "No Translation" }, labels: { zh: "" }, id: 89 },
+    { market: { key: " Not Exact" }, labels: { zh: "前后空格不能改写" }, id: 90 }
+  ];
+  const result = mapper.buildGamePackFromRecords(records, {
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name" },
+    locale: "zh-CN",
+    fields: { marketHashName: "market.key", translation: "labels.zh", sourceItemId: "id" },
+    source: "test-source"
+  });
+
+  assert.equal(result.stats.scanned, 8);
+  assert.equal(result.stats.imported, 2);
+  assert.equal(result.stats.duplicateRows, 1);
+  assert.equal(result.stats.conflictingKeys, 1);
+  assert.equal(result.stats.missingMarketKey, 2);
+  assert.equal(result.stats.missingTranslation, 1);
+  assert.deepEqual(result.pack.translations.map((entry) => entry.marketHashName), ["Silver Ingot", "Arcane Crystal"]);
+  assert.equal(result.pack.translations[0].translation, "银锭");
+  assert.equal(result.pack.translations[0].sourceItemId, "142001");
+  assert.equal(result.pack.translations[1].source, "test-source");
+});
+
+test("source record mapper rejects invalid game identity, unsafe fields and excessive rows", () => {
+  const mapper = loadSourceRecordMapper();
+  assert.equal(mapper.readPath({ safe: { name: "x" } }, "safe.name"), "x");
+  assert.equal(mapper.readPath({ safe: {} }, "safe.constructor"), undefined);
+  assert.throws(() => mapper.buildGamePackFromRecords([], {
+    game: { appId: "0", name: "Bad", adapter: "steam-community-market", itemKey: "market_hash_name" },
+    locale: "zh-CN",
+    fields: { marketHashName: "name", translation: "zh" }
+  }), /AppID/);
+  assert.throws(() => mapper.buildGamePackFromRecords([], {
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name" },
+    locale: "zh-CN",
+    fields: { marketHashName: "constructor", translation: "zh" }
+  }), /市场键字段/);
+  assert.throws(() => mapper.parseJsonRecords(Array.from({ length: 10001 }, () => ({}))), /10,000/);
 });
