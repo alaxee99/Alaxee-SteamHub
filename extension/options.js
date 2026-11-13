@@ -6,6 +6,7 @@
   const publicPackLoaderApi = globalThis.__ALAXEE_STEAMHUB_PUBLIC_PACK_LOADER__;
   const sourceMapperApi = globalThis.__ALAXEE_STEAMHUB_SOURCE_RECORD_MAPPER__;
   const siteDiscoveryApi = globalThis.__ALAXEE_STEAMHUB_SITE_DISCOVERY__;
+  const htmlTableParserApi = globalThis.__ALAXEE_STEAMHUB_HTML_TABLE_PARSER__;
   const statusNode = document.getElementById("status");
   const gameList = document.getElementById("game-list");
   const gameSelect = document.getElementById("entry-game");
@@ -23,8 +24,10 @@
   let cachedPacks = [];
   let currentPage = 0;
   let editingIdentity = null;
+  let extractedHtmlTables = [];
+  let extractedHtmlPage = null;
 
-  if (!storageApi || !registryApi || !publicPackLoaderApi || !sourceMapperApi || !siteDiscoveryApi || typeof chrome === "undefined" || !chrome.storage?.local) {
+  if (!storageApi || !registryApi || !publicPackLoaderApi || !sourceMapperApi || !siteDiscoveryApi || !htmlTableParserApi || typeof chrome === "undefined" || !chrome.storage?.local) {
     statusNode.textContent = "扩展存储不可用";
     return;
   }
@@ -445,7 +448,11 @@
         link.target = "_blank";
         link.rel = "noreferrer";
         link.textContent = url;
-        item.append(link);
+        const choose = createButton("选作解析页面", "quiet", () => {
+          document.getElementById("html-page-url").value = url;
+          report("已选择页面；点击“读取并分析表格”后才会下载该页面");
+        });
+        item.append(link, choose);
         list.append(item);
       }
       if (result.urls.length > 30) {
@@ -462,6 +469,191 @@
       report(error.message || "站点发现失败", true);
     } finally {
       button.disabled = false;
+    }
+  });
+
+  function selectedHtmlTable() {
+    const selector = document.getElementById("html-table-select");
+    const index = Number(selector.value);
+    return Number.isInteger(index) ? extractedHtmlTables.find((table) => table.index === index) || null : null;
+  }
+
+  function populateHtmlColumnSelect(selectId, headers, placeholder, includeEmpty = false) {
+    const select = document.getElementById(selectId);
+    select.replaceChildren();
+    const first = document.createElement("option");
+    first.value = "";
+    first.textContent = placeholder;
+    select.append(first);
+    if (includeEmpty) {
+      const empty = document.createElement("option");
+      empty.value = "__none__";
+      empty.textContent = "不记录来源 ID";
+      select.append(empty);
+    }
+    for (const header of headers) {
+      const option = document.createElement("option");
+      option.value = header.key;
+      option.textContent = header.label + " · " + header.key;
+      select.append(option);
+    }
+    select.disabled = headers.length === 0;
+  }
+
+  function renderSelectedHtmlTable() {
+    const table = selectedHtmlTable();
+    const preview = document.getElementById("html-table-preview");
+    const convertButton = document.getElementById("convert-html-table");
+    preview.replaceChildren();
+    if (!table) {
+      preview.append(Object.assign(document.createElement("p"), {
+        className: "empty",
+        textContent: "当前页面没有可预览的结构化表格。"
+      }));
+      convertButton.disabled = true;
+      return;
+    }
+
+    const sample = document.createElement("table");
+    sample.className = "html-preview-grid";
+    const head = document.createElement("thead");
+    const headerRow = document.createElement("tr");
+    for (const header of table.headers) {
+      const cell = document.createElement("th");
+      cell.textContent = header.label;
+      headerRow.append(cell);
+    }
+    head.append(headerRow);
+    sample.append(head);
+    const body = document.createElement("tbody");
+    for (const record of table.records.slice(0, 5)) {
+      const row = document.createElement("tr");
+      for (const header of table.headers) {
+        const cell = document.createElement("td");
+        cell.textContent = record[header.key] || "";
+        row.append(cell);
+      }
+      body.append(row);
+    }
+    sample.append(body);
+    preview.append(sample);
+
+    populateHtmlColumnSelect("html-market-field", table.headers, "选择 Steam 原始键列");
+    populateHtmlColumnSelect("html-translation-field", table.headers, "选择译文列");
+    populateHtmlColumnSelect("html-source-id-field", table.headers, "选择来源 ID 列", true);
+    convertButton.disabled = false;
+  }
+
+  document.getElementById("html-table-select").addEventListener("change", renderSelectedHtmlTable);
+
+  document.getElementById("extract-html-page").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const rawUrl = document.getElementById("html-page-url").value.trim();
+    const summary = document.getElementById("html-page-summary");
+    if (!rawUrl) {
+      report("请先从站点目录选择或粘贴一个 HTML 页面 URL", true);
+      return;
+    }
+
+    button.disabled = true;
+    extractedHtmlTables = [];
+    extractedHtmlPage = null;
+    document.getElementById("html-table-select").replaceChildren();
+    document.getElementById("html-table-select").disabled = true;
+    document.getElementById("html-table-preview").replaceChildren();
+    document.getElementById("convert-html-table").disabled = true;
+    try {
+      const pageUrl = publicPackLoaderApi.validatePublicHttpsUrl(rawUrl);
+      const directoryUrl = document.getElementById("site-index-url").value.trim();
+      if (directoryUrl) {
+        const directory = publicPackLoaderApi.validatePublicHttpsUrl(directoryUrl);
+        if (directory.origin !== pageUrl.origin) {
+          throw new Error("页面必须与已分析的 Wiki / 网站入口保持同源");
+        }
+      }
+
+      const loaded = await publicPackLoaderApi.fetchPublicTextFromUrl(pageUrl.href, {
+        requestPermission: (originPattern) => chrome.permissions.request({ origins: [originPattern] }),
+        maxBytes: 1024 * 1024,
+        timeoutMs: 10000
+      });
+      const result = htmlTableParserApi.parseHtmlTables(loaded.text, {
+        pageUrl: loaded.sourceUrl,
+        maxTables: 20,
+        maxRowsPerTable: 500
+      });
+      extractedHtmlTables = result.tables;
+      extractedHtmlPage = result;
+      const selector = document.getElementById("html-table-select");
+      if (!result.tables.length) {
+        selector.append(Object.assign(document.createElement("option"), {
+          value: "",
+          textContent: "没有识别到可映射的数据表格"
+        }));
+      } else {
+        for (const table of result.tables) {
+          const option = document.createElement("option");
+          option.value = String(table.index);
+          option.textContent = (table.caption || table.ariaLabel || ("表格 " + (table.index + 1))) +
+            " · " + table.rowCount + " 行 · " + table.headers.length + " 列";
+          selector.append(option);
+        }
+        selector.value = String(result.tables[0].index);
+      }
+      selector.disabled = !result.tables.length;
+      summary.textContent = (result.pageTitle ? result.pageTitle + " · " : "") +
+        "识别 " + result.tables.length + " 张可映射表格 · 跳过 " + result.skippedTables +
+        " 张无表头 / 不支持跨行列的表格" +
+        (result.truncatedTables ? " · 表格数量已截断至 20 张" : "");
+      renderSelectedHtmlTable();
+      report(result.tables.length
+        ? "页面表格已提取；请检查预览并手动映射字段"
+        : "页面读取完成，但未发现可映射表格", !result.tables.length);
+    } catch (error) {
+      summary.textContent = "";
+      report(error.message || "HTML 页面提取失败", true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById("convert-html-table").addEventListener("click", () => {
+    const summary = document.getElementById("html-conversion-summary");
+    try {
+      const table = selectedHtmlTable();
+      if (!table || !extractedHtmlPage) throw new Error("请先读取并选择一张页面表格");
+      const marketField = document.getElementById("html-market-field").value;
+      const translationField = document.getElementById("html-translation-field").value;
+      const sourceIdField = document.getElementById("html-source-id-field").value;
+      if (!marketField || !translationField || marketField === translationField) {
+        throw new Error("请选择不同的 Steam 市场键列和译文列");
+      }
+      const mapped = sourceMapperApi.buildGamePackFromRecords(table.records, {
+        game: {
+          appId: document.getElementById("html-app-id").value.trim(),
+          name: document.getElementById("html-game-name").value.trim(),
+          adapter: "steam-community-market",
+          itemKey: "market_hash_name"
+        },
+        locale: document.getElementById("html-locale").value,
+        fields: {
+          marketHashName: marketField,
+          translation: translationField,
+          sourceItemId: sourceIdField && sourceIdField !== "__none__" ? sourceIdField : ""
+        },
+        source: document.getElementById("html-source-label").value.trim() || "wiki-html"
+      });
+      const validated = registryApi.normalizePack(mapped.pack);
+      document.getElementById("pack-json").value = JSON.stringify(validated, null, 2);
+      const stats = mapped.stats;
+      summary.textContent = "页面 " + new URL(extractedHtmlPage.pageUrl).pathname +
+        " · 扫描 " + stats.scanned + " 行 · 生成 " + stats.imported +
+        " 条 · 重复 " + stats.duplicateRows + " · 冲突 " + stats.conflictingKeys +
+        " · 缺键 " + stats.missingMarketKey + " · 缺译文 " + stats.missingTranslation;
+      report("HTML 表格已转换；请检查生成的 JSON 并选择合并或覆盖");
+    } catch (error) {
+      summary.textContent = "";
+      report(error.message || "HTML 表格转换失败", true);
     }
   });
 
