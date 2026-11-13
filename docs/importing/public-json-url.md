@@ -26,6 +26,11 @@ Current Task Bar Hero pack URL:
 - The response is streamed with a 5 MiB size cap and a 20-second timeout.
 - A Game Pack URL must pass the existing schema validator before it is placed into the import editor.
 
+## Discover a Wiki site map
+
+The same Options panel also includes a bounded site discovery preview. Paste a public HTTPS Wiki homepage or sitemap URL, then click **发现页面目录**. SteamHub reads the same-origin robots.txt and sitemap documents, follows sitemap-index files within limits, applies robots rules and displays up to 30 candidate page links.
+
+It does not download page bodies, follow ordinary HTML links, or generate translations. This identifies the candidate content pages; a site-specific adapter is still needed to extract rows and map each one to an exact Steam market key. See `docs/importing/site-discovery.md`.
 ## Scope boundary
 
 A public source URL does not automatically mean a whole website can be safely or correctly imported. The structured mode reads only the supplied JSON or CSV resource; it does not follow links, enumerate sitemaps or crawl a website. A normal Wiki HTML page or homepage needs a dedicated page adapter to discover permitted content pages, interpret their structure and map items to exact Steam market keys.
