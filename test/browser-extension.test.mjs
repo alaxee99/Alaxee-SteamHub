@@ -10,7 +10,41 @@ const extensionRoot = path.join(root, "extension");
 const manifest = JSON.parse(await readFile(path.join(extensionRoot, "manifest.json"), "utf8"));
 const localeSource = await readFile(path.join(extensionRoot, "market-locale.js"), "utf8");
 const contentSource = await readFile(path.join(extensionRoot, "content.js"), "utf8");
+const publicPackLoaderSource = await readFile(path.join(extensionRoot, "core/public-pack-loader.js"), "utf8");
 const API_KEY = "__ALAXEE_STEAMHUB_MARKET_LOCALE__";
+
+function loadPublicPackLoader() {
+  const context = vm.createContext({ URL, TextDecoder, Uint8Array, Object, TypeError, Error });
+  vm.runInContext(publicPackLoaderSource, context, { filename: "public-pack-loader.js" });
+  return context.__ALAXEE_STEAMHUB_PUBLIC_PACK_LOADER__;
+}
+
+function createResponse(bodyText, options = {}) {
+  const bytes = new TextEncoder().encode(bodyText);
+  let offset = 0;
+  const chunkSize = options.chunkSize || 1024;
+  return {
+    ok: options.ok ?? true,
+    status: options.status ?? 200,
+    url: options.url ?? "https://packs.example/game-pack.json",
+    headers: { get(name) {
+      return name.toLowerCase() === "content-length" ? String(options.contentLength ?? bytes.length) : null;
+    } },
+    body: {
+      getReader() {
+        return {
+          async read() {
+            if (offset >= bytes.length) return { done: true };
+            const value = bytes.slice(offset, Math.min(offset + chunkSize, bytes.length));
+            offset += value.length;
+            return { done: false, value };
+          },
+          async cancel() { return undefined; }
+        };
+      }
+    }
+  };
+}
 
 function loadLocaleApi() {
   const context = vm.createContext({ URL, Set, Object });
@@ -146,4 +180,137 @@ test("content script redirects only when a locale update is required", () => {
 
   const unchanged = runContentScript("https://steamcommunity.com/market/?l=schinese");
   assert.deepEqual(unchanged, []);
+});
+
+
+test("public pack loader accepts only public HTTPS URL origins", () => {
+  const api = loadPublicPackLoader();
+  assert.equal(api.validatePublicHttpsUrl("https://packs.example/path/data.json#section").href,
+    "https://packs.example/path/data.json");
+  for (const invalid of [
+    "http://packs.example/data.json",
+    "https://localhost/data.json",
+    "https://thing.local/data.json",
+    "https://127.0.0.1/data.json",
+    "https://10.0.0.5/data.json",
+    "https://192.168.1.2/data.json",
+    "https://172.20.0.1/data.json",
+    "https://8.8.8.8/data.json",
+    "https://[::1]/data.json",
+    "https://user:pass@packs.example/data.json",
+    "https://packs.example:8443/data.json"
+  ]) {
+    assert.throws(() => api.validatePublicHttpsUrl(invalid), TypeError, invalid);
+  }
+});
+
+test("public pack loader requests one origin before fetching and validates the pack", async () => {
+  const api = loadPublicPackLoader();
+  const calls = [];
+  const pack = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero", adapter: "steam-community-market", itemKey: "market_hash_name", defaultLocale: "zh-CN" },
+    translations: [{ marketHashName: "Silver Ingot", locale: "zh-CN", translation: "银锭" }]
+  };
+  let clearedTimer = false;
+  class FakeAbortController { constructor() { this.signal = {}; } abort() { this.aborted = true; } }
+  const result = await api.fetchGamePackFromUrl("https://packs.example/game-pack.json", {
+    requestPermission(pattern) {
+      calls.push(["permission", pattern]);
+      return Promise.resolve(true);
+    },
+    fetchImpl: async (url, request) => {
+      calls.push(["fetch", url, request]);
+      return createResponse(JSON.stringify(pack), { chunkSize: 7 });
+    },
+    normalizePack(value) {
+      calls.push(["normalize"]);
+      return { ...value, normalized: true };
+    },
+    AbortControllerImpl: FakeAbortController,
+    setTimeoutImpl(callback, milliseconds) {
+      calls.push(["timeout", milliseconds]);
+      return callback;
+    },
+    clearTimeoutImpl() { clearedTimer = true; }
+  });
+
+  assert.equal(calls[0][0], "permission");
+  assert.equal(calls[0][1], "https://packs.example/*");
+  assert.equal(calls[1][0], "timeout");
+  assert.equal(calls[2][0], "fetch");
+  assert.equal(calls[2][2].credentials, "omit");
+  assert.equal(calls[2][2].redirect, "error");
+  assert.equal(calls[2][2].referrerPolicy, "no-referrer");
+  assert.equal(calls[3][0], "normalize");
+  assert.equal(result.pack.normalized, true);
+  assert.equal(result.pack.translations.length, 1);
+  assert.equal(result.sourceUrl, "https://packs.example/game-pack.json");
+  assert.equal(clearedTimer, true);
+});
+
+test("public pack loader stops when origin permission is denied", async () => {
+  const api = loadPublicPackLoader();
+  let fetchCalled = false;
+  await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
+    requestPermission: () => Promise.resolve(false),
+    fetchImpl: async () => { fetchCalled = true; },
+    normalizePack: (value) => value
+  }), /未获准访问/);
+  assert.equal(fetchCalled, false);
+});
+
+test("public pack loader rejects cross-origin responses and non-pack JSON", async () => {
+  const api = loadPublicPackLoader();
+  const dependencies = {
+    requestPermission: () => Promise.resolve(true),
+    normalizePack: (value) => value,
+    AbortControllerImpl: class { constructor() { this.signal = {}; } abort() {} },
+    setTimeoutImpl: () => 1,
+    clearTimeoutImpl: () => {}
+  };
+  await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
+    ...dependencies,
+    fetchImpl: async () => createResponse("{}", { url: "https://other.example/data.json" })
+  }), /跨站跳转/);
+  await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
+    ...dependencies,
+    fetchImpl: async () => createResponse(JSON.stringify({ items: [] }))
+  }), /不是 SteamHub Game Pack/);
+});
+
+test("public pack loader enforces a streaming size cap and clears timeout after abort", async () => {
+  const api = loadPublicPackLoader();
+  let timeoutCleared = false;
+  let aborted = false;
+  class FakeAbortController { constructor() { this.signal = {}; } abort() { aborted = true; } }
+  const overLimit = "x".repeat(5 * 1024 * 1024 + 1);
+  await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
+    requestPermission: () => Promise.resolve(true),
+    fetchImpl: async () => createResponse(overLimit, { chunkSize: 1024 * 1024 }),
+    normalizePack: (value) => value,
+    AbortControllerImpl: FakeAbortController,
+    setTimeoutImpl: () => 99,
+    clearTimeoutImpl: (id) => { timeoutCleared = id === 99; }
+  }), /超过 5 MiB/);
+  assert.equal(aborted, true);
+  assert.equal(timeoutCleared, true);
+});
+
+test("public pack loader normalizes aborted fetches to a timeout error", async () => {
+  const api = loadPublicPackLoader();
+  let timeoutCleared = false;
+  class FakeAbortController { constructor() { this.signal = {}; } abort() {} }
+  const aborted = new Error("aborted");
+  aborted.name = "AbortError";
+  await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
+    requestPermission: () => Promise.resolve(true),
+    fetchImpl: async () => { throw aborted; },
+    normalizePack: (value) => value,
+    AbortControllerImpl: FakeAbortController,
+    setTimeoutImpl: () => 123,
+    clearTimeoutImpl: (id) => { timeoutCleared = id === 123; }
+  }), /读取超时/);
+  assert.equal(timeoutCleared, true);
 });
