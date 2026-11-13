@@ -2,7 +2,7 @@
 
 **ALAXEE SteamHub：面向多款 Steam 游戏的浏览器市场汉化扩展。**
 
-v0.6.0 在多游戏独立配置基础上，增加词库搜索、单条编辑和删除。，不再把 Task Bar Hero 写死在翻译核心里。
+v0.6.0 在多游戏独立配置基础上，增加词库搜索、单条编辑和删除，不再把 Task Bar Hero 写死在翻译核心里。
 
 ## 多游戏配置
 
@@ -24,7 +24,7 @@ v0.6.0 在多游戏独立配置基础上，增加词库搜索、单条编辑和�
 6. 编辑或删除单条词条，不必重新导入整个数据包。
 7. 单独启用、停用或删除游戏配置。
 
-数据包示例见 docs/game-pack.example.json。Task Bar Hero 的 taskbarhero.wiki 社区 Wiki 已验证存在中文市场条目和可交叉核对的 Steam listing，但尚未取得自动访问及数据再利用许可，因此当前只登记为候选来源，不会自动抓取。详见 docs/providers/taskbarhero-wiki.md。示例中的物品和译文只是格式演示，不是经过验证的 Task Bar Hero 真实词条。每条词条还可选填 sourceItemId 和 source，用来记录来源词库的物品 ID / Code 与出处；它们只做关联信息和溯源，不替代 Steam market_hash_name 的精确匹配。
+数据包示例见 docs/game-pack.example.json。**Task Bar Hero 当前优先参考 TBH Index（tbhindex.com）**：其公开页面标注游戏数据版本为 1.3.2，提供 19 种语言，并在单件装备页展示游戏内部 ItemKey、中文名称和对应的 Steam 市场物品名。已核对的示例：ItemKey 516111 对应 `Mystic Armor (Beyond) A`，中文名称为“神秘盔甲A”。但你发来的 Farming 计算器只有 108/168 个可刷关卡具有实测通关时间；它不是物品总目录。其他社区站点保留为辅助交叉核对来源，不能仅按首页记录数量判断完整度。详见 docs/providers/tbhindex.md。TBH Index 尚未接入自动抓取：其条款限制过度抓取，当前也没有确认可用的公开 API、扩展 CORS 合约或整库再分发授权。示例词条仍是格式占位内容，不是完整词库。每条词条可选填 sourceItemId 和 source，记录来源物品 ID / Code 与出处，不替代 Steam market_hash_name 的精确匹配。
 
 ## 数据包格式
 
