@@ -284,7 +284,6 @@
       const entry = normalizeTranslation(input, current.game.appId, "manual");
       if (!entry) throw new TypeError("Enter an exact market hash name, locale, and translation.");
 
-      const nextKey = entry.locale + "\u0000" + entry.marketHashName;
       const collision = current.translations.find((candidate) =>
         candidate.marketHashName === entry.marketHashName &&
         candidate.locale === entry.locale &&
