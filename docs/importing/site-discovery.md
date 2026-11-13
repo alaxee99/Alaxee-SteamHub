@@ -24,3 +24,14 @@ Options → Batch Import → **分析 Wiki / 网站目录（站点发现）** ac
 A site-specific adapter must use the discovered URL list to extract structured records from the relevant page type, handle pagination or lazy-loaded content where permitted, and map every record to an exact Steam market_hash_name. The adapter must also verify the source's automated-access and redistribution constraints before fetching page content in batches.
 
 TBH Index is not a target for automated bulk crawling in this project. Its public pages remain selective manual cross-checks. Use this discovery flow with sources whose terms allow the intended access, and prefer documented JSON / CSV feeds when available.
+
+
+## Single-page HTML table extraction
+
+The site directory now offers a manual **选作解析页面** action. The extension fetches a page only after the user clicks **读取并分析表格**. The request is limited to one explicitly selected HTTPS page on the analyzed origin, requests that origin's optional host permission, omits credentials, rejects redirects, and uses a 1 MiB / 10-second fetch budget.
+
+The HTML parser uses the extension options page's inert `DOMParser` document. It never inserts source markup into the extension UI and reads only explicit table rows and header cells. It skips tables without a recognizable header and tables with spanning header/data cells that could shift column alignment. Limits are 20 tables per page and 500 data rows per table. Preview text is rendered with DOM text nodes.
+
+The user must manually choose the exact Steam `market_hash_name` column, translation column, locale, and optional source ID column. A generic item-name column is not treated as a Steam market key. The resulting Game Pack is staged in the JSON editor; merge/replace remains a separate explicit action.
+
+This is a bounded generic table extractor, not permission to crawl a site. It does not follow links, paginate, run JavaScript, load lazy content, submit forms, or fetch more pages. Review source terms before using extracted data; no site terms or redistribution rights are inferred. TBH Index remains excluded from automated bulk crawling.
