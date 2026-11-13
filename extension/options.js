@@ -7,6 +7,8 @@
   const sourceMapperApi = globalThis.__ALAXEE_STEAMHUB_SOURCE_RECORD_MAPPER__;
   const siteDiscoveryApi = globalThis.__ALAXEE_STEAMHUB_SITE_DISCOVERY__;
   const htmlTableParserApi = globalThis.__ALAXEE_STEAMHUB_HTML_TABLE_PARSER__;
+  const steamAppLookupApi = globalThis.__ALAXEE_STEAMHUB_STEAM_APP_LOOKUP__;
+  const gameSourceCatalogApi = globalThis.__ALAXEE_STEAMHUB_GAME_SOURCE_CATALOG__;
   const statusNode = document.getElementById("status");
   const gameList = document.getElementById("game-list");
   const gameSelect = document.getElementById("entry-game");
@@ -32,7 +34,7 @@
   let extractedHtmlDetailResult = null;
   let discoveredSite = null;
 
-  if (!storageApi || !registryApi || !publicPackLoaderApi || !sourceMapperApi || !siteDiscoveryApi || !htmlTableParserApi || typeof chrome === "undefined" || !chrome.storage?.local) {
+  if (!storageApi || !registryApi || !publicPackLoaderApi || !sourceMapperApi || !siteDiscoveryApi || !htmlTableParserApi || !steamAppLookupApi || !gameSourceCatalogApi || typeof chrome === "undefined" || !chrome.storage?.local) {
     statusNode.textContent = "扩展存储不可用";
     return;
   }
@@ -369,6 +371,261 @@
     renderHtmlReferenceGames();
     updateHtmlMappingMode();
   }
+
+  let quickGame = null;
+  function quickText(parent, tag, className, value) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    node.textContent = value;
+    parent.append(node);
+    return node;
+  }
+  function quickLink(label, url) {
+    const link = document.createElement("a");
+    link.className = "quick-external-link";
+    link.href = url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = label;
+    return link;
+  }
+  function getQuickPack(appId) {
+    return cachedPacks.find((pack) => pack.game.appId === appId) || null;
+  }
+  async function ensureQuickProfile(game) {
+    if (!getQuickPack(game.appId)) await registry.addGame({ appId: game.appId, name: game.name });
+  }
+  async function importBundledSource(source, button) {
+    if (!quickGame || !source?.assetPath) return;
+    button.disabled = true;
+    const status = document.getElementById("quick-source-status");
+    status.textContent = "正在导入内置词库…";
+    try {
+      await ensureQuickProfile(quickGame);
+      const response = await fetch(chrome.runtime.getURL(source.assetPath), { credentials: "omit", cache: "force-cache" });
+      if (!response.ok) throw new Error("内置词库文件读取失败");
+      const pack = registryApi.normalizePack(await response.json());
+      if (pack.game.appId !== quickGame.appId) throw new Error("词库 AppID 与当前游戏不一致");
+      await registry.importPack(pack, { mode: "merge" });
+      await refresh();
+      status.textContent = "导入完成 · 当前词库共 " + (getQuickPack(quickGame.appId)?.translations.length || 0) + " 条。";
+      report("已导入 " + pack.game.name + " 中文词库");
+      renderQuickGame();
+    } catch (error) {
+      status.textContent = error.message || "内置词库导入失败";
+      report(status.textContent, true);
+    } finally {
+      button.disabled = false;
+    }
+  }
+  function renderQuickGame() {
+    const card = document.getElementById("quick-game-card");
+    const section = document.getElementById("quick-source-section");
+    const known = document.getElementById("quick-known-sources");
+    const searches = document.getElementById("quick-search-links");
+    card.replaceChildren();
+    known.replaceChildren();
+    searches.replaceChildren();
+    if (!quickGame) {
+      card.hidden = true;
+      section.hidden = true;
+      return;
+    }
+    card.hidden = false;
+    section.hidden = false;
+    const info = document.createElement("div");
+    info.className = "quick-game-identity";
+    quickText(info, "h3", "quick-game-name", quickGame.name);
+    quickText(info, "p", "quick-game-meta", "Steam AppID " + quickGame.appId +
+      (quickGame.developers.length ? " · " + quickGame.developers.join(" / ") : ""));
+    const localPack = getQuickPack(quickGame.appId);
+    quickText(info, "p", "quick-game-count", localPack
+      ? "本地已有 " + localPack.translations.length + " 条词条"
+      : "尚未建立本地词库");
+    if (quickGame.shortDescription) quickText(info, "p", "quick-game-description", quickGame.shortDescription);
+    card.append(info);
+    card.append(quickLink("Steam 商店页面", "https://store.steampowered.com/app/" + quickGame.appId + "/"));
+    if (quickGame.website) card.append(quickLink("游戏官网", quickGame.website));
+    const sources = gameSourceCatalogApi.listSources(quickGame.appId);
+    if (!sources.length) {
+      quickText(known, "p", "quick-no-source",
+        "当前没有这个游戏的一键导入词库。可以先搜索 Wiki，或填写公开 JSON / CSV 数据接口。");
+    }
+    for (const source of sources) {
+      const item = document.createElement("article");
+      item.className = "quick-source-card";
+      const detail = document.createElement("div");
+      detail.className = "quick-source-info";
+      quickText(detail, "strong", "quick-source-name", source.name);
+      quickText(detail, "p", "quick-source-provider",
+        source.provider + " · " + source.translationCount.toLocaleString() + " 条 · " + source.locale);
+      quickText(detail, "p", "quick-source-description", source.description);
+      quickText(detail, "p", "quick-source-note", source.accessLabel + "；" + source.personalUseNote);
+      item.append(detail);
+      const action = createButton("一键导入", "primary", () => importBundledSource(source, action));
+      item.append(action);
+      known.append(item);
+    }
+    for (const result of gameSourceCatalogApi.buildSearchLinks(quickGame.name)) {
+      searches.append(quickLink(result.label, result.url));
+    }
+  }
+
+  document.getElementById("quick-lookup-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = document.getElementById("quick-lookup-button");
+    const card = document.getElementById("quick-game-card");
+    const status = document.getElementById("quick-source-status");
+    const appId = document.getElementById("quick-app-id").value.trim();
+    button.disabled = true;
+    button.textContent = "正在查询…";
+    status.textContent = "";
+    try {
+      const permission = await chrome.permissions.request({ origins: ["https://store.steampowered.com/*"] });
+      if (!permission) throw new Error("需要允许 Steam 商店访问，才能查询游戏信息");
+      const cacheKey = "alaxee-steamhub:steam-app:v1:" + appId;
+      const cached = await storage.get(cacheKey);
+      if (cached?.fetchedAt && Date.now() - cached.fetchedAt < 24 * 60 * 60 * 1000) {
+        quickGame = cached;
+      } else {
+        quickGame = await steamAppLookupApi.lookupSteamApp(appId, {
+          requestPermission: async () => true
+        });
+        await storage.set(cacheKey, quickGame);
+      }
+      document.getElementById("game-app-id").value = quickGame.appId;
+      document.getElementById("game-name").value = quickGame.name;
+      renderQuickGame();
+      report("已识别游戏：" + quickGame.name);
+    } catch (error) {
+      quickGame = null;
+      renderQuickGame();
+      card.hidden = false;
+      quickText(card, "p", "quick-error", error.message || "游戏查询失败");
+      report(error.message || "游戏查询失败", true);
+    } finally {
+      button.disabled = false;
+      button.textContent = "查询游戏";
+    }
+  });
+
+  function findQuickRecordArray(value, depth = 0) {
+    if (Array.isArray(value)) {
+      return value.length && value.every((item) => item && typeof item === "object" && !Array.isArray(item))
+        ? value : null;
+    }
+    if (!value || typeof value !== "object" || depth >= 4) return null;
+    for (const key of ["items", "records", "results", "entries", "translations", "market_items", "data"]) {
+      if (Object.prototype.hasOwnProperty.call(value, key)) {
+        const found = findQuickRecordArray(value[key], depth + 1);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+  async function parseQuickSource(text, sourceUrl, game) {
+    const trimmed = text.replace(/^\uFEFF/, "").trim();
+    if (!trimmed) throw new Error("数据源返回内容为空");
+    let records;
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      let parsed;
+      try { parsed = JSON.parse(trimmed); } catch { throw new Error("返回内容不是有效 JSON"); }
+      if (parsed?.format === "alaxee-steamhub-game-pack" && parsed?.schemaVersion === 1) {
+        const pack = registryApi.normalizePack(parsed);
+        if (pack.game.appId !== game.appId) throw new Error("这个数据包不属于当前游戏");
+        return pack;
+      }
+      records = findQuickRecordArray(parsed);
+      if (!records) throw new Error("JSON 中没有识别到商品记录数组");
+    } else {
+      const rows = sourceMapperApi.parseCsv(trimmed);
+      if (rows.length < 2) throw new Error("CSV 至少需要一行表头和一行数据");
+      const headers = rows[0].map((value) => String(value || "").trim());
+      if (headers.some((value) => !value)) throw new Error("CSV 表头存在空字段");
+      records = rows.slice(1).map((values) => {
+        const record = Object.create(null);
+        headers.forEach((header, index) => { record[header] = values[index] ?? ""; });
+        return record;
+      });
+    }
+    if (!records.length) throw new Error("数据源没有商品记录");
+    if (records.length > 10000) throw new Error("单次最多导入 10,000 条记录");
+    const sample = records[0];
+    const findField = (aliases) => aliases.find((alias) =>
+      Object.prototype.hasOwnProperty.call(sample, alias)
+    ) || "";
+    const keyField = findField([
+      "market_hash_name", "marketHashName", "steam_market_hash_name",
+      "steamMarketHashName", "market_name", "marketName"
+    ]);
+    const translationField = findField([
+      "zh-Hans", "zh_hans", "zh-CN", "zh_CN", "zh-cn", "zh-Hant", "zh_hant",
+      "translation", "chinese_simplified", "chineseSimplified", "name_zh", "nameZh"
+    ]);
+    const idField = findField([
+      "sourceItemId", "source_item_id", "item_id", "itemId", "item_key", "itemKey", "id"
+    ]);
+    const source = new URL(sourceUrl).hostname;
+    if (keyField && translationField) {
+      const result = sourceMapperApi.buildGamePackFromRecords(records, {
+        game: {
+          appId: game.appId, name: game.name,
+          adapter: "steam-community-market", itemKey: "market_hash_name"
+        },
+        locale: "zh-CN",
+        fields: {
+          marketHashName: keyField, translation: translationField,
+          ...(idField ? { sourceItemId: idField } : {})
+        },
+        source
+      });
+      if (!result.pack.translations.length) throw new Error("没有找到可精确匹配的 Steam 市场名称和中文译文");
+      return result.pack;
+    }
+    if (idField && translationField) {
+      const reference = getQuickPack(game.appId);
+      if (reference) {
+        const result = sourceMapperApi.buildGamePackFromSourceIds(records, {
+          referencePack: reference, locale: "zh-CN",
+          fields: { sourceItemId: idField, translation: translationField }, source
+        });
+        if (result.pack.translations.length) return result.pack;
+      }
+      throw new Error("数据源提供了自己的物品 ID，但没有 Steam 市场名称。需要先有该游戏的参考词库，或改用包含 market_hash_name 的接口。");
+    }
+    throw new Error("没有识别到明确的 Steam 市场名称与中文字段。此 Wiki 需要专用适配器，不能把物品标题猜成 Steam 键。");
+  }
+
+  document.getElementById("quick-import-source").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const rawUrl = document.getElementById("quick-source-url").value.trim();
+    const status = document.getElementById("quick-source-status");
+    if (!quickGame) { report("请先查询并确认 Steam 游戏 AppID", true); return; }
+    if (!rawUrl) { report("请先填写公开的 Wiki / JSON / CSV 数据地址", true); return; }
+    button.disabled = true;
+    status.textContent = "正在读取并识别数据源…";
+    try {
+      const validatedUrl = publicPackLoaderApi.validatePublicHttpsUrl(rawUrl);
+      const granted = await chrome.permissions.request({ origins: [validatedUrl.origin + "/*"] });
+      if (!granted) throw new Error("未获得该数据源的访问权限");
+      await ensureQuickProfile(quickGame);
+      const loaded = await publicPackLoaderApi.fetchPublicTextFromUrl(rawUrl, {
+        requestPermission: async () => true, maxBytes: 5 * 1024 * 1024, timeoutMs: 20000
+      });
+      const pack = await parseQuickSource(loaded.text, loaded.sourceUrl, quickGame);
+      await registry.importPack(pack, { mode: "merge" });
+      await refresh();
+      status.textContent = "导入完成 · 数据源 " + new URL(loaded.sourceUrl).hostname +
+        " · 当前词库共 " + (getQuickPack(quickGame.appId)?.translations.length || 0) + " 条。";
+      report("数据源已识别并导入：" + quickGame.name);
+      renderQuickGame();
+    } catch (error) {
+      status.textContent = error.message || "数据源读取或识别失败";
+      report(status.textContent, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
 
   document.getElementById("add-game-form").addEventListener("submit", async (event) => {
     event.preventDefault();
