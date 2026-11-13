@@ -575,7 +575,7 @@
       if (discoveredSite.origin !== pageUrl.origin) {
         throw new Error("页面必须与已分析的 Wiki / 网站入口保持同源");
       }
-      if (discoveredSite.robotsError && !/\\bHTTP 404\\b/.test(discoveredSite.robotsError)) {
+      if (discoveredSite.robotsError && !/\bHTTP 404\b/.test(discoveredSite.robotsError)) {
         throw new Error("未能可靠读取 robots.txt，已停止页面读取：" + discoveredSite.robotsError);
       }
       if (!siteDiscoveryApi.isRobotsAllowed(pageUrl, discoveredSite.robots)) {
