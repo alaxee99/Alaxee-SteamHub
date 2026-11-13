@@ -77,3 +77,8 @@ taskbarherowiki.com、taskbarhero.wiki 等其他公开社区站点仅作为辅�
 ## 安全
 
 安装时只要求 storage 权限；用户主动读取公开 JSON 链接时，扩展才会针对该链接所在的单一 HTTPS 源申请可选访问权限。不会读取 Steam Cookie、登录凭据、账户资料、库存或存档，也没有遥测、云同步或远程代码。
+
+
+### Wiki ItemKey 精确反查
+
+HTML 单页表格现在支持直接用 Wiki 内部 `ItemKey / ID` 反查已导入的 Steam 参考目录，不要求 Wiki 表格自身暴露 Steam 的 `market_hash_name`。Task Bar Hero 参考词库包含 1,106 个 Steam 市场键，其中 1,070 个带唯一来源 ID。未知 ID、歧义 ID 和冲突译文都会排除并统计；仍需逐页手动选择，不会批量抓取 Wiki。
