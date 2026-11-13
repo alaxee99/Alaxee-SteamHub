@@ -82,3 +82,8 @@ taskbarherowiki.com、taskbarhero.wiki 等其他公开社区站点仅作为辅�
 ### Wiki ItemKey 精确反查
 
 HTML 单页表格现在支持直接用 Wiki 内部 `ItemKey / ID` 反查已导入的 Steam 参考目录，不要求 Wiki 表格自身暴露 Steam 的 `market_hash_name`。Task Bar Hero 参考词库包含 1,106 个 Steam 市场键，其中 1,070 个带唯一来源 ID。未知 ID、歧义 ID 和冲突译文都会排除并统计；仍需逐页手动选择，不会批量抓取 Wiki。
+
+
+### HTML 商品卡片提取
+
+单页 HTML 导入现在同时支持表格和重复商品卡片。卡片提取会给出重复 CSS 结构候选，允许设置卡片、Wiki ID 和译文节点选择器，并预览抽取结果。最多处理单页 500 张卡片；它不执行网页 JavaScript、不加载懒加载内容、不翻页或抓取其他页面。Wiki ID 仍通过已导入参考词库精确反查 Steam 市场键。
