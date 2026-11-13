@@ -415,8 +415,7 @@
     const maximumBytes = 5 * 1024 * 1024;
     button.disabled = true;
     try {
-      const alreadyGranted = await chrome.permissions.contains({ origins: [permissionPattern] });
-      const granted = alreadyGranted || await chrome.permissions.request({ origins: [permissionPattern] });
+      const granted = await chrome.permissions.request({ origins: [permissionPattern] });
       if (!granted) {
         throw new Error("未获准访问该站点，未读取数据");
       }
