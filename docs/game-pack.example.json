@@ -12,6 +12,7 @@
   "translations": [
     {
       "marketHashName": "Example Market Item A",
+      "sourceItemId": "example-item-001",
       "locale": "zh-CN",
       "translation": "示例物品甲",
       "source": "illustrative-example"

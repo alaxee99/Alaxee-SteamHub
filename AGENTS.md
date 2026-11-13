@@ -24,9 +24,10 @@
 ## Game packs and adapters
 
 - Use a versioned alaxee-steamhub-game-pack schema for portable per-game configuration and translation data.
-- Every translation identity includes AppID, exact item key, and locale.
+- Every translation identity includes AppID, exact Steam market hash name, and locale.
+- Optional sourceItemId stores the exact ID/code from the chosen source catalog; source stores a human-readable provenance label. Neither replaces or may be guessed from market_hash_name.
 - The first adapter supports Steam Community Market market_hash_name; do not claim games with different page structures or item identifiers are supported until a dedicated adapter is implemented and tested.
-- Pack imports must validate the entire input before writing, reject duplicate exact keys, and make merge/replace behavior explicit.
+- Pack imports must validate the entire input before writing, reject duplicate exact keys, reject cross-AppID records and conflicting translation, source label, or sourceItemId mappings, and make merge/replace behavior explicit.
 - Never silently overwrite a conflicting translation during merge.
 - A game disabled or deleted by the user must not continue displaying translations from stale cache entries.
 
@@ -34,7 +35,7 @@
 
 - Provider lookups are on-demand for visible Steam Market items, rate-limited, and cached locally.
 - Do not bulk crawl TBHIndex, bypass restrictions, or assume an undocumented endpoint is a stable API.
-- Verify the provider's access method and terms before implementation.
+- Verify the provider's access method, CORS behavior, attribution, automated-access permission and redistribution terms before implementation. A public page or privacy policy alone is not an API/redistribution grant.
 - Store source, exact match key, locale, translation, and lookup timestamp with cached translations.
 - If an exact match is not available or is ambiguous, leave the original text unchanged.
 

@@ -68,6 +68,8 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.match(optionsHtml, /id="entry-market-name"/);
   assert.match(optionsHtml, /id="entry-translation"/);
   assert.match(optionsHtml, /id="pack-json"/);
+  assert.match(optionsHtml, /id="entry-source-id"/);
+  assert.match(optionsHtml, /id="entry-source"/);
   assert.match(optionsHtml, /id="pack-file"/);
   assert.match(optionsHtml, /options.js/);
 });

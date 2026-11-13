@@ -41,6 +41,12 @@
 
       const record = entry.record;
       const validatedKey = identity.createItemKey(record);
+      const validSourceItemId = record?.sourceItemId === undefined ||
+        (typeof record.sourceItemId === "string" &&
+         record.sourceItemId.length > 0 &&
+         record.sourceItemId.length <= 128 &&
+         record.sourceItemId === record.sourceItemId.trim() &&
+         !/[\u0000-\u001f\u007f]/.test(record.sourceItemId));
       const isExact = validatedKey &&
         validatedKey.appId === itemKey.appId &&
         validatedKey.marketHashName === itemKey.marketHashName &&
@@ -48,7 +54,8 @@
         typeof record.translation === "string" &&
         record.translation.trim().length > 0 &&
         typeof record.source === "string" &&
-        record.source.length > 0;
+        record.source.length > 0 &&
+        validSourceItemId;
 
       if (!isExact || entry.expiresAt <= now()) {
         await storage.delete(key);
@@ -60,6 +67,12 @@
     async function set(itemKey, locale, record) {
       const key = cacheKey(itemKey, locale);
       const validated = identity.createItemKey(record);
+      const validSourceItemId = record.sourceItemId === undefined ||
+        (typeof record.sourceItemId === "string" &&
+         record.sourceItemId.length > 0 &&
+         record.sourceItemId.length <= 128 &&
+         record.sourceItemId === record.sourceItemId.trim() &&
+         !/[\u0000-\u001f\u007f]/.test(record.sourceItemId));
       if (!validated ||
           validated.appId !== itemKey.appId ||
           validated.marketHashName !== itemKey.marketHashName ||
@@ -67,7 +80,8 @@
           typeof record.translation !== "string" ||
           !record.translation.trim() ||
           typeof record.source !== "string" ||
-          !record.source.trim()) {
+          !record.source.trim() ||
+          !validSourceItemId) {
         throw new TypeError("Refusing to cache a translation without an exact item-key and locale match.");
       }
 
@@ -77,6 +91,7 @@
         locale,
         translation: record.translation,
         source: record.source,
+        ...(record.sourceItemId ? { sourceItemId: record.sourceItemId } : {}),
         updatedAt: Number.isFinite(record.updatedAt) ? record.updatedAt : now()
       });
 
@@ -100,12 +115,19 @@
     if (!record || typeof record !== "object") return null;
 
     const candidate = identity.createItemKey(record);
+    const validSourceItemId = record.sourceItemId === undefined ||
+      (typeof record.sourceItemId === "string" &&
+       record.sourceItemId.length > 0 &&
+       record.sourceItemId.length <= 128 &&
+       record.sourceItemId === record.sourceItemId.trim() &&
+       !/[\u0000-\u001f\u007f]/.test(record.sourceItemId));
     if (!candidate ||
         candidate.appId !== itemKey.appId ||
         candidate.marketHashName !== itemKey.marketHashName ||
         record.locale !== locale ||
         typeof record.translation !== "string" ||
-        !record.translation.trim()) {
+        !record.translation.trim() ||
+        !validSourceItemId) {
       return null;
     }
 
@@ -117,6 +139,9 @@
       source: typeof record.source === "string" && record.source.trim()
         ? record.source
         : providerId,
+      ...(typeof record.sourceItemId === "string" && record.sourceItemId
+        ? { sourceItemId: record.sourceItemId }
+        : {}),
       updatedAt: Number.isFinite(record.updatedAt) ? record.updatedAt : now()
     });
   }

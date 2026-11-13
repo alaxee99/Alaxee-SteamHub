@@ -45,7 +45,7 @@ The registry and pack format are host-independent. The first adapter supports St
 - Steam's official Community Market language parameter l=schinese is applied while preserving the original path, query parameters, and fragment.
 - Listing links are parsed into an exact appid + market_hash_name pair. Market hash names are case-sensitive and are not lowercased, trimmed, or fuzzy-normalized.
 - The game registry supports independent profiles keyed by Steam AppID.
-- The options page supports manual game registration, manual translation entry, JSON pack import/export, per-game enable/disable, and per-game deletion.
+- The options page supports manual game registration, manual translation entry (including optional source-catalog item ID/code and source label), JSON pack import/export, per-game enable/disable, and per-game deletion.
 - Pack imports validate the versioned schema and reject duplicate item/locale keys. Merge import rejects conflicting translations; replace import replaces only that game's dictionary.
 - The translation engine accepts a provider record only when AppID, exact market hash name, and locale match and there is exactly one candidate.
 - Local game packs are persistent extension-local dictionaries. The 30-day translation cache remains available for future remote providers; local packs do not depend on expiring cache entries.
@@ -53,21 +53,22 @@ The registry and pack format are host-independent. The first adapter supports St
 
 ## Game pack data model
 
-A pack uses format alaxee-steamhub-game-pack, schema version 1:
+A pack uses format alaxee-steamhub-game-pack, schema version 1. The optional sourceItemId field is backward-compatible with earlier schema-v1 packs:
 
 - game.appId: Steam AppID and primary game-profile key.
 - game.name: display name.
 - game.adapter: steam-community-market in this release.
 - game.itemKey: market_hash_name in this release.
+- translations[].sourceItemId: the exact source-catalog item ID/code, stored as a cross-reference only; it is not used to match the Steam page.
 - game.defaultLocale: default translation locale.
 - game.enabled: per-game enable state.
-- translations[]: exact market hash name, locale, translation, source, and update timestamp.
+- translations[]: exact market hash name, optional sourceItemId from the game's own catalog, locale, translation, source, and update timestamp.
 
-At most 5,000 translation records are accepted per game. The same exact item key may have separate translations for different locales, but duplicate item/locale pairs are rejected.
+At most 10,000 translation records are accepted per game. The same exact item key may have separate translations for different locales, but duplicate item/locale pairs are rejected. During merge, conflicting translations or conflicting non-empty source item IDs are rejected.
 
 A provider record is usable only when AppID, exact market hash name, and locale match. Missing or ambiguous matches leave the original Steam text unchanged. See the example game pack at docs/game-pack.example.json.
 
-Task Bar Hero is AppID 3678970. TBHIndex remains a candidate provider only after its data access path and usage terms are verified. See docs/providers/tbhindex.md.
+Task Bar Hero is AppID 3678970. TBHIndex and taskbarhero.wiki are candidate providers only; neither is called by the extension until a supported access method and reuse terms are verified. See docs/providers/tbhindex.md and docs/providers/taskbarhero-wiki.md.
 
 ## Privacy and permissions
 

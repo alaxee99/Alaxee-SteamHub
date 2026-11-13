@@ -143,16 +143,21 @@
     }
 
     const marketHashName = document.getElementById("entry-market-name").value;
+    const sourceItemId = document.getElementById("entry-source-id").value;
+    const source = document.getElementById("entry-source").value.trim();
     const locale = document.getElementById("entry-locale").value;
     const translation = document.getElementById("entry-translation").value;
     try {
       const updated = await registry.upsertTranslation(appId, {
         marketHashName,
+        sourceItemId: sourceItemId || undefined,
         locale,
         translation,
-        source: "manual"
+        source: source || "manual"
       });
       document.getElementById("entry-market-name").value = "";
+      document.getElementById("entry-source-id").value = "";
+      document.getElementById("entry-source").value = "";
       document.getElementById("entry-translation").value = "";
       await refresh();
       gameSelect.value = appId;

@@ -30,3 +30,15 @@ Do not infer or reverse-engineer a private JSON endpoint from the site's front-e
 6. Leave Steam's original item text unchanged when the provider returns no exact result, multiple conflicting results, or an invalid response.
 
 Until those conditions are met, the provider registry remains empty and the UI must not imply that TBH Index translations are available.
+
+
+## Separate resource: TaskbarHerowiki.com (not taskbarhero.wiki)
+
+A separate public resource, [Task Bar Hero Wiki](https://www.taskbarherowiki.com/), advertises a 5,934-item database and says its item, hero, and stage names use the game's own localizations across ten languages. A public `/data/items.json` response was inspected for this integration work. The observed item records include fields such as numeric `key`, English `name`, `type`, `tradable`, `variant`, and item stats; the inspected payload did not expose a Chinese translation field or a Steam `market_hash_name` crosswalk.
+
+A third-party helper repository documents the enriched dataset under `https://www.taskbarherowiki.com/data/*.json` and describes it as CORS-enabled, but that is not a first-party API or license grant:
+- https://github.com/enginc4n/taskbar-hero-wiki-helper
+- https://www.taskbarherowiki.com/data/items.json
+- https://www.taskbarherowiki.com/zh
+
+**Integration decision:** do not fetch this catalog from the extension or redistribute its data in SteamHub yet. The current verified use is as a candidate source of external item IDs and catalog metadata. SteamHub now stores an optional `sourceItemId` on each exact `market_hash_name` translation record, so an independently verified mapping can connect the Steam market item to the game's internal item record. Actual Chinese translations still require a confirmed localized data export or maintainer-approved source, and the dataset's redistribution terms must be checked before bundling it.

@@ -15,7 +15,7 @@
         <h1>游戏适配中心</h1>
         <p class="subtitle">每款游戏独立配置，翻译词条按 Steam AppID 隔离。</p>
       </div>
-      <span class="version">v0.4.0</span>
+      <span class="version">v0.5.0</span>
     </header>
 
     <section class="panel">
@@ -54,11 +54,18 @@
         <label class="wide">Steam 物品原始名称 / market_hash_name
           <input id="entry-market-name" autocomplete="off" placeholder="必须与 Steam 市场物品名称完全一致" maxlength="512" required>
         </label>
+        <label class="wide">游戏数据库物品 ID / Code（选填）
+          <input id="entry-source-id" autocomplete="off" placeholder="例如游戏数据里的 500111 或 item_key" maxlength="128">
+        </label>
+        <label class="wide">数据源 / 词库名称（选填）
+          <input id="entry-source" autocomplete="off" placeholder="例如 TBH Wiki、官方游戏数据、社区词库" maxlength="128">
+        </label>
         <label class="wide">翻译名称
           <input id="entry-translation" autocomplete="off" placeholder="输入准确译名" maxlength="1000" required>
         </label>
         <button type="submit" class="primary">保存词条</button>
       </form>
+      <p class="hint">market_hash_name 用于精确匹配 Steam 页面；游戏数据库物品 ID / Code 用于记录它对应的游戏内数据项；数据源名称用于追溯词条出处。三者用途不同，不要互相替代。</p>
       <p class="hint">同一游戏、同一物品和同一语言的再次录入会更新原词条。不同游戏即使物品原名相同，也不会互相覆盖。</p>
     </section>
 

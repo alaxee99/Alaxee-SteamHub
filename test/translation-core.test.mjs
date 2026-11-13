@@ -151,6 +151,7 @@ test("translation engine accepts only one exact provider match and caches succes
         marketHashName: request.marketHashName,
         locale: request.locale,
         translation: "普通灵魂石",
+        sourceItemId: "tbh-catalog:500111",
         source: "test-provider"
       };
     }
@@ -161,11 +162,13 @@ test("translation engine accepts only one exact provider match and caches succes
   const first = await engine.resolve(item);
   assert.equal(first.status, "translated");
   assert.equal(first.record.translation, "普通灵魂石");
+  assert.equal(first.record.sourceItemId, "tbh-catalog:500111");
   assert.equal(first.source, "test-provider");
 
   const second = await engine.resolve(item);
   assert.equal(second.status, "translated");
   assert.equal(second.source, "cache");
+  assert.equal(second.record.sourceItemId, "tbh-catalog:500111");
   assert.equal(calls, 1);
 });
 
@@ -304,6 +307,8 @@ test("game registry keeps profiles and translations isolated by Steam AppID", as
 
   await registry.upsertTranslation("3678970", {
     marketHashName: "Rare Gem",
+    sourceItemId: 500111,
+    source: "taskbarhero.wiki",
     locale: "zh-CN",
     translation: "稀有宝石"
   });
@@ -313,17 +318,29 @@ test("game registry keeps profiles and translations isolated by Steam AppID", as
     translation: "稀有宝石（饰品）"
   });
 
+  await registry.upsertTranslation("3678970", {
+    marketHashName: "Rare Gem",
+    locale: "zh-CN",
+    translation: "稀有宝石·更新"
+  });
+
   const first = await registry.get("3678970");
   const second = await registry.get("730");
   assert.equal(first.translations.length, 1);
   assert.equal(second.translations.length, 1);
   assert.notEqual(first.translations[0].translation, second.translations[0].translation);
+  assert.equal(first.translations[0].sourceItemId, "500111");
+  assert.equal(first.translations[0].source, "taskbarhero.wiki");
+  assert.equal(first.translations[0].translation, "稀有宝石·更新");
+  assert.equal(second.translations[0].sourceItemId, undefined);
   assert.deepEqual((await registry.list()).map((pack) => pack.game.appId).sort(), ["3678970", "730"]);
 
   const provider = api.createGamePackProvider(registry);
   const a = await provider.lookup({ appId: "3678970", marketHashName: "Rare Gem", locale: "zh-CN" });
   const b = await provider.lookup({ appId: "730", marketHashName: "Rare Gem", locale: "zh-CN" });
-  assert.equal(a.translation, "稀有宝石");
+  assert.equal(a.translation, "稀有宝石·更新");
+  assert.equal(a.sourceItemId, "500111");
+  assert.equal(a.source, "taskbarhero.wiki");
   assert.equal(b.translation, "稀有宝石（饰品）");
 
   await registry.setEnabled("730", false);
@@ -428,6 +445,15 @@ test("game pack validation rejects duplicate item-locale keys and unsupported ad
     /does not match its game pack AppID/
   );
   await assert.rejects(
+    registry.importPack({
+      ...pack,
+      translations: [
+        { marketHashName: "Invalid ID", sourceItemId: "bad\ncode", locale: "zh-CN", translation: "无效" }
+      ]
+    }),
+    /invalid translation entry/
+  );
+  await assert.rejects(
     registry.importPack({ ...pack, game: { ...pack.game, adapter: "arbitrary-site" }, translations: [] }),
     /supports the steam-community-market/
   );
@@ -435,6 +461,40 @@ test("game pack validation rejects duplicate item-locale keys and unsupported ad
     registry.addGame({ appId: "not-an-app-id", name: "Invalid" }),
     /valid Steam AppID/
   );
+});
+
+test("game pack merge rejects conflicting external item IDs even when translation text is identical", async () => {
+  const context = await loadModules(coreFiles);
+  const api = context.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
+  const values = new Map();
+  const storage = {
+    async get(key) { return values.get(key) ?? null; },
+    async set(key, value) { values.set(key, value); },
+    async delete(key) { values.delete(key); },
+    async getAll() { return Object.fromEntries(values); }
+  };
+  const registry = api.createGameRegistry(storage);
+  const base = {
+    format: "alaxee-steamhub-game-pack",
+    schemaVersion: 1,
+    game: { appId: "3678970", name: "Task Bar Hero" },
+    translations: [
+      { marketHashName: "Rare Item", sourceItemId: "source-1", locale: "zh-CN", translation: "稀有物品" }
+    ]
+  };
+
+  await registry.importPack(base);
+  await assert.rejects(
+    registry.importPack({
+      ...base,
+      translations: [
+        { marketHashName: "Rare Item", sourceItemId: "source-2", locale: "zh-CN", translation: "稀有物品" }
+      ]
+    }, { mode: "merge" }),
+    /Conflicting translation provenance or source item ID/
+  );
+  const unchanged = await registry.get("3678970");
+  assert.equal(unchanged.translations[0].sourceItemId, "source-1");
 });
 
 test("game-pack provider connects configured local translations to the translation engine", async () => {
@@ -454,7 +514,7 @@ test("game-pack provider connects configured local translations to the translati
     schemaVersion: 1,
     game: { appId: "3678970", name: "Task Bar Hero" },
     translations: [
-      { marketHashName: "Vol Soulstone - Normal", locale: "zh-CN", translation: "普通灵魂石" }
+      { marketHashName: "Vol Soulstone - Normal", sourceItemId: 500111, locale: "zh-CN", translation: "普通灵魂石" }
     ]
   });
 
@@ -467,6 +527,7 @@ test("game-pack provider connects configured local translations to the translati
   assert.equal(result.status, "translated");
   assert.equal(result.record.translation, "普通灵魂石");
   assert.equal(result.record.source, "game-pack:3678970");
+  assert.equal(result.record.sourceItemId, "500111");
 });
 
 test("Chrome storage adapter isolates keys under the SteamHub namespace", async () => {

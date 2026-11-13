@@ -26,7 +26,7 @@ For each game:
 3. Enable or disable the game independently.
 4. Export the game's pack to back it up or share it.
 
-A pack example is available at docs/game-pack.example.json. Its translation entries are illustrative placeholders, not verified Task Bar Hero translations.
+A pack example is available at docs/game-pack.example.json. The Task Bar Hero community Wiki is a candidate source with localized market entries, but it is not connected until an allowed API/access method and reuse terms are confirmed; see docs/providers/taskbarhero-wiki.md. Its translation entries are illustrative placeholders, not verified Task Bar Hero translations. Each entry may also include `sourceItemId`, an optional exact ID from the game's own catalog; this is metadata for cross-referencing and does not replace Steam's exact `market_hash_name` match.
 
 ## Install for local testing
 

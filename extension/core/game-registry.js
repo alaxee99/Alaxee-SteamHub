@@ -7,7 +7,7 @@
   const PACK_VERSION = 1;
   const ADAPTER = "steam-community-market";
   const ITEM_KEY = "market_hash_name";
-  const MAX_TRANSLATIONS_PER_GAME = 5000;
+  const MAX_TRANSLATIONS_PER_GAME = 10000;
 
   if (globalThis[API_KEY]) return;
 
@@ -42,6 +42,17 @@
     return value;
   }
 
+  function validateSourceItemId(value) {
+    if (value === undefined || value === null || value === "") return undefined;
+    if (typeof value !== "string" && !(typeof value === "number" && Number.isSafeInteger(value))) {
+      return null;
+    }
+    const identifier = String(value);
+    if (!identifier || identifier.length > 128 || identifier !== identifier.trim() ||
+        /[\u0000-\u001f\u007f]/.test(identifier)) return null;
+    return identifier;
+  }
+
   function normalizeTranslation(input, appId, defaultSource) {
     if (!input || typeof input !== "object") return null;
     const marketHashName = validateMarketHashName(input.marketHashName);
@@ -50,7 +61,10 @@
     const source = typeof input.source === "string" && input.source.trim()
       ? input.source.trim().slice(0, 128)
       : defaultSource;
+    const sourceItemId = validateSourceItemId(input.sourceItemId);
 
+    if (input.sourceItemId !== undefined && input.sourceItemId !== null &&
+        input.sourceItemId !== "" && sourceItemId === null) return null;
     if (!marketHashName || !locale || !translation || translation.length > 1000) return null;
     if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(translation)) return null;
 
@@ -60,6 +74,7 @@
       locale,
       translation,
       source,
+      ...(sourceItemId ? { sourceItemId } : {}),
       updatedAt: Number.isFinite(input.updatedAt) ? input.updatedAt : Date.now()
     });
   }
@@ -186,12 +201,20 @@
         for (const entry of incoming.translations) {
           const key = entry.locale + "\u0000" + entry.marketHashName;
           const previous = byIdentity.get(key);
-          if (previous && previous.translation !== entry.translation) {
+          if (previous &&
+              (previous.translation !== entry.translation ||
+               (previous.sourceItemId && entry.sourceItemId &&
+                previous.sourceItemId !== entry.sourceItemId) ||
+               (previous.source && entry.source && previous.source !== entry.source))) {
             throw new Error(
-              `Conflicting translation for AppID ${incoming.game.appId}: ${entry.marketHashName} (${entry.locale}). Choose replace to overwrite the game pack.`
+              `Conflicting translation provenance or source item ID for AppID ${incoming.game.appId}: ${entry.marketHashName} (${entry.locale}). Choose replace to overwrite the game pack.`
             );
           }
-          byIdentity.set(key, entry);
+          byIdentity.set(key, {
+            ...previous,
+            ...entry,
+            sourceItemId: entry.sourceItemId || previous?.sourceItemId
+          });
         }
         translations = Array.from(byIdentity.values());
       }
@@ -216,14 +239,23 @@
       const current = await get(appId);
       if (!current) throw new Error("Register this game before adding translations.");
 
+      const hasExplicitSource = typeof input?.source === "string" && input.source.trim().length > 0;
       const entry = normalizeTranslation(input, current.game.appId, "manual");
       if (!entry) throw new TypeError("Enter an exact market hash name, locale, and translation.");
 
       const key = entry.locale + "\u0000" + entry.marketHashName;
+      const previous = current.translations.find(
+        (candidate) => candidate.locale + "\u0000" + candidate.marketHashName === key
+      );
+      const normalizedEntry = {
+        ...entry,
+        source: hasExplicitSource ? entry.source : (previous?.source || entry.source),
+        sourceItemId: entry.sourceItemId || previous?.sourceItemId
+      };
       const translations = current.translations.filter(
         (candidate) => candidate.locale + "\u0000" + candidate.marketHashName !== key
       );
-      translations.push(entry);
+      translations.push(normalizedEntry);
       if (translations.length > MAX_TRANSLATIONS_PER_GAME) {
         throw new TypeError(`A game may contain at most ${MAX_TRANSLATIONS_PER_GAME} translation entries.`);
       }
@@ -291,6 +323,7 @@
           locale,
           translation: entry.translation,
           source: entry.source,
+          ...(entry.sourceItemId ? { sourceItemId: entry.sourceItemId } : {}),
           updatedAt: entry.updatedAt
         };
       }

@@ -22,7 +22,7 @@ v0.4.0 开始支持按游戏独立配置，不再把 Task Bar Hero 写死在翻�
 4. 导出每款游戏独立的数据包，备份或分享词库。
 5. 单独启用、停用或删除游戏配置。
 
-数据包示例见 docs/game-pack.example.json。示例中的物品和译文只是格式演示，不是经过验证的 Task Bar Hero 真实词条。
+数据包示例见 docs/game-pack.example.json。Task Bar Hero 的 taskbarhero.wiki 社区 Wiki 已验证存在中文市场条目和可交叉核对的 Steam listing，但尚未取得自动访问及数据再利用许可，因此当前只登记为候选来源，不会自动抓取。详见 docs/providers/taskbarhero-wiki.md。示例中的物品和译文只是格式演示，不是经过验证的 Task Bar Hero 真实词条。每条词条还可选填 sourceItemId 和 source，用来记录来源词库的物品 ID / Code 与出处；它们只做关联信息和溯源，不替代 Steam market_hash_name 的精确匹配。
 
 ## 数据包格式
 
@@ -34,6 +34,12 @@ v0.4.0 开始支持按游戏独立配置，不再把 Task Bar Hero 写死在翻�
 - source：可选的数据来源标记。
 
 同一个物品在不同游戏中的词条互相隔离；同一游戏、同一物品、同一语言只能有一条有效译文。导入支持“合并”和“覆盖”：合并遇到不同译文冲突会拒绝，覆盖只替换对应 AppID 的词库。
+
+## Task Bar Hero 数据目录评估
+
+目前发现 Task Bar Hero 的公开粉丝 Wiki 提供约 5,934 条物品记录，并说明物品名称覆盖多种游戏语言。但目前核验到的 items.json 主要包含数值物品 key、英文 name、type、tradable、variant 等字段，没有直接提供已验证的 Steam market_hash_name 对照表，也没有在该 JSON 中发现中文译文字段。
+
+因此 SteamHub 暂不自动抓取或打包这份目录。现在可以把目录中的内部物品 ID 填入 sourceItemId，待确认合法数据使用方式和 Steam 名称映射后，再接入自动目录适配器。详见 docs/providers/tbhindex.md。
 
 ## 当前适配范围
 
