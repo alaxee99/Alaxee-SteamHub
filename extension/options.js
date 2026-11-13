@@ -3,6 +3,8 @@
 
   const storageApi = globalThis.__ALAXEE_STEAMHUB_STORAGE_ADAPTER__;
   const registryApi = globalThis.__ALAXEE_STEAMHUB_GAME_REGISTRY__;
+  const publicPackLoaderApi = globalThis.__ALAXEE_STEAMHUB_PUBLIC_PACK_LOADER__;
+  const sourceMapperApi = globalThis.__ALAXEE_STEAMHUB_SOURCE_RECORD_MAPPER__;
   const statusNode = document.getElementById("status");
   const gameList = document.getElementById("game-list");
   const gameSelect = document.getElementById("entry-game");
@@ -21,7 +23,7 @@
   let currentPage = 0;
   let editingIdentity = null;
 
-  if (!storageApi || !registryApi || typeof chrome === "undefined" || !chrome.storage?.local) {
+  if (!storageApi || !registryApi || !publicPackLoaderApi || !sourceMapperApi || typeof chrome === "undefined" || !chrome.storage?.local) {
     statusNode.textContent = "扩展存储不可用";
     return;
   }
@@ -392,7 +394,7 @@
 
     button.disabled = true;
     try {
-      const loaded = await globalThis.__ALAXEE_STEAMHUB_PUBLIC_PACK_LOADER__.fetchGamePackFromUrl(rawUrl, {
+      const loaded = await publicPackLoaderApi.fetchGamePackFromUrl(rawUrl, {
         requestPermission: (originPattern) => chrome.permissions.request({ origins: [originPattern] }),
         normalizePack: (parsed) => registryApi.normalizePack(parsed)
       });
@@ -403,6 +405,88 @@
       report(error.message || "读取远程数据包失败", true);
     } finally {
       button.disabled = false;
+    }
+  });
+
+  document.getElementById("load-source-url").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const rawUrl = document.getElementById("source-url").value.trim();
+    if (!rawUrl) {
+      report("请先粘贴 JSON / CSV 数据源 URL", true);
+      return;
+    }
+    button.disabled = true;
+    try {
+      const loaded = await publicPackLoaderApi.fetchPublicTextFromUrl(rawUrl, {
+        requestPermission: (originPattern) => chrome.permissions.request({ origins: [originPattern] })
+      });
+      document.getElementById("source-data").value = loaded.text;
+      const pathname = new URL(loaded.sourceUrl).pathname.toLowerCase();
+      if (pathname.endsWith(".csv")) {
+        document.getElementById("source-format").value = "csv";
+      } else {
+        document.getElementById("source-format").value = "json";
+      }
+      report("已读取公开来源：" + loaded.byteLength.toLocaleString() + " 字节；请配置字段并转换");
+    } catch (error) {
+      report(error.message || "读取公开来源失败", true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  document.getElementById("source-file").addEventListener("change", async (event) => {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    try {
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error("来源文件超过 5 MiB 上限");
+      }
+      document.getElementById("source-data").value = await file.text();
+      document.getElementById("source-format").value = file.name.toLowerCase().endsWith(".csv") ? "csv" : "json";
+      report("已读取来源文件：" + file.name);
+    } catch (error) {
+      report(error.message || "读取来源文件失败", true);
+    } finally {
+      event.currentTarget.value = "";
+    }
+  });
+
+  document.getElementById("convert-source").addEventListener("click", () => {
+    const summary = document.getElementById("source-conversion-summary");
+    try {
+      const raw = document.getElementById("source-data").value;
+      if (!raw.trim()) throw new Error("请先读取或粘贴来源数据");
+      const format = document.getElementById("source-format").value;
+      const records = format === "csv"
+        ? sourceMapperApi.parseCsv(raw)
+        : sourceMapperApi.parseJsonRecords(JSON.parse(raw), document.getElementById("source-record-path").value.trim());
+
+      const mapped = sourceMapperApi.buildGamePackFromRecords(records, {
+        game: {
+          appId: document.getElementById("source-app-id").value.trim(),
+          name: document.getElementById("source-game-name").value.trim(),
+          adapter: "steam-community-market",
+          itemKey: "market_hash_name"
+        },
+        locale: document.getElementById("source-locale").value,
+        fields: {
+          marketHashName: document.getElementById("source-market-field").value.trim(),
+          translation: document.getElementById("source-translation-field").value.trim(),
+          sourceItemId: document.getElementById("source-id-field").value.trim()
+        },
+        source: document.getElementById("source-label").value.trim()
+      });
+      const validated = registryApi.normalizePack(mapped.pack);
+      document.getElementById("pack-json").value = JSON.stringify(validated, null, 2);
+      const stats = mapped.stats;
+      summary.textContent = "扫描 " + stats.scanned + " 条 · 生成 " + stats.imported +
+        " 条 · 重复 " + stats.duplicateRows + " · 冲突 " + stats.conflictingKeys +
+        " · 缺键 " + stats.missingMarketKey + " · 缺译文 " + stats.missingTranslation;
+      report("已生成数据包，请检查内容并选择合并或覆盖");
+    } catch (error) {
+      summary.textContent = "";
+      report(error.message || "来源转换失败", true);
     }
   });
 
