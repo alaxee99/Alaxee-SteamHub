@@ -1049,9 +1049,9 @@ test("HTML detail parser reads explicit meta and itemprop fields", () => {
 });
 
 
-test("TaskBarHeroWiki Minor Ruby detail page ID matches the exact reference catalog entry", () => {
-  const itemIdNode = { tagName: "SPAN", textContent: "110001" };
-  const itemHeading = { tagName: "H1", textContent: "小红宝石" };
+test("TaskBarHeroWiki Minor Ruby detail page uses the current localized DOM and normalizes its item key", () => {
+  const itemIdNode = { tagName: "SPAN", textContent: "#110001" };
+  const itemHeading = { tagName: "HEADING", textContent: "小红宝石" };
   class FakeDOMParser {
     parseFromString() {
       return {
@@ -1059,25 +1059,20 @@ test("TaskBarHeroWiki Minor Ruby detail page ID matches the exact reference cata
           if (selector.startsWith("script,")) return [];
           if (selector === "dl dt" || selector === "tr" || selector.startsWith("meta[") ||
               selector === "[itemprop]" || selector.includes("data-item-key")) return [];
-          if (selector === "span.font-mono.text-xs.text-text-faint > span:nth-child(2)") {
-            return [itemIdNode];
-          }
-          if (selector === "h1.text-white.text-4xl.font-bold") return [itemHeading];
-          if (selector === "h1, h2, h3") return [itemHeading];
+          if (selector === "span.font-mono.text-xs.text-text-faint") return [itemIdNode];
+          if (selector === "heading.pixel") return [itemHeading];
+          if (selector === "h1, h2, h3") return [];
           return [];
         },
-        querySelector(selector) {
-          if (selector === "h1") return itemHeading;
-          return null;
-        }
+        querySelector() { return null; }
       };
     }
   }
   const parser = loadHtmlTableParser(FakeDOMParser);
-  const parsed = parser.parseHtmlDetailRecord("<h1>Minor Ruby</h1>", {
+  const parsed = parser.parseHtmlDetailRecord("<heading class='pixel'>小红宝石</heading>", {
     pageUrl: "https://taskbarherowiki.com/items/110001",
-    sourceIdSelector: "span.font-mono.text-xs.text-text-faint > span:nth-child(2)",
-    translationSelector: "h1.text-white.text-4xl.font-bold"
+    sourceIdSelector: "span.font-mono.text-xs.text-text-faint",
+    translationSelector: "heading.pixel"
   });
   assert.equal(parsed.sourceId, "110001");
   assert.equal(parsed.translation, "小红宝石");
