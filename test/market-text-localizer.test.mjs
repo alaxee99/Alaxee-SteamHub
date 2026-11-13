@@ -19,21 +19,31 @@ test("Task Bar Hero rarity names use the dedicated Simplified Chinese game termi
   const localizer = loadLocalizer();
   const cases = [
     ["Common", "普通"],
-    ["Uncommon", "非凡"],
+    ["Uncommon", "罕见"],
     ["Rare", "稀有"],
-    ["Legendary", "传说"],
+    ["Legendary", "传奇"],
     ["Immortal", "不朽"],
-    ["Arcana", "奥秘"],
+    ["Arcana", "至宝"],
     ["Beyond", "超凡"],
     ["Celestial", "天界"],
     ["Divine", "神圣"],
     ["Cosmic", "宇宙"]
   ];
   for (const [source, expected] of cases) assert.equal(localizer.translateGrade(source), expected);
-  assert.equal(localizer.translateGrade("Unknown"), null);
-  assert.equal(localizer.translateText("3678970", "Arcana Grade"), "奥秘品阶");
+  assert.equal(localizer.translateText("3678970", "Common Grade"), "普通品阶");
+  assert.equal(localizer.translateText("3678970", "Uncommon Grade"), "罕见品阶");
+  assert.equal(localizer.translateText("3678970", "Rare Grade"), "稀有品阶");
+  assert.equal(localizer.translateText("3678970", "Legendary Grade"), "传奇品阶");
+  assert.equal(localizer.translateText("3678970", "Immortal Grade"), "不朽品阶");
+  assert.equal(localizer.translateText("3678970", "Arcana Grade"), "至宝品阶");
   assert.equal(localizer.translateText("3678970", "Beyond Grade"), "超凡品阶");
-  assert.equal(localizer.translateText("3678970", "Legendary Grade"), "传说品阶");
+  assert.equal(localizer.translateText("3678970", "Celestial Grade"), "天界品阶");
+  assert.equal(localizer.translateText("3678970", "Divine Grade"), "神圣品阶");
+  assert.equal(localizer.translateText("3678970", "Cosmic Grade"), "宇宙品阶");
+  assert.equal(localizer.translateGrade("Unknown"), null);
+  assert.equal(localizer.translateText("3678970", "Arcana Grade"), "至宝品阶");
+  assert.equal(localizer.translateText("3678970", "Beyond Grade"), "超凡品阶");
+  assert.equal(localizer.translateText("3678970", "Legendary Grade"), "传奇品阶");
 });
 
 test("Task Bar Hero item descriptions and attributes translate while retaining numbers", () => {

@@ -7,11 +7,11 @@
 
   const EXACT_TERMS = Object.freeze({
     "Common Grade": "普通品阶",
-    "Uncommon Grade": "非凡品阶",
+    "Uncommon Grade": "罕见品阶",
     "Rare Grade": "稀有品阶",
-    "Legendary Grade": "传说品阶",
+    "Legendary Grade": "传奇品阶",
     "Immortal Grade": "不朽品阶",
-    "Arcana Grade": "奥秘品阶",
+    "Arcana Grade": "至宝品阶",
     "Beyond Grade": "超凡品阶",
     "Celestial Grade": "天界品阶",
     "Divine Grade": "神圣品阶",
@@ -51,11 +51,11 @@
 
   const GRADE_NAMES = Object.freeze({
     Common: "普通",
-    Uncommon: "非凡",
+    Uncommon: "罕见",
     Rare: "稀有",
-    Legendary: "传说",
+    Legendary: "传奇",
     Immortal: "不朽",
-    Arcana: "奥秘",
+    Arcana: "至宝",
     Beyond: "超凡",
     Celestial: "天界",
     Divine: "神圣",

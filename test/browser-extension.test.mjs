@@ -143,7 +143,7 @@ test("runtime status hides success UI and only shows actionable warnings or erro
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.8.6");
+  assert.equal(manifest.version, "0.8.7");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1344,12 +1344,12 @@ test("Steam Market content script replaces exact item names and localizes detail
 
   await context.__ALAXEE_STEAMHUB__.refresh();
 
-  assert.equal(breadcrumbTitleText.nodeValue, "深渊护符 (奥秘) C");
-  assert.equal(titleText.nodeValue, "深渊护符 (奥秘) C");
+  assert.equal(breadcrumbTitleText.nodeValue, "深渊护符 (至宝) C");
+  assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
   assert.equal(titleElement.getAttribute("title"), "原文：Abyss Amulet (Arcana) C");
   assert.equal(titleElement.getAttribute("data-alaxee-steamhub-app-id"), "3678970");
   assert.equal(itemLevelText.nodeValue, "护符 · 等级 90");
-  assert.equal(gradeText.nodeValue, "奥秘品阶");
+  assert.equal(gradeText.nodeValue, "至宝品阶");
   assert.equal(inherentText.nodeValue, "固有属性");
   assert.equal(speedText.nodeValue, "攻击速度提高 22%");
   assert.equal(skillText.nodeValue, "所有技能等级 +2");
@@ -1362,16 +1362,16 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.8.6");
+  assert.equal(diagnostics.version, "0.8.7");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);
   assert.equal(diagnostics.translatedNames, 2);
   assert.ok(diagnostics.translatedDetailNodes >= 11);
   assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Amber Ring (Immortal) A", "琥珀戒指"), "琥珀戒指 (不朽) A");
-  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Abyss Amulet (Arcana) C", "深渊护符"), "深渊护符 (奥秘) C");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Abyss Amulet (Arcana) C", "深渊护符"), "深渊护符 (至宝) C");
   assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Mystic Armor (Beyond) A", "神秘盔甲"), "神秘盔甲 (超凡) A");
-  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Arcana)", "被污染的圣物"), "被污染的圣物 (奥秘)");
+  assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Arcana)", "被污染的圣物"), "被污染的圣物 (至宝)");
   assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Contaminated Relic (Unlisted Grade)", "被污染的圣物"), "被污染的圣物 (Unlisted Grade)");
   assert.equal(context.__ALAXEE_STEAMHUB__.translateMarketName("Plain Item", "普通物品"), "普通物品");
   assert.deepEqual(Array.from(diagnostics.missingPacks), ["440"]);
