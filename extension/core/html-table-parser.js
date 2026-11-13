@@ -60,9 +60,12 @@
         continue;
       }
 
-      let headerIndex = rows.findIndex((row) =>
-        directCells(row).some((cell) => String(cell.tagName || "").toUpperCase() === "TH")
-      );
+      let headerIndex = rows.findIndex((row) => {
+        const cells = directCells(row);
+        return cells.length > 0 && cells.every((cell) =>
+          String(cell.tagName || "").toUpperCase() === "TH"
+        );
+      });
       if (headerIndex < 0) {
         const theadRows = Array.from(table.querySelectorAll("thead tr"));
         headerIndex = theadRows.length ? rows.indexOf(theadRows[0]) : -1;
