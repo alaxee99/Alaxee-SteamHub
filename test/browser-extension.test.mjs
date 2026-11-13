@@ -470,22 +470,24 @@ test("site discovery reads same-origin robots and sitemap indexes without fetchi
       if (!sourceFiles.has(url)) throw new Error("not found");
       return { text: sourceFiles.get(url) };
     },
-    maxUrls: 2
+    maxUrls: 3
   });
 
   assert.deepEqual(calls[0], ["permission", "https://wiki.example/*"]);
   assert.deepEqual(calls.slice(1).map((entry) => entry[1]), [
     "https://wiki.example/robots.txt",
     "https://wiki.example/sitemap-index.xml",
-    "https://wiki.example/sitemap-a.xml"
+    "https://wiki.example/sitemap-a.xml",
+    "https://wiki.example/sitemap-b.xml"
   ]);
   assert.deepEqual(Array.from(result.urls), [
     "https://wiki.example/zh/wiki",
-    "https://wiki.example/zh/wiki/gear"
+    "https://wiki.example/zh/wiki/gear",
+    "https://wiki.example/zh/wiki/materials"
   ]);
   assert.equal(result.blockedByRobots, 1);
   assert.equal(result.truncated, true);
-  assert.equal(result.sitemaps.length, 2);
+  assert.equal(result.sitemaps.length, 3);
   assert.equal(result.errors.length, 0);
 });
 
