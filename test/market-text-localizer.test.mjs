@@ -70,6 +70,6 @@ test("game pack exact mappings reject duplicate or unsafe entries", async () => 
   }), /duplicate exact text translation keys/);
   assert.throws(() => api.normalizePack({
     ...base,
-    textTranslations: [{ sourceText: "Unsafe\nKey", translation: "译文" }]
+    textTranslations: [{ sourceText: "Unsafe\u0001Key", translation: "译文" }]
   }), /invalid exact text translation/);
 });
