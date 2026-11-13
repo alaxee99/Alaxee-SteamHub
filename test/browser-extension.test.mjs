@@ -566,7 +566,7 @@ test("HTML table parser extracts header-mapped rows from an inert DOM without re
       assert.match(source, /<script>/i);
       return {
         title: { textContent: "Example Wiki" },
-        querySelector() { return { textContent: "Items" }; },
+        querySelector(selector) { return selector === "title" ? { textContent: "Example Wiki" } : null; },
         querySelectorAll(selector) {
           if (selector === "table") return [goodTable, noHeaderTable];
           if (selector === "h1, h2, h3") return [{ textContent: "Items" }];
