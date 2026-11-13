@@ -37,3 +37,17 @@ The page fetch is enabled only after a successful site-directory analysis. The s
 The user must manually choose the exact Steam `market_hash_name` column, translation column, locale, and optional source ID column. A generic item-name column is not treated as a Steam market key. The resulting Game Pack is staged in the JSON editor; merge/replace remains a separate explicit action.
 
 This is a bounded generic table extractor, not permission to crawl a site. It does not follow links, paginate, run JavaScript, load lazy content, submit forms, or fetch more pages. Review source terms before using extracted data; no site terms or redistribution rights are inferred. TBH Index remains excluded from automated bulk crawling.
+
+
+## Exact source-ID reverse mapping
+
+Wiki tables often expose a game-internal `ItemKey` or numeric item ID instead of Steam's `market_hash_name`. The HTML table mapper now supports two explicit modes:
+
+1. **Direct market key:** choose the column that already contains the exact Steam `market_hash_name`.
+2. **Source ID lookup:** choose an imported SteamHub game profile as the reference catalog, map the Wiki's exact ItemKey / ID column and translation column, then join the ID against that profile's `translations[].sourceItemId`.
+
+The join is exact and case-sensitive. A source ID that maps to multiple distinct market names in the reference catalog is ambiguous and excluded. Unknown IDs, missing IDs, missing translations, duplicate rows and conflicting translations are counted separately. No item-name or variant inference is performed.
+
+For Task Bar Hero, the repository includes `docs/game-pack.taskbar-hero-zh-CN.json` as a Steam reference catalog: 1,106 exact market keys, 1,070 with source IDs. The current catalog's source IDs are unique. For example, ItemKey `516111` maps to `Mystic Armor (Beyond) A`; `142001` maps to `Silver Ingot`. Import the reference Game Pack into the extension once before using this lookup mode.
+
+This only makes records from an individually selected, permitted page mappable. It does not authorize crawling all Wiki pages or bypass site terms. TBH Index remains excluded from automated bulk crawling.
