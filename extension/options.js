@@ -448,10 +448,30 @@
         throw new Error("数据包超过 5 MiB 上限");
       }
 
-      const raw = await response.text();
-      if (new TextEncoder().encode(raw).byteLength > maximumBytes) {
-        throw new Error("数据包超过 5 MiB 上限");
+      if (!response.body) {
+        throw new Error("数据源没有返回可读取的内容");
       }
+      const reader = response.body.getReader();
+      const chunks = [];
+      let totalBytes = 0;
+      while (true) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        totalBytes += chunk.value.byteLength;
+        if (totalBytes > maximumBytes) {
+          controller.abort();
+          await reader.cancel().catch(() => {});
+          throw new Error("数据包超过 5 MiB 上限");
+        }
+        chunks.push(chunk.value);
+      }
+      const bytes = new Uint8Array(totalBytes);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      const raw = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
       const parsed = JSON.parse(raw);
       if (!parsed || parsed.format !== "alaxee-steamhub-game-pack" || parsed.schemaVersion !== 1) {
         throw new Error("该 URL 返回的不是 SteamHub Game Pack v1。普通 Wiki 页面需要独立的站点解析适配器。");
