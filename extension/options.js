@@ -404,8 +404,7 @@
         (sourceUrl.port && sourceUrl.port !== "443") ||
         hostname === "localhost" || hostname.endsWith(".localhost") ||
         hostname.endsWith(".local") || privateIPv4.test(hostname) ||
-        hostname === "[::1]" || hostname.startsWith("fc") || hostname.startsWith("fd") ||
-        hostname.startsWith("fe80:")) {
+        hostname.startsWith("[") || /^\\d{1,3}(?:\\.\\d{1,3}){3}$/.test(hostname)) {
       report("仅允许公开 HTTPS 地址；不支持本机、局域网或带凭据的 URL", true);
       return;
     }
@@ -414,6 +413,7 @@
     const permissionPattern = sourceUrl.origin + "/*";
     const maximumBytes = 5 * 1024 * 1024;
     button.disabled = true;
+    let timeoutId = null;
     try {
       const granted = await chrome.permissions.request({ origins: [permissionPattern] });
       if (!granted) {
@@ -421,21 +421,16 @@
       }
 
       const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), 20000);
-      let response;
-      try {
-        response = await fetch(sourceUrl.href, {
-          method: "GET",
-          credentials: "omit",
-          cache: "no-store",
-          redirect: "error",
-          referrerPolicy: "no-referrer",
-          headers: { Accept: "application/json, text/plain;q=0.9" },
-          signal: controller.signal
-        });
-      } finally {
-        window.clearTimeout(timeoutId);
-      }
+      timeoutId = window.setTimeout(() => controller.abort(), 20000);
+      const response = await fetch(sourceUrl.href, {
+        method: "GET",
+        credentials: "omit",
+        cache: "no-store",
+        redirect: "error",
+        referrerPolicy: "no-referrer",
+        headers: { Accept: "application/json, text/plain;q=0.9" },
+        signal: controller.signal
+      });
 
       if (!response.ok) {
         throw new Error("数据源返回 HTTP " + response.status);
@@ -484,6 +479,7 @@
       const message = error.name === "AbortError" ? "读取超时（20 秒）" : error.message;
       report(message || "读取远程数据包失败", true);
     } finally {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
       button.disabled = false;
     }
   });
