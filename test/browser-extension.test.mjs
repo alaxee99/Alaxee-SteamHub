@@ -158,6 +158,14 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.match(optionsHtml, /id="html-mapping-mode"/);
   assert.match(optionsHtml, /id="html-reference-game"/);
   assert.ok(optionsHtml.includes("docs/game-pack.taskbar-hero-zh-CN.json"));
+  assert.match(optionsHtml, /id="html-card-candidates"/);
+  assert.match(optionsHtml, /id="html-card-selector"/);
+  assert.match(optionsHtml, /id="html-card-id-selector"/);
+  assert.match(optionsHtml, /id="html-card-translation-selector"/);
+  assert.match(optionsHtml, /id="extract-html-cards"/);
+  assert.match(optionsHtml, /id="convert-html-cards"/);
+  assert.match(optionsSource, /parseHtmlCards/);
+  assert.match(optionsSource, /discoverHtmlCardSelectors/);
   assert.match(optionsSource, /buildGamePackFromSourceIds/);
   assert.match(optionsSource, /updateHtmlReferenceTarget/);
   assert.match(optionsSource, /siteDiscoveryApi\.isRobotsAllowed/);
@@ -680,6 +688,136 @@ test("HTML table parser extracts header-mapped rows from an inert DOM without re
   assert.equal(result.tables[0].rowCount, 2);
   assert.equal(result.tables[0].truncatedRows, true);
   assert.equal(result.pageUrl, "https://wiki.example/items");
+});
+
+
+
+test("HTML card discovery suggests repeated item selectors without fetching more pages", () => {
+  const createNode = (tagName, options = {}) => ({
+    tagName: tagName.toUpperCase(),
+    textContent: options.text || "",
+    classList: new Set(options.classes || []),
+    attributes: options.attributes || {},
+    hasAttribute(name) { return Object.prototype.hasOwnProperty.call(this.attributes, name); },
+    getAttribute(name) { return this.attributes[name] ?? null; },
+    matches(selector) {
+      if (selector === ".item-card") return this.classList.has("item-card");
+      if (selector === "article.item-card") return this.tagName === "ARTICLE" && this.classList.has("item-card");
+      if (selector === "article") return this.tagName === "ARTICLE";
+      return false;
+    },
+    querySelector(selector) { return options.descendants?.[selector] || null; }
+  });
+  const cardOne = createNode("article", { classes: ["item-card"], text: "银锭 Silver Ingot" });
+  const cardTwo = createNode("article", { classes: ["item-card"], text: "奥术水晶 Arcane Crystal" });
+  const cardThree = createNode("article", { classes: ["item-card"], text: "神秘盔甲 Mystic Armor" });
+  const allNodes = [cardOne, cardTwo, cardThree];
+  const selectors = {
+    "*": allNodes,
+    "article": allNodes,
+    ".item-card": allNodes,
+    "article.item-card": allNodes,
+    "[data-item-key]": []
+  };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          return selectors[selector] || [];
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const candidates = api.discoverHtmlCardSelectors("<article class='item-card'>");
+  assert.ok(candidates.some((candidate) => candidate.selector === ".item-card" && candidate.count === 3));
+  assert.ok(candidates.some((candidate) => candidate.selector === "article.item-card" && candidate.count === 3));
+});
+
+test("HTML card parser extracts exact source IDs and translations with bounded skips", () => {
+  const makeField = (text, attributes = {}) => ({
+    textContent: text,
+    getAttribute(name) { return attributes[name] ?? null; }
+  });
+  const createCard = (id, translation, title) => {
+    const idNode = makeField("", { "data-item-key": id });
+    const translationNode = translation ? makeField(translation) : null;
+    const titleNode = makeField(title);
+    return {
+      tagName: "ARTICLE",
+      textContent: title + " " + (translation || ""),
+      matches(selector) { return selector === ".item-card"; },
+      querySelector(selector) {
+        if (selector === "[data-item-key]") return idNode;
+        if (selector === ".item-name") return translationNode;
+        if (selector === "h1, h2, h3, h4, [itemprop='name'], [data-item-name]") return titleNode;
+        return null;
+      }
+    };
+  };
+  const cards = [
+    createCard("516111", "神秘盔甲", "Mystic Armor"),
+    createCard("142001", "银锭", "Silver Ingot"),
+    createCard("115001", "", "Arcane Crystal")
+  ];
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === ".item-card") return cards;
+          return [];
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const result = api.parseHtmlCards("<article></article>", {
+    cardSelector: ".item-card",
+    sourceIdSelector: "[data-item-key]",
+    sourceIdAttribute: "auto",
+    translationSelector: ".item-name",
+    maxCards: 2
+  });
+  assert.equal(result.totalCards, 3);
+  assert.equal(result.scanned, 2);
+  assert.equal(result.records.length, 2);
+  assert.equal(result.records[0].sourceId, "516111");
+  assert.equal(result.records[0].translation, "神秘盔甲");
+  assert.equal(result.records[0].title, "Mystic Armor");
+  assert.equal(result.missingSourceId, 0);
+  assert.equal(result.missingTranslation, 0);
+  assert.equal(result.truncated, true);
+});
+
+test("HTML card parser fails closed on invalid selectors and empty mappings", () => {
+  const card = {
+    textContent: "card",
+    matches() { return false; },
+    querySelector(selector) {
+      if (selector === ".bad[") throw new Error("invalid selector");
+      return null;
+    },
+    getAttribute() { return null; }
+  };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === ".item-card") return [card];
+          return [];
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  assert.throws(() => api.parseHtmlCards("<div></div>", {
+    cardSelector: ".item-card",
+    translationSelector: ".item-name",
+    sourceIdSelector: ".bad["
+  }), /选择器无效/);
 });
 
 test("HTML table parser rejects oversized pages and tables with ambiguous spanning headers", () => {
