@@ -9,6 +9,6 @@
   },
   "scripts": {
     "test": "node --test",
-    "check": "node --check extension/core/item-identity.js && node --check extension/core/translation-engine.js && node --check extension/core/rate-limiter.js && node --check extension/core/game-registry.js && node --check extension/market-items.js && node --check extension/storage-adapter.js && node --check extension/market-locale.js && node --check extension/content.js && node --check extension/options.js && node --check test/browser-extension.test.mjs && node --check test/translation-core.test.mjs"
+    "check": "node --check extension/core/item-identity.js && node --check extension/core/translation-engine.js && node --check extension/core/rate-limiter.js && node --check extension/core/game-registry.js && node --check extension/core/public-pack-loader.js && node --check extension/market-items.js && node --check extension/storage-adapter.js && node --check extension/market-locale.js && node --check extension/content.js && node --check extension/options.js && node --check test/browser-extension.test.mjs && node --check test/translation-core.test.mjs"
   }
 }
