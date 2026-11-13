@@ -29,6 +29,30 @@
       "locale": "zh-CN",
       "translation": "王国50周年纪念币",
       "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Starlight Sapphire",
+      "locale": "zh-CN",
+      "translation": "星光蓝宝石",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Arcane Crystal",
+      "locale": "zh-CN",
+      "translation": "奥术水晶",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Enchanted Ruby",
+      "locale": "zh-CN",
+      "translation": "附魔红宝石",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Scroll of Arcana Inscription",
+      "locale": "zh-CN",
+      "translation": "奥术铭文卷轴",
+      "source": "tbhindex.com"
     }
   ]
 }
