@@ -34,6 +34,7 @@ function runContentScript(href) {
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
+  assert.equal(manifest.version, "0.6.0");
   assert.equal(manifest.content_scripts.length, 1);
 
   const script = manifest.content_scripts[0];
