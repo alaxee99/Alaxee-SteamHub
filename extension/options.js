@@ -29,6 +29,7 @@
   let extractedHtmlSource = "";
   let htmlCardCandidates = [];
   let extractedHtmlCardResult = null;
+  let extractedHtmlDetailResult = null;
   let discoveredSite = null;
 
   if (!storageApi || !registryApi || !publicPackLoaderApi || !sourceMapperApi || !siteDiscoveryApi || !htmlTableParserApi || typeof chrome === "undefined" || !chrome.storage?.local) {
@@ -855,6 +856,124 @@
       report(error.message || "商品卡片转换失败", true);
     }
   });
+
+
+
+  document.getElementById("extract-html-detail").addEventListener("click", () => {
+    const summary = document.getElementById("html-detail-summary");
+    const preview = document.getElementById("html-detail-preview");
+    try {
+      if (!extractedHtmlSource || !extractedHtmlPage) {
+        throw new Error("请先读取一个允许访问的 HTML 页面");
+      }
+      extractedHtmlDetailResult = htmlTableParserApi.parseHtmlDetailRecord(extractedHtmlSource, {
+        pageUrl: extractedHtmlPage.pageUrl,
+        sourceIdLabels: document.getElementById("html-detail-id-labels").value,
+        translationLabels: document.getElementById("html-detail-translation-labels").value,
+        sourceIdSelector: document.getElementById("html-detail-id-selector").value,
+        sourceIdAttribute: document.getElementById("html-detail-id-attribute").value || "auto",
+        translationSelector: document.getElementById("html-detail-translation-selector").value,
+        translationAttribute: "textContent"
+      });
+
+      preview.replaceChildren();
+      const table = document.createElement("table");
+      table.className = "html-preview-grid";
+      const body = document.createElement("tbody");
+      const fields = [
+        ["来源 ID", extractedHtmlDetailResult.sourceId || "未识别"],
+        ["译文", extractedHtmlDetailResult.translation || "未识别"],
+        ["页面标题", extractedHtmlDetailResult.title || "未识别"],
+        ["ID 字段", extractedHtmlDetailResult.sourceIdLabels.join(" / ") || "CSS 选择器 / 无"],
+        ["译文字段", extractedHtmlDetailResult.translationLabels.join(" / ") || "CSS 选择器 / 无"]
+      ];
+      for (const [label, value] of fields) {
+        const row = document.createElement("tr");
+        const heading = document.createElement("th");
+        heading.textContent = label;
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.append(heading, cell);
+        body.append(row);
+      }
+      table.append(body);
+      preview.append(table);
+
+      const result = extractedHtmlDetailResult;
+      summary.textContent = (result.records.length ? "唯一记录已识别" : "未形成唯一记录") +
+        " · " + (result.missingSourceId ? "缺少来源 ID" : "") +
+        (result.missingTranslation ? " · 缺少译文" : "") +
+        (result.ambiguousSourceId ? " · 来源 ID 歧义：" + result.sourceIdCandidates.join(" / ") : "") +
+        (result.ambiguousTranslation ? " · 译文歧义：" + result.translationCandidates.join(" / ") : "");
+      document.getElementById("convert-html-detail").disabled = result.records.length !== 1;
+      report(result.records.length
+        ? "详情页字段已提取；请检查唯一 ID 和译文"
+        : "详情页字段缺失或存在歧义，调整标签 / CSS 选择器后重试",
+        result.records.length !== 1);
+    } catch (error) {
+      extractedHtmlDetailResult = null;
+      summary.textContent = "";
+      preview.replaceChildren();
+      document.getElementById("convert-html-detail").disabled = true;
+      report(error.message || "详情页字段提取失败", true);
+    }
+  });
+
+  document.getElementById("convert-html-detail").addEventListener("click", () => {
+    const summary = document.getElementById("html-detail-conversion-summary");
+    try {
+      if (extractedHtmlDetailResult?.records.length !== 1) {
+        throw new Error("请先提取一条 ID 和译文均唯一的详情页记录");
+      }
+      const sourceIdMode = document.getElementById("html-mapping-mode").value === "source-id";
+      const locale = document.getElementById("html-locale").value;
+      const source = document.getElementById("html-source-label").value.trim() || "wiki-html-detail";
+      let mapped;
+      if (sourceIdMode) {
+        const referencePack = cachedPacks.find((candidate) =>
+          candidate.game.appId === document.getElementById("html-reference-game").value
+        );
+        if (!referencePack) throw new Error("请先导入并选择带来源 ID 的 Steam 参考词库");
+        mapped = sourceMapperApi.buildGamePackFromSourceIds(extractedHtmlDetailResult.records, {
+          referencePack,
+          locale,
+          fields: { sourceItemId: "sourceId", translation: "translation" },
+          source
+        });
+      } else {
+        mapped = sourceMapperApi.buildGamePackFromRecords(
+          extractedHtmlDetailResult.records.map((record) => ({
+            marketHashName: record.sourceId,
+            translation: record.translation
+          })),
+          {
+            game: {
+              appId: document.getElementById("html-app-id").value.trim(),
+              name: document.getElementById("html-game-name").value.trim(),
+              adapter: "steam-community-market",
+              itemKey: "market_hash_name"
+            },
+            locale,
+            fields: { marketHashName: "marketHashName", translation: "translation" },
+            source
+          }
+        );
+      }
+
+      const validated = registryApi.normalizePack(mapped.pack);
+      document.getElementById("pack-json").value = JSON.stringify(validated, null, 2);
+      const stats = mapped.stats;
+      summary.textContent = "详情记录 1 条 · 可映射 " + stats.imported +
+        " 条 · 未匹配 ID " + (stats.unmatchedSourceId || 0) +
+        " · 歧义 ID " + (stats.ambiguousSourceId || 0) +
+        " · 冲突 " + stats.conflictingKeys;
+      report("详情页记录已转换；请检查生成 JSON 并选择合并或覆盖");
+    } catch (error) {
+      summary.textContent = "";
+      report(error.message || "详情页记录转换失败", true);
+    }
+  });
+
 
   document.getElementById("convert-html-table").addEventListener("click", () => {
     const summary = document.getElementById("html-conversion-summary");
