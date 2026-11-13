@@ -36,6 +36,13 @@ Task Bar Hero 当前数据包直链：
 
 `https://raw.githubusercontent.com/alaxee99/Alaxee-SteamHub/feat/browser-extension-first/docs/game-pack.taskbar-hero-zh-CN.json`
 
+## 直接从公开 JSON / CSV 来源生成词库
+
+批量导入区新增“从公开 JSON / CSV 目录转换词库”：可以粘贴公开 HTTPS 数据文件链接，或选择本地 JSON / CSV 文件；配置 Steam 市场键字段、中文字段、可选物品 ID、目标 AppID 和语言后，直接转换成 SteamHub 数据包。JSON 支持顶层数组和嵌套记录路径（例如 data.items），CSV 支持标准引号、逗号和多行字段。
+
+转换严格要求来源已经提供精确的 market_hash_name。相同键、相同译文的重复行会合并；同一键存在不同译文或来源 ID 时整组排除并计入冲突；不会通过模糊匹配生成市场名称。远程读取不发送 Cookie / Referer，拒绝跨站跳转，限制 5 MiB 和 20 秒。生成后先预览，再选择合并或覆盖。
+
+这一步可以直接接入结构化游戏目录；普通 Wiki 首页或文章 HTML 仍需要独立站点解析适配器，不能把网页文本直接当成市场词库。操作和字段映射说明见 docs/importing/structured-json-csv.md。
 ## 数据包格式
 
 数据包使用 alaxee-steamhub-game-pack 格式，当前 schemaVersion 为 1。每个词条包含：
