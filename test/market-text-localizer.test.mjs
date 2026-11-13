@@ -131,3 +131,21 @@ test("Task Bar Hero equipment type descriptors translate known types only", () =
   assert.equal(localizer.translateText("3678970", "Scepter - Lv. 80"), "权杖 · 等级 80");
   assert.equal(localizer.translateText("3678970", "Unknown Relic - Lv. 90"), null);
 });
+
+ 
+test("Task Bar Hero item detail section labels and More modifiers translate", () => {
+  const localizer = loadLocalizer();
+  const cases = [
+    ["Base Stats", "基础属性"],
+    ["Inherent Stats", "固有属性"],
+    ["Unique Stats", "独特属性"],
+    ["Slots", "槽位"],
+    ["Requirements", "需求条件"],
+    ["39% More Attack Speed", "攻击速度额外提高 39%"],
+    ["Axe - Lv. 80", "斧 · 等级 80"],
+    ["Requires Lv.80", "需求等级：80"]
+  ];
+  for (const [original, expected] of cases) {
+    assert.equal(localizer.translateText("3678970", original), expected, original);
+  }
+});

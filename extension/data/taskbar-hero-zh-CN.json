@@ -1566,6 +1566,12 @@
       "source": "task-bar-trade-center"
     },
     {
+      "marketHashName": "Dimensional Axe (Cosmic) C",
+      "locale": "zh-CN",
+      "translation": "次元斧",
+      "source": "tbherohelper.com"
+    },
+    {
       "marketHashName": "Dimensional Axe (Divine) A",
       "sourceItemId": "358171",
       "locale": "zh-CN",
@@ -7757,6 +7763,22 @@
     {
       "sourceText": "Requires Lv.90",
       "translation": "需求等级：90"
+    },
+    {
+      "sourceText": "Base Stats",
+      "translation": "基础属性"
+    },
+    {
+      "sourceText": "Unique Stats",
+      "translation": "独特属性"
+    },
+    {
+      "sourceText": "Slots",
+      "translation": "槽位"
+    },
+    {
+      "sourceText": "Killing a bleeding enemy with Axe Spin increases Axe Spin's duration by 1 second",
+      "translation": "使用旋转斧击杀流血中的敌人后，旋转斧的持续时间延长 1 秒。"
     }
   ]
 }

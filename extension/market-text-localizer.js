@@ -17,6 +17,10 @@
     "Divine Grade": "神圣品阶",
     "Cosmic Grade": "宇宙品阶",
     "Inherent Stats": "固有属性",
+    "Base Stats": "基础属性",
+    "Unique Stats": "独特属性",
+    "Slots": "槽位",
+    "Requirements": "需求条件",
     "Attack Speed": "攻击速度",
     "Attack Damage": "攻击伤害",
     "Critical Chance": "暴击几率",
@@ -226,6 +230,9 @@
 
     match = text.match(/^(Amulet|Bracer|Earring|Ring|Helmet|Body|Gloves|Boots|Armor|Accessory|Sword|Shield|Bow|Staff|Orb|Scepter|Tome|Crossbow|Axe|Hatchet|Bolt|Arrow|Weapon|Off-hand)\s*-\s*Lv\.?\s*(\d+)$/);
     if (match) return ITEM_TYPES[match[1]] + " · 等级 " + match[2];
+
+    match = text.match(/^(\d+(?:\.\d+)?)% More (.+)$/);
+    if (match && STAT_NAMES[match[2]]) return STAT_NAMES[match[2]] + "额外提高 " + match[1] + "%";
 
     match = text.match(/^(\d+(?:\.\d+)?)% Increased (.+)$/);
     if (match && STAT_NAMES[match[2]]) return STAT_NAMES[match[2]] + "提高 " + match[1] + "%";

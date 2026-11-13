@@ -5,7 +5,7 @@
   function publishRuntimeStatus(tone, title, details) {
     runtimeStatus?.update({ tone, title, details });
   }
-  publishRuntimeStatus("info", "SteamHub 已注入，正在检查市场内容", ["版本：0.9.4", "页面：" + window.location.href]);
+  publishRuntimeStatus("info", "SteamHub 已注入，正在检查市场内容", ["版本：0.9.5", "页面：" + window.location.href]);
 
   const marketLocale = globalThis.__ALAXEE_STEAMHUB_MARKET_LOCALE__;
   if (!marketLocale || !window.location) {
@@ -62,7 +62,7 @@
   const localizedTextNodes = new Map();
   let scanScheduled = false;
   const diagnostics = {
-    version: "0.9.4",
+    version: "0.9.5",
     initializedAt: new Date().toISOString(),
     scanCount: 0,
     lastScanAt: null,
@@ -189,7 +189,7 @@
     }
 
     const details = [
-      "版本：0.9.4",
+      "版本：0.9.5",
       "当前页面 AppID：" + (primaryAppId || "未识别"),
       "页面发现商品链接：" + diagnostics.detectedItems,
       "视口范围内商品：" + diagnostics.visibleItems,
@@ -470,7 +470,7 @@
   }
 
   const api = Object.freeze({
-    version: "0.9.4",
+    version: "0.9.5",
     getDiagnostics() {
       return Object.freeze({
         ...diagnostics,
