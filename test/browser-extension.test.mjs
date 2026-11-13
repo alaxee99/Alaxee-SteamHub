@@ -388,7 +388,7 @@ test("Steam Market search overview localizes titles inside the current clickable
 
   assert.equal(titleText.nodeValue, "深渊护符 (至宝) C");
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.5");
+  assert.equal(diagnostics.version, "0.9.6");
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.detectedItems, 1);
   assert.equal(diagnostics.visibleItems, 0);
@@ -435,7 +435,7 @@ test("runtime status keeps a compact badge visible for startup, warnings, and su
   const status = context.__ALAXEE_STEAMHUB_RUNTIME_STATUS__;
 
   assert.equal(mountedHosts.length, 0);
-  status.update({ tone: "info", title: "SteamHub 已注入", details: ["版本：0.9.5"] });
+  status.update({ tone: "info", title: "SteamHub 已注入", details: ["版本：0.9.6"] });
   assert.equal(mountedHosts.length, 1);
   assert.equal(mountedHosts[0].isConnected, true);
 
@@ -452,7 +452,7 @@ test("runtime status keeps a compact badge visible for startup, warnings, and su
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.9.5");
+  assert.equal(manifest.version, "0.9.6");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1671,7 +1671,7 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
 
   const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
-  assert.equal(diagnostics.version, "0.9.5");
+  assert.equal(diagnostics.version, "0.9.6");
   assert.equal(diagnostics.detectedItems, 2);
   assert.equal(diagnostics.primaryAppId, "3678970");
   assert.equal(diagnostics.matchedItems, 1);
@@ -1716,7 +1716,7 @@ test("bundled Task Bar Hero pack includes the exact Cosmic C listing and detail 
     entry.marketHashName === "Dimensional Axe (Cosmic) C" && entry.locale === "zh-CN"
   );
   assert.equal(axe?.translation, "次元斧");
-  assert.equal(axe?.source, "tbherohelper.com");
+  assert.equal(axe?.source, "task-bar-trade-center; steamcommunity.com");
   assert.equal(axe?.sourceItemId, undefined);
 
   const details = new Map((pack.textTranslations || []).map((entry) => [
@@ -1728,5 +1728,27 @@ test("bundled Task Bar Hero pack includes the exact Cosmic C listing and detail 
   assert.equal(
     details.get("Killing a bleeding enemy with Axe Spin increases Axe Spin's duration by 1 second"),
     "使用旋转斧击杀流血中的敌人后，旋转斧的持续时间延长 1 秒。"
+  );
+});
+
+ 
+test("bundled Task Bar Hero pack includes all Steam-verified level-80 C variants", async () => {
+  const pack = JSON.parse(await readFile(path.join(extensionRoot, "data", "taskbar-hero-zh-CN.json"), "utf8"));
+  const expected = [["Dimensional Armor (Beyond) C","次元铠甲"],["Dimensional Armor (Celestial) C","次元铠甲"],["Ethereal Ring (Arcana) C","以太戒指"],["Dimensional Axe (Cosmic) C","次元斧"],["Dimensional Scepter (Arcana) C","次元权杖"],["Dimensional Crossbow (Beyond) C","次元弩"],["Dimensional Crossbow (Divine) C","次元弩"],["Dimensional Bolt (Divine) C","次元弩箭"],["Dimensional Hatchet (Beyond) C","次元手斧"],["Dimensional Armor (Divine) C","次元铠甲"],["Dimensional Armor (Cosmic) C","次元铠甲"],["Dimensional Gloves (Arcana) C","次元手套"],["Ethereal Bracer (Beyond) C","以太腕甲"]];
+  for (const [marketHashName, translation] of expected) {
+    const entry = pack.translations.find((item) =>
+      item.marketHashName === marketHashName && item.locale === "zh-CN"
+    );
+    assert.equal(entry?.translation, translation, marketHashName);
+  }
+  for (const [marketHashName, translation] of [["Dimensional Axe (Cosmic) C","次元斧"],["Dimensional Scepter (Arcana) C","次元权杖"],["Dimensional Crossbow (Beyond) C","次元弩"],["Dimensional Crossbow (Divine) C","次元弩"],["Dimensional Bolt (Divine) C","次元弩箭"],["Dimensional Hatchet (Beyond) C","次元手斧"],["Dimensional Armor (Divine) C","次元铠甲"],["Dimensional Armor (Cosmic) C","次元铠甲"],["Dimensional Gloves (Arcana) C","次元手套"],["Ethereal Bracer (Beyond) C","以太腕甲"]]) {
+    const entry = pack.translations.find((item) => item.marketHashName === marketHashName);
+    assert.equal(entry?.source, "task-bar-trade-center; steamcommunity.com", marketHashName);
+    assert.equal(entry?.sourceItemId, undefined, marketHashName);
+  }
+  assert.equal(
+    pack.translations.some((item) => item.marketHashName === "Ethereal Bracer (Cosmic) C"),
+    false,
+    "do not invent a C listing that was not found on Steam"
   );
 });

@@ -1,6 +1,6 @@
 # Task Bar Trade Center: bulk Task Bar Hero item/localization catalog
 
-Checked: 2026-11-13
+Checked: 2026-11-14
 
 ## Source
 
@@ -18,7 +18,7 @@ At the checked snapshot:
 - Total item records: 7,031
 - Records marked `marketable: true`: 1,127
 - Marketable rows without an English or Simplified Chinese name: 10
-- The bundled pack had 1,106 game-derived unique Steam keys before the manually verified C-variant addition; v0.9.5 now contains 1,107 exact market-name entries.
+- The bundled pack had 1,106 game-derived unique Steam keys before the manually verified C-variant addition; v0.9.6 now contains 1,116 exact market-name entries.
 - The upstream source item ID is optional provenance; it is never a substitute for Steam's exact `market_hash_name` matching key.
 
 ## Steam market identity: important source update
@@ -30,7 +30,7 @@ The upstream Task Bar Trade Center changelog for v0.14.3 (2026-10-28) records a 
 - https://github.com/nidea1/task-bar-trade-center/blob/main/CHANGELOG.md#0143---2026-10-28
 - https://github.com/nidea1/task-bar-trade-center/blob/main/internal/catalog/market_identity.go
 
-A batch comparison of the public item catalog found **14 pairs** of marketable equipment records with the same English name, grade, gear type and level 80, but distinct ItemKeys ending in `171` and `173`. The level-only generator cannot distinguish those pairs. Three C variants were previously documented (`Dimensional Armor (Beyond) C`, `Dimensional Armor (Celestial) C`, and `Ethereal Ring (Arcana) C`); v0.9.5 adds the live-verified `Dimensional Axe (Cosmic) C`. The other ten `...173` candidates remain in the review queue until their exact Steam market names are checked; do not bulk-convert them by suffix inference.
+A batch comparison of the public item catalog found **14 pairs** of marketable equipment records with the same English name, grade, gear type and level 80, but distinct ItemKeys ending in `171` and `173`. The level-only generator cannot distinguish those pairs. Steam search verified C listings for 13 of the 14 duplicate groups. Three C variants were already documented (`Dimensional Armor (Beyond) C`, `Dimensional Armor (Celestial) C`, and `Ethereal Ring (Arcana) C`); v0.9.5 added `Dimensional Axe (Cosmic) C`; v0.9.6 adds the remaining nine confirmed names. `Ethereal Bracer (Cosmic) C` was not found; its A listing exists, so no C key is invented. The nine new exact names were verified in one AppID-scoped Steam search batch on 2026-11-14.
 
 ## Steam commodity inventory
 
@@ -38,11 +38,11 @@ Steam Bulk Sell's public commodity JSON (`https://steambulksell.com/data/commodi
 
 ## Exact market-name overrides
 
-The override ledger is `docs/market-catalogs/taskbar-hero-market-name-overrides.csv`. It records five Steam-facing exceptions: three verified level-80 C variants, the newly observed Dimensional Axe C name, and the Plague Fruit listing whose canonical market key omits the grade shown in the detail-page title. For the Dimensional Axe C row, the Steam name is verified but the matching upstream source ItemKey is intentionally left unset until it is independently confirmed.
+The override ledger is `docs/market-catalogs/taskbar-hero-market-name-overrides.csv`. It records fourteen Steam-facing exceptions: thirteen verified level-80 C-variant listings and the Plague Fruit listing whose canonical market key omits the grade shown in the detail-page title. The nine v0.9.6 additions include exact Steam listing URLs; their source ItemKeys are intentionally unset until independently verified.
 
 ## Generated import pack
 
-The import-ready pack is `docs/game-pack.taskbar-hero-zh-CN.json`. It now contains 1,107 exact `market_hash_name` keys and 14 detail-text mappings. The 1,106 base game-derived market names use the game's `zh-Hans` labels; one additional C-variant key was added after checking the live Steam Market title.
+The import-ready pack is `docs/game-pack.taskbar-hero-zh-CN.json`. It now contains 1,116 exact `market_hash_name` keys and 14 detail-text mappings. The 1,106-key baseline plus ten subsequently verified C-variant names (one in v0.9.5 and nine in v0.9.6) use the corresponding game's `zh-Hans` base labels.
 
 This is a verified dictionary subset, not a claim that every marketable item has a unique Steam listing key or that every listing currently has sell orders. Steam's commodity file covers commodities only. Unique gear needs exact Steam definition/market-name verification; never fuzzy-map or infer A/C from a level or numeric suffix alone.
 

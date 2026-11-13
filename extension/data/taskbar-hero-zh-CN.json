@@ -1470,10 +1470,22 @@
       "source": "task-bar-trade-center"
     },
     {
+      "marketHashName": "Dimensional Armor (Cosmic) C",
+      "locale": "zh-CN",
+      "translation": "次元铠甲",
+      "source": "task-bar-trade-center; steamcommunity.com"
+    },
+    {
       "marketHashName": "Dimensional Armor (Divine) A",
       "locale": "zh-CN",
       "translation": "次元铠甲",
       "source": "task-bar-trade-center"
+    },
+    {
+      "marketHashName": "Dimensional Armor (Divine) C",
+      "locale": "zh-CN",
+      "translation": "次元铠甲",
+      "source": "task-bar-trade-center; steamcommunity.com"
     },
     {
       "marketHashName": "Dimensional Armor (Immortal) A",
@@ -1569,7 +1581,7 @@
       "marketHashName": "Dimensional Axe (Cosmic) C",
       "locale": "zh-CN",
       "translation": "次元斧",
-      "source": "tbherohelper.com"
+      "source": "task-bar-trade-center; steamcommunity.com"
     },
     {
       "marketHashName": "Dimensional Axe (Divine) A",
@@ -1625,6 +1637,12 @@
       "locale": "zh-CN",
       "translation": "次元弩箭",
       "source": "task-bar-trade-center"
+    },
+    {
+      "marketHashName": "Dimensional Bolt (Divine) C",
+      "locale": "zh-CN",
+      "translation": "次元弩箭",
+      "source": "task-bar-trade-center; steamcommunity.com"
     },
     {
       "marketHashName": "Dimensional Bolt (Immortal) A",
@@ -1703,6 +1721,12 @@
       "source": "task-bar-trade-center"
     },
     {
+      "marketHashName": "Dimensional Crossbow (Beyond) C",
+      "locale": "zh-CN",
+      "translation": "次元弩",
+      "source": "task-bar-trade-center; steamcommunity.com"
+    },
+    {
       "marketHashName": "Dimensional Crossbow (Celestial) A",
       "sourceItemId": "347171",
       "locale": "zh-CN",
@@ -1723,6 +1747,12 @@
       "source": "task-bar-trade-center"
     },
     {
+      "marketHashName": "Dimensional Crossbow (Divine) C",
+      "locale": "zh-CN",
+      "translation": "次元弩",
+      "source": "task-bar-trade-center; steamcommunity.com"
+    },
+    {
       "marketHashName": "Dimensional Crossbow (Immortal) A",
       "sourceItemId": "344171",
       "locale": "zh-CN",
@@ -1741,6 +1771,12 @@
       "locale": "zh-CN",
       "translation": "次元手套",
       "source": "task-bar-trade-center"
+    },
+    {
+      "marketHashName": "Dimensional Gloves (Arcana) C",
+      "locale": "zh-CN",
+      "translation": "次元手套",
+      "source": "task-bar-trade-center; steamcommunity.com"
     },
     {
       "marketHashName": "Dimensional Gloves (Beyond) A",
@@ -1795,6 +1831,12 @@
       "locale": "zh-CN",
       "translation": "次元手斧",
       "source": "task-bar-trade-center"
+    },
+    {
+      "marketHashName": "Dimensional Hatchet (Beyond) C",
+      "locale": "zh-CN",
+      "translation": "次元手斧",
+      "source": "task-bar-trade-center; steamcommunity.com"
     },
     {
       "marketHashName": "Dimensional Hatchet (Celestial) A",
@@ -1934,6 +1976,12 @@
       "locale": "zh-CN",
       "translation": "次元权杖",
       "source": "task-bar-trade-center"
+    },
+    {
+      "marketHashName": "Dimensional Scepter (Arcana) C",
+      "locale": "zh-CN",
+      "translation": "次元权杖",
+      "source": "task-bar-trade-center; steamcommunity.com"
     },
     {
       "marketHashName": "Dimensional Scepter (Beyond) A",
@@ -3490,6 +3538,12 @@
       "locale": "zh-CN",
       "translation": "以太腕甲",
       "source": "task-bar-trade-center"
+    },
+    {
+      "marketHashName": "Ethereal Bracer (Beyond) C",
+      "locale": "zh-CN",
+      "translation": "以太腕甲",
+      "source": "task-bar-trade-center; steamcommunity.com"
     },
     {
       "marketHashName": "Ethereal Bracer (Celestial) A",
