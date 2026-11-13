@@ -107,6 +107,42 @@
       "locale": "zh-CN",
       "translation": "无限弩",
       "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Emerald Bracer (Divine) A",
+      "locale": "zh-CN",
+      "translation": "祖母绿护腕",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Fate Axe (Beyond) A",
+      "locale": "zh-CN",
+      "translation": "命运之斧",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Empire Gloves (Legendary) A",
+      "locale": "zh-CN",
+      "translation": "帝国手套",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Iron Bolt (Beyond) A",
+      "locale": "zh-CN",
+      "translation": "铁制弩箭",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Orichalcum Ore",
+      "locale": "zh-CN",
+      "translation": "山铜矿石",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Lapis Lazuli",
+      "locale": "zh-CN",
+      "translation": "青金石",
+      "source": "tbhindex.com"
     }
   ]
 }
