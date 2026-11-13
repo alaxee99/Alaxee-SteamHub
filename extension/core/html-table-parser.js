@@ -6,7 +6,7 @@
   const DEFAULT_MAX_ROWS_PER_TABLE = 500;
 
   function textOf(node) {
-    return String(node?.textContent || "").replace(/\\s+/g, " ").trim();
+    return String(node?.textContent || "").replace(/[\\r\\n\\t]+/g, " ").trim();
   }
 
   function directCells(row) {
