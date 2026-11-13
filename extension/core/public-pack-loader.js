@@ -125,7 +125,7 @@
       };
     } catch (error) {
       if (error?.name === "AbortError") {
-        throw new Error("读取超时（20 秒）");
+        throw new Error("读取超时（" + Math.round(timeoutMs / 1000) + " 秒）");
       }
       throw error;
     } finally {
