@@ -503,6 +503,10 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.deepEqual(manifest.optional_host_permissions, ["https://*/*"]);
   assert.equal(manifest.options_page, "options.html");
   assert.equal(manifest.host_permissions, undefined);
+  assert.deepEqual(manifest.web_accessible_resources, [{
+    resources: ["data/taskbar-hero-zh-CN.json"],
+    matches: ["https://steamcommunity.com/*", "https://www.steamcommunity.com/*"]
+  }]);
   assert.equal(manifest.background, undefined);
 
   const optionsHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");

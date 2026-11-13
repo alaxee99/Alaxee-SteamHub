@@ -35,5 +35,16 @@
   ],
   "optional_host_permissions": [
     "https://*/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "data/taskbar-hero-zh-CN.json"
+      ],
+      "matches": [
+        "https://steamcommunity.com/*",
+        "https://www.steamcommunity.com/*"
+      ]
+    }
   ]
 }
