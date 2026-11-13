@@ -29,10 +29,24 @@
 
   function parseCsv(text) {
     if (typeof text !== "string") throw new TypeError("CSV 内容必须是文本");
+    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
     const rows = [];
     let row = [];
     let field = "";
     let quoted = false;
+    let closedQuote = false;
+
+    const finishField = () => {
+      row.push(field);
+      field = "";
+      closedQuote = false;
+    };
+    const finishRow = () => {
+      finishField();
+      if (row.some((cell) => cell !== "")) rows.push(row);
+      row = [];
+    };
 
     for (let index = 0; index < text.length; index += 1) {
       const character = text[index];
@@ -43,6 +57,7 @@
             index += 1;
           } else {
             quoted = false;
+            closedQuote = true;
           }
         } else {
           field += character;
@@ -50,24 +65,31 @@
         continue;
       }
 
-      if (character === '"' && field.length === 0) {
+      if (closedQuote) {
+        if (character === ",") {
+          finishField();
+        } else if (character === "\n" || character === "\r") {
+          if (character === "\r" && text[index + 1] === "\n") index += 1;
+          finishRow();
+        } else {
+          throw new TypeError("CSV 引号结束后存在多余字符");
+        }
+      } else if (character === '"' && field.length === 0) {
         quoted = true;
+      } else if (character === '"') {
+        throw new TypeError("CSV 未加引号的字段中包含引号");
       } else if (character === ",") {
-        row.push(field);
-        field = "";
+        finishField();
       } else if (character === "\n" || character === "\r") {
         if (character === "\r" && text[index + 1] === "\n") index += 1;
-        row.push(field);
-        field = "";
-        if (row.some((cell) => cell !== "")) rows.push(row);
-        row = [];
+        finishRow();
       } else {
         field += character;
       }
     }
+
     if (quoted) throw new TypeError("CSV 包含未闭合的引号");
-    row.push(field);
-    if (row.some((cell) => cell !== "")) rows.push(row);
+    finishRow();
     if (rows.length < 2) throw new TypeError("CSV 至少需要一行表头和一行数据");
 
     const headers = rows[0].map((header) => header.trim());
@@ -75,9 +97,12 @@
     if (new Set(headers).size !== headers.length) throw new TypeError("CSV 表头不能重复");
 
     return rows.slice(1).map((cells, index) => {
+      if (cells.length !== headers.length) {
+        throw new TypeError("CSV 第 " + (index + 2) + " 行的列数与表头不一致");
+      }
       const record = Object.create(null);
       for (let column = 0; column < headers.length; column += 1) {
-        record[headers[column]] = cells[column] ?? "";
+        record[headers[column]] = cells[column];
       }
       return record;
     });
