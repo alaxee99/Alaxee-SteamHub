@@ -20,29 +20,28 @@ The previous standalone CDP proof of concept remains on its separate development
 
 ```text
 ALAXEE Translation Core
-  ├─ Game/AppID registry
-  ├─ Exact item-key resolver (appid + market_hash_name)
-  ├─ Provider adapters (verified sources only)
-  ├─ Local cache + throttling
-  ├─ DOM translation rules + MutationObserver scheduler
-  └─ Translation UI / user controls
+  ├─ Market item identity (appid + exact market_hash_name)
+  ├─ AppID/game registry
+  ├─ Exact-match translation resolver
+  ├─ Verified provider adapters
+  ├─ Namespaced extension-local cache + expiry
+  ├─ Per-provider serialized rate limiter
+  └─ DOM translation rules + UI
        ├─ Edge / Chrome Manifest V3 adapter  (first)
        └─ Steam CEF/CDP adapter              (optional later)
 ```
 
-The core must not import `chrome.*`, `browser.*`, Steam CEF/CDP classes, or Millennium globals. Host adapters supply page identity, DOM access, navigation lifecycle, local storage, and UI mounting.
+The identity and translation modules do not import `chrome.*`, `browser.*`, Steam CEF/CDP classes, or Millennium. Host adapters supply page identity, DOM access, storage, and UI mounting.
 
-## First browser-extension slice
+## Current implementation
 
-- Manifest V3 with static content scripts.
-- Inject only on HTTPS Steam Community Market routes.
-- Run in the browser's isolated content-script world.
-- Use Steam's official Community Market language parameter `l=schinese`.
-- Preserve existing market paths, query parameters, and fragments.
-- Request no extension API permissions and no broad host permissions; static content-script match patterns define the supported pages.
-- Do not read cookies, authentication state, account information, private inventory, or saves.
-
-This first slice localizes Steam's own Community Market interface. It does **not** translate item names that Steam does not localize.
+- Manifest V3 static content scripts run only on HTTPS Steam Community Market routes.
+- Steam's official Community Market language parameter `l=schinese` is applied while preserving the original path, query parameters, and fragment.
+- Listing links are parsed into an exact `appid + market_hash_name` pair. Market hash names are case-sensitive and are not lowercased, trimmed, or fuzzy-normalized.
+- The translation engine accepts a provider record only when AppID, exact market hash name, and locale match and there is exactly one candidate.
+- Successful exact translations can be stored in a namespaced extension-local cache with a default 30-day TTL.
+- Provider lookups can be serialized through a configurable minimum-interval limiter.
+- The provider registry is currently empty. No item-name translation is claimed to be available yet.
 
 ## Translation data model
 
@@ -51,16 +50,22 @@ A market item is resolved using the exact identity pair:
 - `appid`: Steam application identifier.
 - `market_hash_name`: Steam's exact market item key.
 
-A provider result is usable only when the source and key establish an unambiguous exact match. Cache records should include provider/source, AppID, market hash name, locale, translation, and lookup timestamp. Missing or ambiguous matches must not replace the original text.
+A provider record contains the same identity pair, locale, translation, and source. Cache metadata adds a retrieval timestamp and expiry. A result with a different key, different locale, empty translation, or multiple exact candidates is rejected. Original Steam text remains unchanged unless a unique exact translation is available.
 
-Taskbar Hero is AppID `3678970`. TBHIndex is a candidate provider for this game only after its data access path and usage terms are verified. The extension must query only items visible to the user, with rate limiting and local caching; no bulk crawl is allowed.
+Task Bar Hero is AppID `3678970`. TBHIndex is a candidate provider for this game only after its data access path and usage terms are verified. See [the provider assessment](docs/providers/tbhindex.md).
 
 ## Privacy and permissions
 
-The initial extension uses only declarative content-script matching. It does not need a background service worker, `cookies`, `tabs`, `webRequest`, `scripting`, `debugger`, `nativeMessaging`, or remote code. Add a capability only when an implemented feature needs it, and keep the requested site scope narrow.
+The extension requests only the `storage` permission for its local translation cache. It does not need a background service worker, `cookies`, `tabs`, `webRequest`, `scripting`, `debugger`, `nativeMessaging`, broad host permissions, or remote code. Cache records are kept in the extension's storage area, not Steam page localStorage. Add any other capability only when an implemented feature demonstrably needs it.
+
+The extension does not read authentication state, account information, private inventory, or saves. It does not add telemetry, account login, cloud sync, or proxy control.
+
+## Provider access rules
+
+Do not reverse-engineer undocumented front-end endpoints or bulk scrape a provider's website. Before enabling a provider, verify its documented access method, automated-use permission, CORS behavior, rate limits, attribution, and cache policy. Query only market items currently visible to the user and preserve the exact-match requirement.
 
 ## Verification boundary
 
-Automated tests cover manifest scope and locale URL handling. They cannot prove that Steam serves every page component in Simplified Chinese or that the extension works across real Steam Market navigation. Those claims require manual verification in Edge / Chrome.
+Automated tests cover URL scope, item-key extraction, exact match validation, cache expiry, provider throttling, and storage namespacing. They cannot prove that Steam serves every page component in Simplified Chinese or that the extension works across real Steam Market navigation. Those claims require manual verification in Edge / Chrome.
 
-Item-name translation is a separate milestone and must not be inferred from the locale redirect working.
+Item-name translation remains unavailable until a verified provider is enabled and real exact matches are checked.

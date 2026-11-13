@@ -184,6 +184,24 @@ test("translation engine refuses fuzzy, mismatched-locale and duplicate matches"
   assert.equal((await duplicateEngine.resolve(item)).status, "ambiguous");
 });
 
+test("provider failures are reported separately from verified no-match results", async () => {
+  const context = await loadModules(coreFiles);
+  const identity = context.__ALAXEE_STEAMHUB_ITEM_IDENTITY__;
+  const api = context.__ALAXEE_STEAMHUB_TRANSLATION_ENGINE__;
+  const item = identity.createItemKey({ appId: "3678970", marketHashName: "Vol Soulstone - Normal" });
+
+  const unavailable = api.createTranslationEngine();
+  assert.equal((await unavailable.resolve(item)).status, "unavailable");
+
+  const failed = api.createTranslationEngine({
+    providers: [{
+      id: "offline-provider",
+      async lookup() { throw new Error("network unavailable"); }
+    }]
+  });
+  assert.equal((await failed.resolve(item)).status, "provider-error");
+});
+
 test("translation cache expires stale records and rejects writes under a different exact key", async () => {
   const context = await loadModules(coreFiles);
   const identity = context.__ALAXEE_STEAMHUB_ITEM_IDENTITY__;

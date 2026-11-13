@@ -13,18 +13,19 @@
 
 - The initial extension may run only on HTTPS Steam Community Market routes: `steamcommunity.com/market`, `steamcommunity.com/market/*`, and their `www` equivalents.
 - Prefer static Manifest V3 content scripts and the narrowest possible match patterns.
-- Do not add API permissions or broader host permissions unless a concrete feature requires them and the change is reviewed.
+- The `storage` permission is allowed only for the extension-local translation cache; never use page-origin storage for cached translations.
+- Do not add other API permissions or broader host permissions unless a concrete feature requires them and the change is reviewed.
 - Do not read Steam cookies, auth/session tokens, Steam account credentials, private profiles, inventory, or save files.
 - Do not add telemetry, remote code, accounts, cloud sync, or proxy control without explicit product approval.
 - Do not silently connect to local debugging ports or launch/modify the Steam client from the browser extension.
 
 ## Data providers
 
-- TBHIndex lookups are on-demand for visible Steam Market items, rate-limited, and cached locally.
+- Provider lookups are on-demand for visible Steam Market items, rate-limited, and cached locally.
 - Do not bulk crawl TBHIndex, bypass restrictions, or assume an undocumented endpoint is a stable API.
 - Verify the provider's access method and terms before implementation.
-- Store source, match key, locale, and lookup timestamp with cached translations.
-- If an exact match is not available, leave the original Steam text unchanged.
+- Store source, exact match key, locale, translation, and lookup timestamp with cached translations.
+- If an exact match is not available or is ambiguous, leave the original Steam text unchanged.
 
 ## Engineering
 

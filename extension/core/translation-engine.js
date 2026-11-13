@@ -33,12 +33,16 @@
     async function get(itemKey, locale) {
       const key = cacheKey(itemKey, locale);
       const entry = await storage.get(key);
-      if (!entry || entry.version !== CACHE_VERSION || !Number.isFinite(entry.expiresAt)) return null;
+      if (!entry) return null;
+      if (entry.version !== CACHE_VERSION || !Number.isFinite(entry.expiresAt)) {
+        await storage.delete(key);
+        return null;
+      }
 
       const record = entry.record;
       const validatedKey = identity.createItemKey(record);
       const isExact = validatedKey &&
-        validatedKey.appId === String(itemKey.appId) &&
+        validatedKey.appId === itemKey.appId &&
         validatedKey.marketHashName === itemKey.marketHashName &&
         record.locale === locale &&
         typeof record.translation === "string" &&
@@ -57,7 +61,7 @@
       const key = cacheKey(itemKey, locale);
       const validated = identity.createItemKey(record);
       if (!validated ||
-          validated.appId !== String(itemKey.appId) ||
+          validated.appId !== itemKey.appId ||
           validated.marketHashName !== itemKey.marketHashName ||
           record.locale !== locale ||
           typeof record.translation !== "string" ||
@@ -110,9 +114,7 @@
       marketHashName: candidate.marketHashName,
       locale,
       translation: record.translation,
-      source: typeof record.source === "string" && record.source.trim()
-        ? record.source
-        : providerId,
+      source: providerId,
       updatedAt: Number.isFinite(record.updatedAt) ? record.updatedAt : now()
     });
   }
@@ -198,7 +200,7 @@
       }
 
       return Object.freeze({
-        status: providerFailures === providers.length ? "provider-error" : "not-found"
+        status: providerFailures > 0 ? "provider-error" : "not-found"
       });
     }
 

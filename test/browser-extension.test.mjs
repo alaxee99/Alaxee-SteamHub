@@ -43,12 +43,20 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
     "https://www.steamcommunity.com/market",
     "https://www.steamcommunity.com/market/*"
   ]);
-  assert.deepEqual(script.js, ["market-locale.js", "content.js"]);
+  assert.deepEqual(script.js, [
+    "market-locale.js",
+    "core/item-identity.js",
+    "core/translation-engine.js",
+    "core/rate-limiter.js",
+    "market-items.js",
+    "storage-adapter.js",
+    "content.js"
+  ]);
   assert.equal(script.run_at, "document_start");
   assert.equal(script.all_frames, false);
   assert.equal(script.world, "ISOLATED");
 
-  assert.equal(manifest.permissions, undefined);
+  assert.deepEqual(manifest.permissions, ["storage"]);
   assert.equal(manifest.host_permissions, undefined);
   assert.equal(manifest.background, undefined);
 });
