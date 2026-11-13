@@ -279,7 +279,8 @@
       unmatchedSourceId: 0,
       ambiguousSourceId: 0,
       conflictingKeys: 0,
-      referenceIds: marketNamesBySourceId.size
+      referenceIds: marketNamesBySourceId.size,
+      ambiguousReferenceIds: ambiguousReferenceIds.size
     };
     const entriesByKey = new Map();
     const conflictedKeys = new Set();
