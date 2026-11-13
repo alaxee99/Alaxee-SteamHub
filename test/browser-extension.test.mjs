@@ -94,7 +94,7 @@ function runContentScript(href) {
 
 test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market routes", async () => {
   assert.equal(manifest.manifest_version, 3);
-  assert.equal(manifest.version, "0.8.1");
+  assert.equal(manifest.version, "0.8.2");
   assert.equal(manifest.content_scripts.length, 1);
   const quickSetupHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
   for (const id of ["quick-lookup-form","quick-app-id","quick-lookup-button","quick-game-card","quick-source-section","quick-known-sources","quick-search-links","quick-source-url","quick-import-source"]) {
@@ -1276,6 +1276,14 @@ test("Steam Market content script replaces exact item names and localizes detail
   assert.equal(skillText.nodeValue, "所有技能等级 +2");
   assert.equal(descriptionText.nodeValue, "神秘的深渊遗物。");
   assert.equal(unknownText.nodeValue, "Uncatalogued property 123");
+
+  const diagnostics = context.__ALAXEE_STEAMHUB__.getDiagnostics();
+  assert.equal(diagnostics.version, "0.8.2");
+  assert.equal(diagnostics.detectedItems, 1);
+  assert.equal(diagnostics.translatedNames, 1);
+  assert.ok(diagnostics.translatedDetailNodes >= 5);
+  assert.deepEqual(Array.from(diagnostics.missingPacks), []);
+  assert.deepEqual(Array.from(diagnostics.errors), []);
 });
 
 
