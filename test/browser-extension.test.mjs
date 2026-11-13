@@ -157,7 +157,7 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.match(optionsHtml, /id="html-translation-field"/);
   assert.match(optionsHtml, /id="html-mapping-mode"/);
   assert.match(optionsHtml, /id="html-reference-game"/);
-  assert.match(optionsHtml, /docs\\/game-pack\\.taskbar-hero-zh-CN\\.json/);
+  assert.ok(optionsHtml.includes("docs/game-pack.taskbar-hero-zh-CN.json"));
   assert.match(optionsSource, /buildGamePackFromSourceIds/);
   assert.match(optionsSource, /updateHtmlReferenceTarget/);
   assert.match(optionsSource, /siteDiscoveryApi\.isRobotsAllowed/);
