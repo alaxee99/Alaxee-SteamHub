@@ -13,7 +13,7 @@ ALAXEE SteamHub is a multi-game browser extension for improving Steam Community 
 - Local game packs are persistent extension data. The 30-day translation cache remains available for future remote providers.
 - A Steam market adapter is implemented first. Other game surfaces that do not use Steam Community Market require their own adapter; they are not silently treated as supported.
 
-The current primary human reference for Task Bar Hero item mapping is TBH Index (tbhindex.com): it publishes a broad Ver 1.3.2 catalogue, 19 locales, and individual item pages that can expose the internal ItemKey, localized title, and exact Steam Market item name. The Farming calculator page itself is incomplete for measured rankings (108 of 168 farmable stages), so item mapping uses its Gear / Materials / Market pages instead. TBH Index is not connected as an automated provider: its terms restrict excessive scraping, and no supported API/CORS or bulk redistribution permission has been verified. See docs/providers/tbhindex.md for the source comparison and coverage limits.
+TBH Index (tbhindex.com) is the primary Chinese market-name reference for Task Bar Hero. SteamHub uses Steam's current AppID 3678970 Market search results as the canonical source of exact item keys, then cross-checks each item's Chinese name on TBH Index's localized Market Info page and its internal ItemKey on the linked Wiki page. A small three-entry personal-use seed is available at docs/game-pack.tbhindex-seed.json. TBH Index currently displays 1,757 tracked market records while Steam's current search reports 1,098 results; those sets are not interchangeable. Several Wiki category pages also have inconsistent headline and rendered counts. See docs/providers/tbhindex.md.
 
 ## Configure games
 
@@ -27,7 +27,7 @@ For each game:
 4. Search the selected game's dictionary and edit or delete an individual item/locale entry.
 5. Export the game's pack to back it up or share it.
 
-A pack example is available at docs/game-pack.example.json. Its translation entries are illustrative placeholders, not a complete or verified Task Bar Hero dictionary. The separate taskbarhero.wiki site remains a secondary market cross-check only; see docs/providers/taskbarhero-wiki.md. Each entry may also include `sourceItemId`, an optional exact ID from the game's own catalog; this is metadata for cross-referencing and does not replace Steam's exact `market_hash_name` match.
+A schema-only pack example is available at docs/game-pack.example.json. A separate three-entry personally verified starter pack is available at docs/game-pack.tbhindex-seed.json; it is not a complete Task Bar Hero dictionary. The separate taskbarhero.wiki site remains a secondary market cross-check only; see docs/providers/taskbarhero-wiki.md. Each entry may also include `sourceItemId`, an optional exact ID from the game's own catalog; this is metadata for cross-referencing and does not replace Steam's exact `market_hash_name` match.
 
 ## Install for local testing
 
