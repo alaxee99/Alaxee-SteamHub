@@ -43,6 +43,11 @@ Task Bar Hero 当前数据包直链：
 转换严格要求来源已经提供精确的 market_hash_name。相同键、相同译文的重复行会合并；同一键存在不同译文或来源 ID 时整组排除并计入冲突；不会通过模糊匹配生成市场名称。远程读取不发送 Cookie / Referer，拒绝跨站跳转，限制 5 MiB 和 20 秒。生成后先预览，再选择合并或覆盖。
 
 这一步可以直接接入结构化游戏目录；普通 Wiki 首页或文章 HTML 仍需要独立站点解析适配器，不能把网页文本直接当成市场词库。操作和字段映射说明见 docs/importing/structured-json-csv.md。
+## Wiki 网站目录发现
+
+批量导入区还加入了“分析 Wiki / 网站目录”：粘贴 Wiki 首页或 sitemap 地址后，扩展会读取同站 robots.txt 和 sitemap index，按 robots 规则过滤并预览页面目录。最多处理 8 个 sitemap、500 个页面地址，列表预览前 30 个。
+
+当前阶段只发现页面地址，不抓取页面正文，也不自动生成译文。下一阶段需要针对不同 Wiki 的页面结构实现解析适配器，并把提取出的记录映射到精确 Steam market_hash_name。站点发现不代表网站允许批量复用数据；需先检查源站条款。TBH Index 仍只作人工抽查，不作自动批量抓取。详见 docs/importing/site-discovery.md。
 ## 数据包格式
 
 数据包使用 alaxee-steamhub-game-pack 格式，当前 schemaVersion 为 1。每个词条包含：
