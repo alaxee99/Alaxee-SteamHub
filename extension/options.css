@@ -65,7 +65,8 @@ button { border: 0; cursor: pointer; }
 }
 .primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
 .hint { margin: 13px 0 0; color: #858ba5; font-size: 11px; line-height: 1.65; }
-.remote-import { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 13px; margin-bottom: 13px; }\n.import-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 13px; margin-top: 13px; }
+.remote-import { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 13px; margin-bottom: 13px; }
+.import-actions { display: flex; align-items: end; flex-wrap: wrap; gap: 13px; margin-top: 13px; }
 .mode-label { width: 220px; }
 .text-link { padding: 11px 0; color: var(--cyan); font-size: 11px; text-decoration: none; }
 .text-link:hover { text-decoration: underline; }
