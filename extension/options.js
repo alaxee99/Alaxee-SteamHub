@@ -381,6 +381,94 @@
     renderDictionary();
   });
 
+  document.getElementById("load-pack-url").addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const urlInput = document.getElementById("pack-url");
+    const rawUrl = urlInput.value.trim();
+    if (!rawUrl) {
+      report("请先粘贴公开 JSON 数据包 URL", true);
+      return;
+    }
+
+    let sourceUrl;
+    try {
+      sourceUrl = new URL(rawUrl);
+    } catch {
+      report("URL 格式无效", true);
+      return;
+    }
+
+    const hostname = sourceUrl.hostname.toLowerCase();
+    const privateIPv4 = /^(?:10\\.|127\\.|169\\.254\\.|192\\.168\\.|172\\.(?:1[6-9]|2[0-9]|3[01])\\.|0\\.)/;
+    if (sourceUrl.protocol !== "https:" || sourceUrl.username || sourceUrl.password ||
+        (sourceUrl.port && sourceUrl.port !== "443") ||
+        hostname === "localhost" || hostname.endsWith(".localhost") ||
+        hostname.endsWith(".local") || privateIPv4.test(hostname) ||
+        hostname === "[::1]" || hostname.startsWith("fc") || hostname.startsWith("fd") ||
+        hostname.startsWith("fe80:")) {
+      report("仅允许公开 HTTPS 地址；不支持本机、局域网或带凭据的 URL", true);
+      return;
+    }
+
+    sourceUrl.hash = "";
+    const permissionPattern = sourceUrl.origin + "/*";
+    const maximumBytes = 5 * 1024 * 1024;
+    button.disabled = true;
+    try {
+      const alreadyGranted = await chrome.permissions.contains({ origins: [permissionPattern] });
+      const granted = alreadyGranted || await chrome.permissions.request({ origins: [permissionPattern] });
+      if (!granted) {
+        throw new Error("未获准访问该站点，未读取数据");
+      }
+
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), 20000);
+      let response;
+      try {
+        response = await fetch(sourceUrl.href, {
+          method: "GET",
+          credentials: "omit",
+          cache: "no-store",
+          redirect: "error",
+          referrerPolicy: "no-referrer",
+          headers: { Accept: "application/json, text/plain;q=0.9" },
+          signal: controller.signal
+        });
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+
+      if (!response.ok) {
+        throw new Error("数据源返回 HTTP " + response.status);
+      }
+      if (response.url && new URL(response.url).origin !== sourceUrl.origin) {
+        throw new Error("数据源发生跨站跳转，已停止读取");
+      }
+      const declaredLength = Number(response.headers.get("content-length") || 0);
+      if (declaredLength > maximumBytes) {
+        throw new Error("数据包超过 5 MiB 上限");
+      }
+
+      const raw = await response.text();
+      if (new TextEncoder().encode(raw).byteLength > maximumBytes) {
+        throw new Error("数据包超过 5 MiB 上限");
+      }
+      const parsed = JSON.parse(raw);
+      if (!parsed || parsed.format !== "alaxee-steamhub-game-pack" || parsed.schemaVersion !== 1) {
+        throw new Error("该 URL 返回的不是 SteamHub Game Pack v1。普通 Wiki 页面需要独立的站点解析适配器。");
+      }
+
+      const validated = registryApi.normalizePack(parsed);
+      document.getElementById("pack-json").value = JSON.stringify(validated, null, 2);
+      report("已读取公开数据包：" + validated.game.name + " · " + validated.translations.length + " 条；请选择合并或覆盖后再导入");
+    } catch (error) {
+      const message = error.name === "AbortError" ? "读取超时（20 秒）" : error.message;
+      report(message || "读取远程数据包失败", true);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
   document.getElementById("pack-file").addEventListener("change", async (event) => {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
