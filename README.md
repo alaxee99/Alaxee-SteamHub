@@ -29,6 +29,11 @@ For each game:
 
 A schema-only pack example is available at docs/game-pack.example.json. A separate three-entry personally verified starter pack is available at docs/game-pack.tbhindex-seed.json; it is not a complete Task Bar Hero dictionary. The separate taskbarhero.wiki site remains a secondary market cross-check only; see docs/providers/taskbarhero-wiki.md. Each entry may also include `sourceItemId`, an optional exact ID from the game's own catalog; this is metadata for cross-referencing and does not replace Steam's exact `market_hash_name` match.
 
+## Convert a structured JSON / CSV source
+
+The Options page can also turn public JSON record arrays or CSV tables into a SteamHub Game Pack. Supply the target AppID and map the exact Steam market_hash_name, localized text and optional source ID fields. JSON supports nested record paths such as data.items; CSV supports quoted commas and multiline cells. Duplicate identical rows are collapsed; conflicting translations or source IDs are excluded and reported. See docs/importing/structured-json-csv.md.
+
+This handles structured source data, not arbitrary Wiki HTML. A website-specific page adapter is still needed to discover permitted pages and extract exact Steam listing identities.
 ## Import a public Game Pack URL
 
 The Options page accepts a direct HTTPS URL to a JSON file using the `alaxee-steamhub-game-pack` v1 schema. After an explicit click, the extension requests optional access to that one HTTPS origin, fetches without cookies or referrer, rejects redirects, and enforces a 5 MiB streaming limit and 20-second timeout. The fetched pack is validated and placed in the JSON editor; the user must still choose merge or replace.
