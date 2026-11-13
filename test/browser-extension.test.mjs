@@ -851,3 +851,151 @@ test("HTML table parser rejects oversized pages and tables with ambiguous spanni
   assert.throws(() => api.parseHtmlTables("12345", { maxChars: 4 }), /超过 1 MiB/);
   assert.equal(api.parseHtmlTables("<table></table>").skippedTables, 1);
 });
+
+
+test("HTML detail parser extracts one explicit ItemKey and localized name from definition lists", () => {
+  const makePair = (label, value) => {
+    const dd = { tagName: "DD", textContent: value, nextElementSibling: null };
+    const dt = { tagName: "DT", textContent: label, nextElementSibling: dd };
+    return [dt, dd];
+  };
+  const pairs = [
+    ...makePair("ItemKey", "516111"),
+    ...makePair("简体中文", "神秘盔甲")
+  ];
+  const heading = { tagName: "H1", textContent: "Mystic Armor" };
+  const title = { tagName: "TITLE", textContent: "Mystic Armor · Wiki" };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === "dl dt") return pairs.filter((node) => node.tagName === "DT");
+          if (selector === "tr" || selector.startsWith("meta[") || selector === "[itemprop]" ||
+              selector.includes("data-item-key")) return [];
+          if (selector === "h1, h2, h3") return [heading];
+          return [];
+        },
+        querySelector(selector) {
+          if (selector === "h1") return heading;
+          if (selector === "title") return title;
+          return null;
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const result = api.parseHtmlDetailRecord("<dl><dt>ItemKey</dt><dd>516111</dd></dl>", {
+    pageUrl: "https://wiki.example/item/516111"
+  });
+  assert.equal(result.pageUrl, "https://wiki.example/item/516111");
+  assert.equal(result.pageTitle, "Mystic Armor · Wiki");
+  assert.equal(result.title, "Mystic Armor");
+  assert.equal(result.sourceId, "516111");
+  assert.equal(result.translation, "神秘盔甲");
+  assert.equal(result.records.length, 1);
+  assert.deepEqual(
+    { sourceId: result.records[0].sourceId, translation: result.records[0].translation },
+    { sourceId: "516111", translation: "神秘盔甲" }
+  );
+});
+
+test("HTML detail parser supports key-value table rows and explicit selectors without guessing headings", () => {
+  const row = {
+    cells: [
+      { tagName: "TH", textContent: "Item ID" },
+      { tagName: "TD", textContent: "142001" }
+    ]
+  };
+  const translationNode = { tagName: "SPAN", textContent: "银锭" };
+  const heading = { tagName: "H1", textContent: "Silver Ingot" };
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === "dl dt") return [];
+          if (selector === "tr") return [row];
+          if (selector === ".localized-name") return [translationNode];
+          if (selector === "h1, h2, h3") return [heading];
+          return [];
+        },
+        querySelector(selector) {
+          if (selector === "h1") return heading;
+          return null;
+        }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const result = api.parseHtmlDetailRecord("<table></table>", {
+    translationSelector: ".localized-name"
+  });
+  assert.equal(result.sourceId, "142001");
+  assert.equal(result.translation, "银锭");
+  assert.equal(result.title, "Silver Ingot");
+  assert.equal(result.records.length, 1);
+});
+
+test("HTML detail parser rejects missing or conflicting identity fields and invalid selectors", () => {
+  const makeTerm = (label, value) => ({
+    tagName: "DT",
+    textContent: label,
+    nextElementSibling: { tagName: "DD", textContent: value }
+  });
+  const terms = [
+    makeTerm("ItemKey", "516111"),
+    makeTerm("ItemKey", "142001"),
+    makeTerm("简体中文", "神秘盔甲")
+  ];
+  class FakeDOMParser {
+    parseFromString() {
+      return {
+        querySelectorAll(selector) {
+          if (selector.startsWith("script,")) return [];
+          if (selector === ".invalid[") throw new Error("invalid selector");
+          if (selector === "dl dt") return terms;
+          if (selector === "tr" || selector.startsWith("meta[") || selector === "[itemprop]" ||
+              selector.includes("data-item-key")) return [];
+          return [];
+        },
+        querySelector() { return null; }
+      };
+    }
+  }
+  const api = loadHtmlTableParser(FakeDOMParser);
+  const ambiguous = api.parseHtmlDetailRecord("<dl></dl>");
+  assert.equal(ambiguous.ambiguousSourceId, true);
+  assert.equal(ambiguous.records.length, 0);
+
+  const missing = api.parseHtmlDetailRecord("<dl></dl>", {
+    sourceIdLabels: ["Missing ID"],
+    translationLabels: ["Missing Name"]
+  });
+  assert.equal(missing.missingSourceId, true);
+  assert.equal(missing.missingTranslation, true);
+  assert.equal(missing.records.length, 0);
+
+  assert.throws(() => api.parseHtmlDetailRecord("<dl></dl>", {
+    sourceIdSelector: ".invalid["
+  }), /CSS 选择器无效/);
+});
+
+test("Options page wires detail extraction to the existing exact mapping workflow", async () => {
+  const optionsHtml = await readFile(path.join(extensionRoot, "options.html"), "utf8");
+  const optionsJs = await readFile(path.join(extensionRoot, "options.js"), "utf8");
+  for (const id of [
+    "html-detail-id-labels",
+    "html-detail-translation-labels",
+    "html-detail-id-selector",
+    "html-detail-translation-selector",
+    "extract-html-detail",
+    "convert-html-detail",
+    "html-detail-preview"
+  ]) {
+    assert.match(optionsHtml, new RegExp('id="' + id + '"'));
+  }
+  assert.match(optionsJs, /parseHtmlDetailRecord\(extractedHtmlSource/);
+  assert.match(optionsJs, /buildGamePackFromSourceIds\(extractedHtmlDetailResult\.records/);
+  assert.match(optionsJs, /buildGamePackFromRecords\(\s*extractedHtmlDetailResult\.records/);
+});
