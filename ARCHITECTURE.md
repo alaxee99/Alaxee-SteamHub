@@ -45,7 +45,7 @@ The registry and pack format are host-independent. The first adapter supports St
 - Steam's official Community Market language parameter l=schinese is applied while preserving the original path, query parameters, and fragment.
 - Listing links are parsed into an exact appid + market_hash_name pair. Market hash names are case-sensitive and are not lowercased, trimmed, or fuzzy-normalized.
 - The game registry supports independent profiles keyed by Steam AppID.
-- The options page supports manual game registration, manual translation entry (including optional source-catalog item ID/code and source label), JSON pack import/export, per-game enable/disable, and per-game deletion.
+- The options page supports manual game registration, manual translation entry (including optional source-catalog item ID/code and source label), searchable per-game dictionary management, exact single-entry edit/delete, JSON pack import/export, per-game enable/disable, and per-game deletion. Dictionary editing keys are AppID + market hash name + locale; edits that rename an item refuse to overwrite another entry, and an empty source ID explicitly clears that metadata.
 - Pack imports validate the versioned schema and reject duplicate item/locale keys. Merge import rejects conflicting translations; replace import replaces only that game's dictionary.
 - The translation engine accepts a provider record only when AppID, exact market hash name, and locale match and there is exactly one candidate.
 - Local game packs are persistent extension-local dictionaries. The 30-day translation cache remains available for future remote providers; local packs do not depend on expiring cache entries.
@@ -82,6 +82,6 @@ Do not reverse-engineer undocumented front-end endpoints or bulk scrape a provid
 
 ## Verification boundary
 
-Automated tests cover URL scope, game-profile isolation, pack import/export, item-key extraction, exact match validation, cache expiry, provider throttling, and storage namespacing. They cannot prove that Steam serves every page component in Simplified Chinese or that the extension works across real Steam Market navigation. Those claims require manual verification in Edge / Chrome.
+Automated tests cover URL scope, game-profile isolation, pack import/export, exact dictionary entry update/delete and collision protection, item-key extraction, exact match validation, cache expiry, provider throttling, and storage namespacing. They cannot prove that Steam serves every page component in Simplified Chinese or that the extension works across real Steam Market navigation. Those claims require manual verification in Edge / Chrome.
 
 Item-name translation is available only for exact entries in an enabled local game pack or a verified future provider.
