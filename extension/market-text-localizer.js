@@ -85,12 +85,14 @@
   });
 
   function normalizeText(value) {
-    return typeof value === "string" ? value.replace(/\\s+/g, " ").trim() : "";
+    return typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
   }
 
   function validateMappings(mappings) {
-    if (mappings === undefined || mappings === null) return [];
-    if (!Array.isArray(mappings)) return [];
+    if (mappings instanceof Map) return mappings;
+    if (mappings === undefined || mappings === null) return new Map();
+    if (!Array.isArray(mappings)) return new Map();
+
     const result = new Map();
     for (const entry of mappings) {
       const sourceText = normalizeText(entry?.sourceText);
@@ -107,45 +109,62 @@
 
     if (EXACT_TERMS[text]) return EXACT_TERMS[text];
 
-    let match = text.match(/^(\\d+(?:\\.\\d+)?)% Increased (Attack Speed|Attack Damage|Critical Chance|Critical Chance Multiplier|Max HP|Movement Speed)$/);
-    if (match && STAT_NAMES[match[2]]) return `${STAT_NAMES[match[2]]}提高 ${match[1]}%`;
+    let match = text.match(/^(\d+(?:\.\d+)?)% Increased (Attack Speed|Attack Damage|Critical Chance|Critical Chance Multiplier|Max HP|Movement Speed)$/);
+    if (match && STAT_NAMES[match[2]]) return STAT_NAMES[match[2]] + "提高 " + match[1] + "%";
 
-    match = text.match(/^(\\d+(?:\\.\\d+)?)% (Cooldown Reduction|Critical Chance|Critical Chance Multiplier)$/);
-    if (match && STAT_NAMES[match[2]]) return `${STAT_NAMES[match[2]]} ${match[1]}%`;
+    match = text.match(/^(\d+(?:\.\d+)?)% (Cooldown Reduction|Critical Chance|Critical Chance Multiplier)$/);
+    if (match && STAT_NAMES[match[2]]) return STAT_NAMES[match[2]] + " " + match[1] + "%";
 
-    match = text.match(/^All Skill Level \\+(\\d+)$/);
-    if (match) return `所有技能等级 +${match[1]}`;
+    match = text.match(/^All Skill Level \+(\d+)$/);
+    if (match) return "所有技能等级 +" + match[1];
 
-    match = text.match(/^Requires Lv\\.?\\s*(\\d+)$/i);
-    if (match) return `需求等级：${match[1]}`;
+    match = text.match(/^Requires Lv\.?\s*(\d+)$/i);
+    if (match) return "需求等级：" + match[1];
 
-    match = text.match(/^(Decoration|Engraving|Inscription) Slot ×(\\d+)$/);
-    if (match) return `${SLOT_NAMES[match[1]]}槽 ×${match[2]}`;
+    match = text.match(/^(Decoration|Engraving|Inscription) Slot ×(\d+)$/);
+    if (match) return SLOT_NAMES[match[1]] + "槽 ×" + match[2];
 
-    match = text.match(/^(Amulet|Bracer|Earring|Ring|Helmet|Body|Gloves|Boots|Weapon|Off-hand)\\s*-\\s*Lv\\.?\\s*(\\d+)$/);
-    if (match) return `${ITEM_TYPES[match[1]]} · 等级 ${match[2]}`;
+    match = text.match(/^(Amulet|Bracer|Earring|Ring|Helmet|Body|Gloves|Boots|Weapon|Off-hand)\s*-\s*Lv\.?\s*(\d+)$/);
+    if (match) return ITEM_TYPES[match[1]] + " · 等级 " + match[2];
 
-    match = text.match(/^(\\d+(?:\\.\\d+)?)% Increased (.+)$/);
-    if (match && STAT_NAMES[match[2]]) return `${STAT_NAMES[match[2]]}提高 ${match[1]}%`;
+    match = text.match(/^(\d+(?:\.\d+)?)% Increased (.+)$/);
+    if (match && STAT_NAMES[match[2]]) return STAT_NAMES[match[2]] + "提高 " + match[1] + "%";
 
     return null;
   }
 
-  function translateText(appId, value, mappings) {
+  function translateSingleLine(appId, value, exactMappings) {
     const original = String(value ?? "");
-    const normalized = normalizeText(original);
-    if (!normalized) return null;
-
-    const bullet = original.match(/^(\\s*[-•]\\s*)/);
+    const bullet = original.match(/^(\s*[-•]\s*)/);
     const prefix = bullet ? bullet[1] : "";
     const body = bullet ? original.slice(bullet[1].length) : original;
-    const exact = validateMappings(mappings).get(normalizeText(body));
+    const normalizedBody = normalizeText(body);
+    if (!normalizedBody) return null;
+
+    const exact = exactMappings.get(normalizedBody);
     const localized = exact || (String(appId) === TASK_BAR_HERO_APP_ID
-      ? translateTaskBarHeroText(body)
+      ? translateTaskBarHeroText(normalizedBody)
       : null);
-    return localized && normalizeText(localized) !== normalizeText(body)
+    return localized && normalizeText(localized) !== normalizedBody
       ? prefix + localized
       : null;
+  }
+
+  function translateText(appId, value, mappings) {
+    const original = String(value ?? "");
+    if (!normalizeText(original)) return null;
+
+    const exactMappings = validateMappings(mappings);
+    const segments = original.split(/(\r\n|\n|\r)/);
+    let changed = false;
+    const translated = segments.map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      const next = translateSingleLine(appId, segment, exactMappings);
+      if (next === null) return segment;
+      changed = true;
+      return next;
+    }).join("");
+    return changed ? translated : null;
   }
 
   Object.defineProperty(globalThis, API_KEY, {

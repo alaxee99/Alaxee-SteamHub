@@ -9,8 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const source = await readFile(path.join(root, "extension/market-text-localizer.js"), "utf8");
 
 function loadLocalizer() {
-  const context = vm.createContext({ Object, Map, Set, String, RegExp, Array, globalThis: null });
-  context.globalThis = context;
+  const context = vm.createContext({ Object, Map, Set, String, RegExp, Array });
   vm.runInContext(source, context, { filename: "market-text-localizer.js" });
   return context.__ALAXEE_STEAMHUB_GAME_TEXT_LOCALIZER__;
 }
@@ -24,7 +23,7 @@ test("Task Bar Hero item descriptions and attributes translate while retaining n
   assert.equal(localizer.translateText("3678970", "Requires Lv.90"), "需求等级：90");
 });
 
-test("exact mappings are AppID-local and do not fuzzy-match", () => {
+test("exact mappings are matched exactly and do not fuzzy-match", () => {
   const localizer = loadLocalizer();
   const mappings = [{ sourceText: "Exact Original Detail", translation: "精确详情译文" }];
   assert.equal(localizer.translateText("3678970", "Exact Original Detail", mappings), "精确详情译文");
@@ -33,9 +32,12 @@ test("exact mappings are AppID-local and do not fuzzy-match", () => {
   assert.equal(localizer.translateText("3678970", "Exact Original Detail Extra", mappings), null);
 });
 
-test("bullet prefixes and original whitespace survive exact text replacement", () => {
+test("multiline details and bullet prefixes are translated without changing line breaks", () => {
   const localizer = loadLocalizer();
-  assert.equal(localizer.translateText("3678970", "  -  22% Increased Attack Speed"), "  -  攻击速度提高 22%");
+  assert.equal(
+    localizer.translateText("3678970", "  - 22% Increased Attack Speed\n- All Skill Level +2"),
+    "  - 攻击速度提高 22%\n- 所有技能等级 +2"
+  );
 });
 
 test("unknown descriptions remain untouched", () => {
@@ -68,6 +70,6 @@ test("game pack exact mappings reject duplicate or unsafe entries", async () => 
   }), /duplicate exact text translation keys/);
   assert.throws(() => api.normalizePack({
     ...base,
-    textTranslations: [{ sourceText: "Unsafe\\nKey", translation: "译文" }]
+    textTranslations: [{ sourceText: "Unsafe\nKey", translation: "译文" }]
   }), /invalid exact text translation/);
 });

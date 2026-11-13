@@ -22,7 +22,7 @@
       const titleCandidates = typeof root?.querySelectorAll === "function"
         ? titleSelectors.flatMap((selector) => Array.from(root.querySelectorAll(selector)))
         : [];
-      const normalizeText = (value) => String(value || "").replace(/\\s+/g, " ").trim();
+      const normalizeText = (value) => String(value || "").replace(/\s+/g, " ").trim();
       const titleElement = titleCandidates.find((element) =>
         normalizeText(element.textContent) === currentPageItem.marketHashName
       ) || null;

@@ -29,110 +29,143 @@
     locale: "zh-CN"
   });
 
-  const NAME_ORIGINAL_ATTRIBUTE = "data-alaxee-steamhub-original-name";
-  const TEXT_ORIGINAL_ATTRIBUTE = "data-alaxee-steamhub-original-text";
   const APP_ATTRIBUTE = "data-alaxee-steamhub-app-id";
   const MAX_VISIBLE_ITEMS_PER_PASS = 80;
+  const localizedTextNodes = new Map();
   let scanScheduled = false;
 
   function normalizedText(value) {
     return textLocalizer.normalizeText(value);
   }
 
-  function findNameTarget(item) {
-    const candidates = [];
-    const addTree = (root) => {
-      if (!root || root.nodeType !== Node.ELEMENT_NODE) return;
-      candidates.push(root);
-      if (typeof root.querySelectorAll === "function") {
-        candidates.push(...root.querySelectorAll(
-          ".market_listing_item_name, #largeiteminfo_item_name, h1, h2, [class*='item_name']"
-        ));
-      }
-    };
+  function isTranslatableTextNode(node) {
+    const parent = node?.parentElement;
+    if (!parent || !normalizedText(node.nodeValue)) return false;
+    return !parent.closest("script,style,noscript,textarea,input,button,option,code,pre");
+  }
 
-    addTree(item.element);
-    if (!candidates.some((element) => normalizedText(element.textContent) === item.marketHashName)) {
-      for (const selector of [
-        "#largeiteminfo_item_name",
-        "#largeiteminfo .market_listing_nav .market_listing_item_name",
-        ".market_listing_nav .market_listing_item_name",
-        "h1",
-        "h2"
-      ]) {
-        for (const element of document.querySelectorAll(selector)) candidates.push(element);
+  function findTextNode(root, expectedText) {
+    if (!root || typeof document.createTreeWalker !== "function") return null;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const existing = localizedTextNodes.get(node);
+      const original = existing?.original ?? node.nodeValue;
+      if (normalizedText(original) === expectedText) return node;
+      node = walker.nextNode();
+    }
+    return null;
+  }
+
+  function findNameTextNode(item) {
+    for (const [node, record] of localizedTextNodes) {
+      if (record.kind === "name" && record.appId === item.appId &&
+          record.original === item.marketHashName && node.isConnected) {
+        return node;
       }
     }
 
-    const exact = candidates.filter((element) =>
-      element?.isConnected !== false &&
-      normalizedText(element.textContent) === item.marketHashName
-    );
-    return exact.sort((a, b) =>
-      (a.querySelectorAll?.("*").length || 0) - (b.querySelectorAll?.("*").length || 0)
-    )[0] || null;
+    if (item.element) {
+      const found = findTextNode(item.element, item.marketHashName);
+      if (found) return found;
+    }
+
+    const selectors = [
+      "#largeiteminfo_item_name",
+      "#largeiteminfo .market_listing_nav .market_listing_item_name",
+      ".market_listing_nav .market_listing_item_name",
+      "h1",
+      "h2"
+    ];
+    for (const selector of selectors) {
+      for (const root of document.querySelectorAll(selector)) {
+        const found = findTextNode(root, item.marketHashName);
+        if (found) return found;
+      }
+    }
+    return null;
   }
 
-  function restoreElement(element, attribute) {
-    if (!element?.hasAttribute?.(attribute)) return;
-    const original = element.getAttribute(attribute);
-    element.removeAttribute(attribute);
-    element.removeAttribute(APP_ATTRIBUTE);
-    element.textContent = original;
-    if (attribute === NAME_ORIGINAL_ATTRIBUTE) {
-      element.title = original;
+  function restoreTextNode(node) {
+    const record = localizedTextNodes.get(node);
+    if (!record) return;
+    if (node.isConnected) {
+      node.nodeValue = record.original;
+      if (record.kind === "name" && node.parentElement) {
+        if (record.originalTitle === null) node.parentElement.removeAttribute("title");
+        else node.parentElement.setAttribute("title", record.originalTitle);
+        node.parentElement.removeAttribute(APP_ATTRIBUTE);
+      }
+    }
+    localizedTextNodes.delete(node);
+  }
+
+  function restoreAppText(appId) {
+    for (const [node, record] of localizedTextNodes) {
+      if (record.appId === appId) restoreTextNode(node);
     }
   }
 
   function applyNameTranslation(item, translation) {
-    const target = findNameTarget(item);
-    if (!target) return;
+    const node = findNameTextNode(item);
+    if (!node) return;
 
+    const existing = localizedTextNodes.get(node);
     if (!translation) {
-      restoreElement(target, NAME_ORIGINAL_ATTRIBUTE);
+      if (existing?.kind === "name") restoreTextNode(node);
       return;
     }
 
-    if (!target.hasAttribute(NAME_ORIGINAL_ATTRIBUTE)) {
-      target.setAttribute(NAME_ORIGINAL_ATTRIBUTE, target.textContent);
+    if (!existing) {
+      localizedTextNodes.set(node, {
+        appId: item.appId,
+        kind: "name",
+        original: node.nodeValue,
+        originalTitle: node.parentElement?.getAttribute("title") ?? null
+      });
     }
-    target.setAttribute(APP_ATTRIBUTE, item.appId);
-    target.textContent = translation;
-    target.title = "原文：" + target.getAttribute(NAME_ORIGINAL_ATTRIBUTE);
-  }
-
-  function restoreAppText(appId) {
-    for (const element of document.querySelectorAll(
-      "[" + APP_ATTRIBUTE + "='" + appId + "'][" + TEXT_ORIGINAL_ATTRIBUTE + "]"
-    )) {
-      restoreElement(element, TEXT_ORIGINAL_ATTRIBUTE);
-    }
-    for (const element of document.querySelectorAll(
-      "[" + APP_ATTRIBUTE + "='" + appId + "'][" + NAME_ORIGINAL_ATTRIBUTE + "]"
-    )) {
-      restoreElement(element, NAME_ORIGINAL_ATTRIBUTE);
+    node.nodeValue = translation;
+    if (node.parentElement) {
+      const original = existing?.original ?? localizedTextNodes.get(node).original;
+      node.parentElement.title = "原文：" + original;
+      node.parentElement.setAttribute(APP_ATTRIBUTE, item.appId);
     }
   }
 
   function applyGameTextTranslations(appId, mappings) {
-    const selectors = "p,span,div,li,dt,dd,strong,b,h1,h2,h3";
-    for (const element of document.querySelectorAll(selectors)) {
-      if (element.closest?.("[data-alaxee-steamhub-translation-skip]")) continue;
-      const childElements = Array.from(element.children || []);
-      if (childElements.length && !childElements.every((child) => child.tagName === "BR")) continue;
+    const exactMappings = textLocalizer.validateMappings(mappings);
+    const root = document.body || document.documentElement;
+    if (!root || typeof document.createTreeWalker !== "function") return;
 
-      const existingOriginal = element.getAttribute(TEXT_ORIGINAL_ATTRIBUTE);
-      const original = existingOriginal === null ? element.textContent : existingOriginal;
-      const translated = textLocalizer.translateText(appId, original, mappings);
-
-      if (!translated) {
-        if (existingOriginal !== null) restoreElement(element, TEXT_ORIGINAL_ATTRIBUTE);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      if (!isTranslatableTextNode(node)) {
+        node = walker.nextNode();
         continue;
       }
-      if (existingOriginal === null) element.setAttribute(TEXT_ORIGINAL_ATTRIBUTE, element.textContent);
-      element.setAttribute(APP_ATTRIBUTE, appId);
-      element.textContent = translated;
-      element.title = "原文：" + original;
+
+      const existing = localizedTextNodes.get(node);
+      const original = existing?.original ?? node.nodeValue;
+      if (existing?.kind === "name") {
+        node = walker.nextNode();
+        continue;
+      }
+
+      const translated = textLocalizer.translateText(appId, original, exactMappings);
+      if (translated) {
+        if (!existing) {
+          localizedTextNodes.set(node, {
+            appId,
+            kind: "detail",
+            original
+          });
+        }
+        node.nodeValue = translated;
+      } else if (existing?.kind === "detail" && existing.appId === appId) {
+        restoreTextNode(node);
+      }
+      node = walker.nextNode();
     }
   }
 
@@ -215,11 +248,7 @@
   if (typeof MutationObserver === "function" && document.documentElement) {
     const observer = new MutationObserver((mutations) => {
       const relevant = mutations.some((mutation) =>
-        Array.from(mutation.addedNodes || []).some((node) => {
-          if (node.nodeType !== Node.ELEMENT_NODE) return false;
-          return !node.hasAttribute?.(TEXT_ORIGINAL_ATTRIBUTE) &&
-            !node.hasAttribute?.(NAME_ORIGINAL_ATTRIBUTE);
-        })
+        Array.from(mutation.addedNodes || []).some((node) => node.nodeType === Node.ELEMENT_NODE)
       );
       if (relevant) scheduleScan();
     });

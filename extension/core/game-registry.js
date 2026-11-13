@@ -90,9 +90,9 @@
       const sourceText = typeof entry?.sourceText === "string" ? entry.sourceText.trim() : "";
       const translation = typeof entry?.translation === "string" ? entry.translation.trim() : "";
       if (!sourceText || sourceText.length > 1000 ||
-          /[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]/.test(sourceText) ||
+          /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(sourceText) ||
           !translation || translation.length > 1000 ||
-          /[\\u0000-\\u0008\\u000b\\u000c\\u000e-\\u001f\\u007f]/.test(translation)) {
+          /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(translation)) {
         throw new TypeError("Game pack contains an invalid exact text translation.");
       }
       if (seen.has(sourceText)) {
