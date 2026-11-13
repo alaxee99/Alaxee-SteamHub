@@ -137,10 +137,10 @@ test("Manifest V3 content scripts are restricted to HTTPS Steam Community Market
   assert.match(publicPackLoaderSource, /5 \* 1024 \* 1024/);
   assert.match(optionsSource, /registryApi\.normalizePack\(parsed\)/);
   assert.match(optionsSource, /chrome\.permissions\.request/);
-  assert.ok(optionsSource.includes("response.body.getReader()"));
-  assert.match(optionsSource, /new TextDecoder/);
-  assert.ok(optionsSource.includes("window.setTimeout"));
-  assert.ok(optionsSource.includes("hostname.startsWith"));
+  assert.ok(publicPackLoaderSource.includes("response.body.getReader()"));
+  assert.match(publicPackLoaderSource, /new TextDecoder/);
+  assert.ok(publicPackLoaderSource.includes("setTimeoutImpl"));
+  assert.ok(publicPackLoaderSource.includes("hostname.startsWith"));
   assert.match(optionsHtml, /options.js/);
 });
 
@@ -269,7 +269,10 @@ test("public pack loader stops when origin permission is denied", async () => {
   await assert.rejects(api.fetchGamePackFromUrl("https://packs.example/data.json", {
     requestPermission: () => Promise.resolve(false),
     fetchImpl: async () => { fetchCalled = true; },
-    normalizePack: (value) => value
+    normalizePack: (value) => value,
+    AbortControllerImpl: class { constructor() { this.signal = {}; } abort() {} },
+    setTimeoutImpl: () => 1,
+    clearTimeoutImpl: () => {}
   }), /未获准访问/);
   assert.equal(fetchCalled, false);
 });
