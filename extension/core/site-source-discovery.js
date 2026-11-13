@@ -192,6 +192,7 @@
       robotsUrl: origin + "/robots.txt",
       robotsAvailable: Boolean(robotsText),
       robotsError,
+      robots,
       sitemaps: discoveredSitemaps,
       urls: Array.from(pageUrls.values()),
       blockedByRobots,
