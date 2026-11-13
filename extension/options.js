@@ -395,6 +395,27 @@
   async function ensureQuickProfile(game) {
     if (!getQuickPack(game.appId)) await registry.addGame({ appId: game.appId, name: game.name });
   }
+  async function addQuickProfile(button) {
+    if (!quickGame) return;
+    button.disabled = true;
+    const status = document.getElementById("quick-source-status");
+    try {
+      if (!getQuickPack(quickGame.appId)) {
+        await registry.addGame({ appId: quickGame.appId, name: quickGame.name });
+        await refresh();
+        status.textContent = "游戏档案已添加。现在可以导入中文词库或查找 Wiki。";
+        report("已添加游戏：" + quickGame.name);
+      } else {
+        status.textContent = "这款游戏已经添加到 SteamHub。";
+      }
+      renderQuickGame();
+    } catch (error) {
+      status.textContent = error.message || "添加游戏失败";
+      report(status.textContent, true);
+      button.disabled = false;
+    }
+  }
+
   async function importBundledSource(source, button) {
     if (!quickGame || !source?.assetPath) return;
     button.disabled = true;
@@ -446,6 +467,12 @@
     card.append(info);
     card.append(quickLink("Steam 商店页面", "https://store.steampowered.com/app/" + quickGame.appId + "/"));
     if (quickGame.website) card.append(quickLink("游戏官网", quickGame.website));
+    if (localPack) {
+      quickText(card, "p", "quick-profile-added", "游戏档案已添加");
+    } else {
+      const addButton = createButton("添加游戏档案", "quiet quick-add-profile", () => addQuickProfile(addButton));
+      card.append(addButton);
+    }
     const sources = gameSourceCatalogApi.listSources(quickGame.appId);
     if (!sources.length) {
       quickText(known, "p", "quick-no-source",
@@ -476,11 +503,12 @@
     const button = document.getElementById("quick-lookup-button");
     const card = document.getElementById("quick-game-card");
     const status = document.getElementById("quick-source-status");
-    const appId = document.getElementById("quick-app-id").value.trim();
+    const rawAppId = document.getElementById("quick-app-id").value.trim();
     button.disabled = true;
     button.textContent = "正在查询…";
     status.textContent = "";
     try {
+      const appId = steamAppLookupApi.normalizeAppId(rawAppId);
       const permission = await chrome.permissions.request({ origins: ["https://store.steampowered.com/*"] });
       if (!permission) throw new Error("需要允许 Steam 商店访问，才能查询游戏信息");
       const cacheKey = "alaxee-steamhub:steam-app:v1:" + appId;
