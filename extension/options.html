@@ -271,6 +271,39 @@
           </div>
           <p class="hint">若 ID 是 Wiki 内部 ItemKey，请使用上方“用 Wiki ItemKey / ID 反查”模式；若卡片直接提供精确 Steam market_hash_name，则切换到直接模式。无法找到 ID 或译文的卡片会跳过并计数。</p>
         </div>
+        <div class="html-source-extractor card-source-extractor detail-source-extractor">
+          <p class="extractor-title">单物品详情页提取</p>
+          <p class="hint">适用于每个物品独立页面。默认只读取明确标注的 ItemKey / ID 与中文名称字段；若页面用标题或自定义节点展示译文，可指定 CSS 选择器。此操作复用当前已读取的单页 HTML，不会打开或抓取其他链接。</p>
+          <div class="form-grid html-mapping-fields">
+            <label class="wide">来源 ID 字段标签（精确匹配，以 | 分隔）
+              <input id="html-detail-id-labels" autocomplete="off" spellcheck="false" value="ItemKey|Item Key|Item ID|ItemId|ID|物品ID|物品 ID">
+            </label>
+            <label class="wide">译文字段标签（精确匹配，以 | 分隔）
+              <input id="html-detail-translation-labels" autocomplete="off" spellcheck="false" value="简体中文|简体中文名|中文名称|中文名|Chinese Name|zh-CN|zh-Hans">
+            </label>
+            <label class="wide">来源 ID CSS 选择器（选填，填写后优先于字段标签）
+              <input id="html-detail-id-selector" autocomplete="off" spellcheck="false" placeholder="#item-key 或 [data-item-key]">
+            </label>
+            <label>来源 ID 属性
+              <input id="html-detail-id-attribute" autocomplete="off" spellcheck="false" value="auto" placeholder="auto / data-item-key / textContent">
+            </label>
+            <label class="wide">译文 CSS 选择器（选填，填写后优先于字段标签）
+              <input id="html-detail-translation-selector" autocomplete="off" spellcheck="false" placeholder="例如 #firstHeading 或 .localized-name">
+            </label>
+          </div>
+          <div class="import-actions">
+            <button id="extract-html-detail" type="button" class="quiet" disabled>提取详情页字段</button>
+            <span id="html-detail-summary" class="source-summary" aria-live="polite">尚未分析单物品详情页。</span>
+          </div>
+          <div id="html-detail-preview" class="html-table-preview">
+            <p class="empty">来源 ID、译文、标题与字段匹配情况会显示在这里。</p>
+          </div>
+          <div class="import-actions">
+            <button id="convert-html-detail" type="button" class="primary" disabled>从详情页生成数据包</button>
+            <span id="html-detail-conversion-summary" class="source-summary" aria-live="polite"></span>
+          </div>
+          <p class="hint">必须得到唯一 ID 和唯一译文才会生成记录。若多个字段同名但内容不同，解析器会标记歧义并停止映射。直接模式要求 ID 本身就是精确 market_hash_name；Wiki ItemKey 模式仍使用已导入 Steam 参考词库按 ID 精确反查。</p>
+        </div>
         <p class="hint">发现 sitemap 不代表网站允许批量抓取。读取单页前应检查站点条款；本工具不批量抓取、不绕过 robots 规则，也不会据此认定数据可再分发。</p>
       </details>
     </section>
