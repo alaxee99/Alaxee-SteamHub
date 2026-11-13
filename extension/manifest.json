@@ -29,5 +29,8 @@
       "all_frames": false,
       "world": "ISOLATED"
     }
+  ],
+  "optional_host_permissions": [
+    "https://*/*"
   ]
 }
