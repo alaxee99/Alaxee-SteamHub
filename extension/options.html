@@ -184,7 +184,51 @@
         </div>
         <p id="site-discovery-summary" class="source-summary" aria-live="polite">尚未分析站点。</p>
         <ul id="site-discovery-pages" class="site-discovery-pages"></ul>
-        <p class="hint">发现 sitemap 不代表网站允许批量抓取。后续仍需检查站点条款，并为页面结构配置解析适配器；不会自动递归下载全部页面。</p>
+        <div class="html-source-extractor">
+          <p class="extractor-title">单页 HTML 表格提取</p>
+          <div class="remote-import">
+            <label>页面 URL
+              <input id="html-page-url" type="url" autocomplete="off" spellcheck="false" placeholder="从上方目录选择，或粘贴同站页面 URL">
+            </label>
+            <button id="extract-html-page" type="button" class="quiet">读取并分析表格</button>
+          </div>
+          <p id="html-page-summary" class="source-summary" aria-live="polite">尚未读取 HTML 页面。</p>
+          <label>识别到的表格
+            <select id="html-table-select" disabled><option value="">先读取一个 HTML 页面</option></select>
+          </label>
+          <div id="html-table-preview" class="html-table-preview">
+            <p class="empty">页面表格预览会显示在这里。</p>
+          </div>
+          <div class="form-grid html-mapping-fields">
+            <label>目标 AppID
+              <input id="html-app-id" inputmode="numeric" value="3678970" required>
+            </label>
+            <label>游戏名称
+              <input id="html-game-name" value="Task Bar Hero" maxlength="100" required>
+            </label>
+            <label>目标语言
+              <select id="html-locale"><option value="zh-CN">简体中文</option><option value="zh-TW">繁体中文</option><option value="en">English</option></select>
+            </label>
+            <label>Steam market_hash_name 列
+              <select id="html-market-field" disabled><option value="">选择列</option></select>
+            </label>
+            <label>译文列
+              <select id="html-translation-field" disabled><option value="">选择列</option></select>
+            </label>
+            <label>游戏物品 ID 列（选填）
+              <select id="html-source-id-field" disabled><option value="">不记录来源 ID</option></select>
+            </label>
+            <label class="wide">来源标记
+              <input id="html-source-label" value="wiki-html" maxlength="128">
+            </label>
+          </div>
+          <div class="import-actions">
+            <button id="convert-html-table" type="button" class="primary" disabled>按列映射生成数据包</button>
+            <span id="html-conversion-summary" class="source-summary" aria-live="polite"></span>
+          </div>
+          <p class="hint">每次只读取你明确选择的一张页面，不递归抓取链接。必须手动确认哪一列是 Steam 原始 market_hash_name、哪一列是译文；“物品名称”不能自动视为 Steam 市场键。生成后仍需在上方检查 JSON，并明确选择合并或覆盖后导入。</p>
+        </div>
+        <p class="hint">发现 sitemap 不代表网站允许批量抓取。读取单页前应检查站点条款；本工具不批量抓取、不绕过 robots 规则，也不会据此认定数据可再分发。</p>
       </details>
     </section>
 
@@ -209,6 +253,7 @@
   <script src="core/public-pack-loader.js"></script>
   <script src="core/source-record-mapper.js"></script>
   <script src="core/site-source-discovery.js"></script>
+  <script src="core/html-table-parser.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
