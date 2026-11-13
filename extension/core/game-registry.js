@@ -91,6 +91,9 @@
 
     const seen = new Set();
     const translations = input.translations.map((entry) => {
+      if (entry?.appId !== undefined && normalizeAppId(entry.appId) !== appId) {
+        throw new TypeError("A translation entry AppID does not match its game pack AppID.");
+      }
       const normalized = normalizeTranslation(entry, appId, `game-pack:${appId}`);
       if (!normalized) throw new TypeError("Game pack contains an invalid translation entry.");
 

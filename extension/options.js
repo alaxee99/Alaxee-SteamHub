@@ -160,10 +160,23 @@
     } catch (error) { report(error.message, true); }
   });
 
+  document.getElementById("pack-file").addEventListener("change", async (event) => {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    try {
+      document.getElementById("pack-json").value = await file.text();
+      report("已读取数据包文件：" + file.name);
+    } catch (error) {
+      report("读取文件失败：" + error.message, true);
+    } finally {
+      event.currentTarget.value = "";
+    }
+  });
+
   document.getElementById("import-pack").addEventListener("click", async () => {
     const raw = document.getElementById("pack-json").value.trim();
     if (!raw) {
-      report("请先粘贴游戏数据包 JSON", true);
+      report("请先选择或粘贴游戏数据包 JSON", true);
       return;
     }
 

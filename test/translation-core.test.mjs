@@ -395,6 +395,15 @@ test("game pack validation rejects duplicate item-locale keys and unsupported ad
 
   await assert.rejects(registry.importPack(pack), /duplicate/);
   await assert.rejects(
+    registry.importPack({
+      ...pack,
+      translations: [
+        { appId: "730", marketHashName: "Cross Game", locale: "zh-CN", translation: "不应串入" }
+      ]
+    }),
+    /does not match its game pack AppID/
+  );
+  await assert.rejects(
     registry.importPack({ ...pack, game: { ...pack.game, adapter: "arbitrary-site" }, translations: [] }),
     /supports the steam-community-market/
   );

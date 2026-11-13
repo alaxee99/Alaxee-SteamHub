@@ -67,8 +67,11 @@
         <div><span class="step">03</span><h2>批量导入数据包</h2></div>
         <p>适合为不同游戏制作、共享和维护独立翻译词库。</p>
       </div>
+      <label class="file-label">选择 JSON 数据包文件
+        <input id="pack-file" type="file" accept=".json,application/json">
+      </label>
       <label>游戏数据包 JSON
-        <textarea id="pack-json" rows="9" spellcheck="false" placeholder='{"format":"alaxee-steamhub-game-pack","schemaVersion":1,"game":{"appId":"3678970","name":"Task Bar Hero","adapter":"steam-community-market","itemKey":"market_hash_name","defaultLocale":"zh-CN"},"translations":[{"marketHashName":"Vol Soulstone - Normal","locale":"zh-CN","translation":"普通灵魂石"}]}'></textarea>
+        <textarea id="pack-json" rows="9" spellcheck="false" placeholder='{"format":"alaxee-steamhub-game-pack","schemaVersion":1,"game":{"appId":"3678970","name":"Task Bar Hero","adapter":"steam-community-market","itemKey":"market_hash_name","defaultLocale":"zh-CN"},"translations":[{"marketHashName":"Example Market Item A","locale":"zh-CN","translation":"示例物品甲"}]}'></textarea>
       </label>
       <div class="import-actions">
         <label class="mode-label">导入方式
