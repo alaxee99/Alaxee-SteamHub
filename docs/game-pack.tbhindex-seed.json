@@ -53,6 +53,36 @@
       "locale": "zh-CN",
       "translation": "奥术铭文卷轴",
       "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Sunstone",
+      "locale": "zh-CN",
+      "translation": "太阳石",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Jade Stone",
+      "locale": "zh-CN",
+      "translation": "翡翠石",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Gold Ingot",
+      "locale": "zh-CN",
+      "translation": "金锭",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Eternal Scepter (Legendary) C",
+      "locale": "zh-CN",
+      "translation": "永恒权杖",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Plague Fruit (Immortal)",
+      "locale": "zh-CN",
+      "translation": "瘟疫之果",
+      "source": "tbhindex.com"
     }
   ]
 }
