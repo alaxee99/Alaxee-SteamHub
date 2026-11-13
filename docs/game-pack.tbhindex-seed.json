@@ -83,6 +83,30 @@
       "locale": "zh-CN",
       "translation": "瘟疫之果",
       "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Buckler (Legendary) A",
+      "locale": "zh-CN",
+      "translation": "小圆盾",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Mystic Bow (Arcana) A",
+      "locale": "zh-CN",
+      "translation": "神秘之弓",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Dimensional Gloves (Cosmic) A",
+      "locale": "zh-CN",
+      "translation": "次元手套",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Limitless Crossbow (Cosmic) A",
+      "locale": "zh-CN",
+      "translation": "无限弩",
+      "source": "tbhindex.com"
     }
   ]
 }
