@@ -237,7 +237,7 @@
         !referencePack.game || referencePack.game.adapter !== "steam-community-market" ||
         referencePack.game.itemKey !== "market_hash_name" ||
         typeof referencePack.game.appId !== "string" ||
-        !/^[1-9]\\d{0,9}$/.test(referencePack.game.appId) ||
+        !/^[1-9]\d{0,9}$/.test(referencePack.game.appId) ||
         typeof referencePack.game.name !== "string" || !referencePack.game.name.trim() ||
         !Array.isArray(referencePack.translations)) {
       throw new TypeError("必须选择有效的 SteamHub 参考词库");
