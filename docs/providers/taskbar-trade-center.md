@@ -18,7 +18,7 @@ At the checked snapshot:
 - Total item records: 7,031
 - Records marked `marketable: true`: 1,127
 - Marketable records with a non-empty Simplified Chinese name and generated market key: 1,106 unique keys
-- Unique source IDs retained as optional `sourceItemId`: 1,095; repeated source IDs are omitted when more than one game row collapses to the same Steam key
+- Unique source IDs available from the source catalog: 1,095. The import pack retains 1,070 `sourceItemId` values; the 27 earlier TBH-verified rows preserve their original provenance metadata (including intentionally absent IDs) so they can be merged with the previous seed without needless source-field conflicts. Repeated IDs are omitted when multiple game rows collapse to the same Steam key
 - Marketable records excluded due missing English/key/Chinese values: 10 (the Common Plague Fruit grade family in this snapshot)
 - Conflicting Chinese translations for a collapsed key: 0
 
@@ -56,3 +56,8 @@ This is a dictionary candidate for Steam market name resolution, not a guarantee
 ## Privacy and redistribution
 
 Do not copy the entire upstream 3.6 MB catalog into SteamHub. The generated pack stores only marketable Steam-facing name keys, Chinese labels, optional item IDs, and attribution. Keep it private; do not publish a mirror of the underlying proprietary game assets or translations.
+
+
+## Import compatibility
+
+For the 27 earlier manually checked mappings, the bulk pack preserves the prior `source: tbhindex.com` label and the prior presence/absence of `sourceItemId`. This is intentional: a user who already imported `docs/game-pack.tbhindex-seed.json` can merge the full pack without those same keys appearing as conflicting provenance updates. The other bulk-generated entries use `source: task-bar-trade-center` and retain a unique game item ID when available.
