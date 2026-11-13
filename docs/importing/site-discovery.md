@@ -74,3 +74,10 @@ The same selected and already-fetched HTML page can be parsed as one item detail
 For site-specific pages, the user may provide a CSS selector for the source ID and/or translation node. A selector overrides the corresponding label matching. The page heading is displayed as context only and is never silently treated as a translation. Multiple different values for the selected ID or translation are marked ambiguous and cannot be converted. The preview shows the extracted ID, translation, page title and matched labels.
 
 A valid detail record contains exactly one source ID and one translation. It enters the same direct-exact-market-key or imported-reference-pack ItemKey mapping path as table/card records. The generated Game Pack remains staged for review; merge / replace must be chosen separately. Extraction reuses the selected page body and performs no second request, link traversal, pagination, JavaScript execution or bulk page fetching.
+
+
+## Real-page compatibility check: TaskBarHeroWiki Minor Ruby
+
+A manual one-item inspection was performed on the [Minor Ruby detail page](https://taskbarherowiki.com/items/110001). The page exposes Item ID #110001 and the English item name Minor Ruby. In the inspected rendered DOM, the ID node selector was `span.font-mono.text-xs.text-text-faint > span:nth-child(2)` and the heading selector was `h1.text-white.text-4xl.font-bold`.
+
+The inspected page did not expose a visible Simplified Chinese item name; its page language was English. Do not map the English heading into the zh-CN locale. The existing Task Bar Hero reference Game Pack independently contains the exact record sourceItemId 110001 → marketHashName Minor Ruby, with 小红宝石 as its Chinese translation. A regression test pins that exact one-item ID join. The source page terms restrict use to personal, non-commercial informational purposes and prohibit bulk scraping without prior written consent; this compatibility check does not authorize crawling its catalog.
