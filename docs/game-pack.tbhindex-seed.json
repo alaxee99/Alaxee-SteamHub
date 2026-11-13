@@ -143,6 +143,36 @@
       "locale": "zh-CN",
       "translation": "青金石",
       "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "War Helmet (Arcana) A",
+      "locale": "zh-CN",
+      "translation": "战争头盔",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Crimson Bracer (Arcana) A",
+      "locale": "zh-CN",
+      "translation": "绯红腕甲",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Knight Sword (Immortal) A",
+      "locale": "zh-CN",
+      "translation": "骑士之剑",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Steel Hatchet (Legendary) A",
+      "locale": "zh-CN",
+      "translation": "钢铁手斧",
+      "source": "tbhindex.com"
+    },
+    {
+      "marketHashName": "Fate Bolt (Arcana) A",
+      "locale": "zh-CN",
+      "translation": "命运弩箭",
+      "source": "tbhindex.com"
     }
   ]
 }
